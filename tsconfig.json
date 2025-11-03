@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "es2017",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "paths": {
+      "@src/*": ["src/*"], // 项目的根目录
+      "@modules/*": ["src/modules/*"], // 自定义模块
+      "@utils/*": ["src/utils/*"], // 实用工具
+      "@interfaces/*": ["src/interfaces/*"], // 接口定义
+      "@config/*": ["src/config/*"], // 配置文件
+      "@shared/*": ["src/shared/*"], // 跨模块共享内容
+    },
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "forceConsistentCasingInFileNames": false,
+    "noFallthroughCasesInSwitch": false
+  }
+}

@@ -1,0 +1,10 @@
+*.md
+node_modules/
+.git/
+.DS_Store
+.vscode/
+.dockerignore
+.eslintignore
+.eslintrc
+.prettierrc
+.prettierignore
