@@ -7,6 +7,7 @@ import { DatabaseModule } from './database/database.module';
 import { RedisModule } from '@modules/redis/redis.module';
 import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import { CommodityModule } from '@modules/commodity/commodity.module';
+import { CommodityCategoryModule } from '@modules/commodity-category/commodity-category.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { CommodityModule } from '@modules/commodity/commodity.module';
     CacheModule.register({ isGlobal: true }),
     RedisModule,
     CommodityModule,
+    CommodityCategoryModule,
   ],
   providers: [
     {
