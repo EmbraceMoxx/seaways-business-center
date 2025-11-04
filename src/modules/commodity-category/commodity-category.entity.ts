@@ -155,11 +155,4 @@ export class CommodityCategoryEntity {
 
   // 添加 children 属性用于构建树结构
   children?: CommodityCategoryEntity[];
-
-  @BeforeInsert()
-  generateId() {
-    if (!this.id) {
-      this.id = generateId();
-    }
-  }
 }

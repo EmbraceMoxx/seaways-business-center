@@ -26,11 +26,47 @@ export class CommodityCategoryService {
       .where('category.deleted = :deleted', {
         deleted: GlobalStatusEnum.NO,
       })
-      .orderBy('category.created_time', 'DESC');
+      .orderBy('category.sort_order', 'DESC');
 
     const categoryList = await queryBuilder.getMany();
 
     return await this.buildCategoryTree(categoryList);
+  }
+
+  /**
+   * 商品分类下拉选择列表-树状（未删除）
+   */
+  async getCategorySelectTree(): Promise<any[]> {
+    const queryBuilder = this.categoryRepositor
+      .createQueryBuilder('category')
+      .where('category.deleted = :deleted', {
+        deleted: GlobalStatusEnum.NO,
+      })
+      .orderBy('category.sort_order', 'DESC');
+
+    const categoryList = await queryBuilder.getMany();
+    const tree = await this.buildCategoryTree(categoryList);
+
+    // 转换为下拉选择所需格式
+    const convertToSelectFormat = (
+      categories: CommodityCategoryEntity[],
+    ): any[] => {
+      return categories.map((category) => {
+        const result: any = {
+          label: category.categoryName,
+          value: category.id,
+        };
+
+        // 只有当存在子节点时才添加children属性
+        if (category.children && category.children.length > 0) {
+          result.children = convertToSelectFormat(category.children);
+        }
+
+        return result;
+      });
+    };
+
+    return convertToSelectFormat(tree);
   }
 
   /**
@@ -40,6 +76,7 @@ export class CommodityCategoryService {
     return await this.categoryRepositor.findOne({
       where: {
         id,
+        deleted: GlobalStatusEnum.NO,
       },
     });
   }
@@ -63,6 +100,7 @@ export class CommodityCategoryService {
       const category = new CommodityCategoryEntity();
 
       // 1、初始化基础字段
+      category.id = generateId();
       category.categoryName = categoryName || '';
       category.description = description || '';
       category.sortOrder = sortOrder || 0;
@@ -87,16 +125,13 @@ export class CommodityCategoryService {
       // 5、检查同级分类下分类名称是否重复（当前层级唯一）
       await this.checkCategoryNameUnique(parentId, categoryName);
 
-      // 6、保存新分类（此时会生成真实的ID）
-      const savedCategory = await this.categoryRepositor.save(category);
-
-      // 7、设置父子关系
+      // 6、设置父子关系
       await this.setCategoryParentRelation(category, parentId);
 
-      // 8、重新保存更新后的分类信息
-      const finalCategory = await this.categoryRepositor.save(savedCategory);
+      // 7、重新保存更新后的分类信息
+      const finalCategory = await this.categoryRepositor.save(category);
 
-      // 9、如果有父级分类，需要更新父级分类为非叶子节点
+      // 8、如果有父级分类，需要更新父级分类为非叶子节点
       await this.updateParentAsNonLeaf(parentId);
 
       return finalCategory;
@@ -207,6 +242,36 @@ export class CommodityCategoryService {
       return savedCategory;
     } catch (error) {
       throw new BusinessException('修改失败: ' + error.message);
+    }
+  }
+
+  /**
+   * 删除商品分类
+   */
+  async deleteCategory(categoryId: string) {
+    try {
+      // 1、判断分类是否存在
+      const category = await this.getCategoryById(categoryId);
+      if (!category) {
+        throw new BusinessException(`分类不存在`);
+      }
+
+      // 2、检查分类下是否存在子分类
+      const childCount = await this.categoryRepositor.count({
+        where: {
+          parentId: categoryId,
+          deleted: GlobalStatusEnum.NO,
+        },
+      });
+      if (childCount > 0) {
+        throw new BusinessException(`存在子分类，请先删除子分类`);
+      }
+      // 3、执行删除操作（标记为已删除）
+      await this.categoryRepositor.update(categoryId, {
+        deleted: GlobalStatusEnum.YES,
+      });
+    } catch (error) {
+      throw new BusinessException(`删除失败: ${error.message}`);
     }
   }
 

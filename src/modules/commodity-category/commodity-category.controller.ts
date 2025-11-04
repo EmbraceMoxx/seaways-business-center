@@ -6,6 +6,7 @@ import {
   Put,
   UseGuards,
   Param,
+  Delete,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CommodityCategoryService } from './commodity-category.service';
@@ -27,6 +28,15 @@ export class CommodityCategoryController {
     SuccessResponseDto<CommodityCategoryEntity[]>
   > {
     const list = await this.categoryService.getCategoryListTree();
+    return new SuccessResponseDto(list);
+  }
+
+  @ApiOperation({ summary: '获取商品分类下拉树形列表' })
+  @Get('list-tree-select')
+  async getCategoryListTreeSelect(): Promise<
+    SuccessResponseDto<CommodityCategoryEntity[]>
+  > {
+    const list = await this.categoryService.getCategorySelectTree();
     return new SuccessResponseDto(list);
   }
 
@@ -53,5 +63,12 @@ export class CommodityCategoryController {
       user,
     );
     return new SuccessResponseDto(result, '修改成功');
+  }
+
+  @ApiOperation({ summary: '删除商品分类' })
+  @Delete(':id')
+  async deleteCategory(@Param('id') id: string): Promise<SuccessResponseDto> {
+    const result = await this.categoryService.deleteCategory(id);
+    return new SuccessResponseDto(result, '删除成功');
   }
 }
