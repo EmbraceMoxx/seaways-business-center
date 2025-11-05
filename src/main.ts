@@ -24,7 +24,7 @@ async function bootstrap() {
   httpApp.useGlobalInterceptors(new CatchErrorInterceptor());
 
   // 设置全局路径前缀
-  httpApp.setGlobalPrefix('business');
+  httpApp.setGlobalPrefix('api/business');
 
   // 配置Swagger文档
   const config = new DocumentBuilder()
@@ -53,7 +53,9 @@ async function bootstrap() {
     },
   });
 
-  console.log(`🚀 Swagger文档已启动: http://localhost:8081/business/api-docs`);
+  console.log(
+    `🚀 Swagger文档已启动: http://localhost:8081/api/business/api-docs`,
+  );
 
   await httpApp.listen(8081);
 }
