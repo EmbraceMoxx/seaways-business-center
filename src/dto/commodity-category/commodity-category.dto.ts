@@ -137,9 +137,11 @@ export class CategoryRequestDto {
   @ApiProperty({
     description: '分类编码',
     example: 'C01',
+    required: false,
   })
+  @IsOptional()
   @IsString({ message: '分类编码必须是字符串' })
-  categoryCode: string;
+  categoryCode?: string;
 
   @ApiProperty({
     description: '分类排序',
