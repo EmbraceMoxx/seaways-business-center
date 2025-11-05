@@ -25,7 +25,7 @@ ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=6144"
 
 # 暴露容器端口
-EXPOSE 8099
+EXPOSE 8081
 
 # 运行 Nest.js 应用
 CMD ["node", "dist/main"]
