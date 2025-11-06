@@ -9,12 +9,14 @@ import { BusinessException } from '@src/dto/common/common.dto';
 import { CategoryRequestDto } from '@src/dto';
 import { generateId } from '@src/utils';
 import { Not } from 'typeorm';
+import { CommodityService } from '../commodity/services/commodity.service';
 
 @Injectable()
 export class CommodityCategoryService {
   constructor(
     @InjectRepository(CommodityCategoryEntity)
     private categoryRepositor: Repository<CommodityCategoryEntity>,
+    private commodityService: CommodityService,
   ) {}
 
   /**
@@ -166,7 +168,12 @@ export class CommodityCategoryService {
         throw new BusinessException('分类不存在');
       }
 
-      // 2、如果禁用，需判断是否存在子分类
+      // 2、检查不可将自己设置为自己的父级
+      if (parentId === categoryId) {
+        throw new BusinessException('不能将分类设置为自身的子分类');
+      }
+
+      // 3、如果禁用，需判断是否存在子分类且子分类是否都禁用，且该分类是否被商品列表使用
       const hasDisabledChildren = await this.hasDisabledChildren(categoryId);
       const isHasChildren = await this.hasChildren(categoryId);
       if (
@@ -177,12 +184,20 @@ export class CommodityCategoryService {
         throw new BusinessException('请先禁用所有子分类');
       }
 
-      // 3、保存原始值用于后续比较
+      // 4、禁用时，判断该分类是否被商品列表使用
+      const isUsed = await this.commodityService.checkCategoryIsUsed(
+        categoryId,
+      );
+      if (enabled === GlobalStatusEnum.NO && isUsed) {
+        throw new BusinessException('该分类被商品列表使用，请先解除关联');
+      }
+
+      // 5、保存原始值用于后续比较
       const originalParentId = category.parentId;
       const originalCategoryCode = category.categoryCode;
       const originalCategoryName = category.categoryName;
 
-      // 4、更新基础字段--只有在提供了新值的情况下才更新字段
+      // 6、更新基础字段--只有在提供了新值的情况下才更新字段
       const fieldMap = {
         categoryName,
         description,
@@ -196,17 +211,17 @@ export class CommodityCategoryService {
         }
       });
 
-      // 5、更新修订信息
+      // 7、更新修订信息
       category.reviserId = user.userId;
       category.reviserName = user.username;
       category.revisedTime = dayjs().toDate();
 
-      // 6、只有分类编码有变更时才检查【编码唯一性】
+      // 8、只有分类编码有变更时才检查【编码唯一性】
       if (categoryCode !== undefined && categoryCode !== originalCategoryCode) {
         await this.checkCategoryCodeUnique(categoryCode, categoryId);
       }
 
-      // 7、只有分类名称或父级有变更时才检查【名称唯一性】
+      // 9、只有分类名称或父级有变更时才检查【名称唯一性】
       if (
         (categoryName !== undefined && categoryName !== originalCategoryName) ||
         (parentId !== undefined && parentId !== originalParentId)
@@ -221,7 +236,7 @@ export class CommodityCategoryService {
         );
       }
 
-      // 8、如果父级发生了变化，需要更新树结构关系
+      // 10、如果父级发生了变化，需要更新树结构关系
       // 判断是否需要处理父级变更逻辑:
       // 1. 明确传入parentId且与原parentId不同
       // 2. 未传入parentId但原本不是一级分类(需要转为一级分类)
@@ -235,12 +250,18 @@ export class CommodityCategoryService {
           throw new BusinessException('当前分类存子分类，无法更换父级');
         }
 
-        // 检查【旧父级】是否应变为叶子节点，一级节点不更改
-        if (originalParentId !== '1') {
+        // 先更新新父级为非叶子节点（如果有了新父级且不是一级分类）
+        if (parentId && parentId !== '1') {
+          await this.updateParentAsNonLeaf(parentId);
+        }
+
+        // 检查【旧父级】是否应变为叶子节点
+        // 注意：一级分类永远不应该成为叶子节点
+        if (originalParentId && originalParentId !== '1') {
           await this.updateParentAsLeaf(originalParentId, categoryId);
         }
 
-        // 直接设置分类的父子关系，而不是调用setCategoryParentRelation
+        // 设置分类的父子关系
         if (parentId === undefined) {
           // 转为一级分类
           category.parentId = '1';
@@ -255,9 +276,7 @@ export class CommodityCategoryService {
         if (category.parentId === '1') {
           // 一级分类始终为非叶子节点
           category.isLeaf = GlobalStatusEnum.NO;
-        } else if (parentId) {
-          // 更新【新父级】为非叶子节点（如果有新父级）
-          await this.updateParentAsNonLeaf(parentId);
+        } else {
           // 非一级分类默认为叶子节点（除非有子节点）
           category.isLeaf = GlobalStatusEnum.YES;
         }
@@ -266,7 +285,7 @@ export class CommodityCategoryService {
         category.isLeaf = GlobalStatusEnum.NO;
       }
 
-      // 9、保存更新后的分类
+      // 11、保存更新后的分类
       const savedCategory = await this.categoryRepositor.save(category);
 
       return savedCategory;
@@ -293,13 +312,21 @@ export class CommodityCategoryService {
         throw new BusinessException(`存在子分类，请先删除子分类`);
       }
 
-      // 3、判断更换上级isLeaf字段,不更改一级分类
+      // 3、判断该分类是否被商品列表使用
+      const isUsed = await this.commodityService.checkCategoryIsUsed(
+        categoryId,
+      );
+      if (isUsed) {
+        throw new BusinessException('该分类被商品列表使用，请先解除关联');
+      }
+
+      // 4、判断更换上级isLeaf字段,不更改一级分类
       const parentCategory = await this.getCategoryById(category.parentId);
       if (parentCategory?.parentId !== '1') {
         await this.updateParentAsLeaf(category.parentId, categoryId);
       }
 
-      // 4、执行删除操作（标记为已删除）
+      // 5、执行删除操作（标记为已删除）
       await this.categoryRepositor.update(categoryId, {
         deleted: GlobalStatusEnum.YES,
       });
@@ -446,9 +473,14 @@ export class CommodityCategoryService {
 
       // 该节点下无子集，则更新为叶子节点
       if (childCount === 0) {
-        await this.categoryRepositor.update(originalParentId, {
-          isLeaf: GlobalStatusEnum.YES,
-        });
+        // 再次确认该分类不是一级分类
+        const parentCategory = await this.getCategoryById(originalParentId);
+        // 只有非一级分类且无子节点时才设为叶子节点
+        if (parentCategory && parentCategory.parentId !== '1') {
+          await this.categoryRepositor.update(originalParentId, {
+            isLeaf: GlobalStatusEnum.YES,
+          });
+        }
       }
     }
   }

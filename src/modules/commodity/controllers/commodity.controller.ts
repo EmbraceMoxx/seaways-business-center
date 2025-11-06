@@ -31,4 +31,13 @@ export class CommodityController {
     const list = await this.commodityService.getcommodityPageList(body);
     return new SuccessResponseDto(list);
   }
+
+  @ApiOperation({ summary: '获取商品详情' })
+  @Get('commodityInfo/:id')
+  async getCommodityDetail(
+    @Param('id') id: string,
+  ): Promise<SuccessResponseDto<CommodityResponseDto>> {
+    const commodity = await this.commodityService.getCommodityById(id);
+    return new SuccessResponseDto(commodity);
+  }
 }

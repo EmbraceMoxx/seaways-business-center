@@ -2,9 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CommodityInfoEntity } from '../entities/commodity-info.entity';
+import { CommodityBundledSkuInfoEntity } from '../entities/commodity-bundled-sku-info.entity';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
-import { QueryCommodityDto, CommodityResponseDto } from '@src/dto';
+import {
+  QueryCommodityDto,
+  CommodityResponseDto,
+  CommodityBundledSkuResponseDto,
+} from '@src/dto';
 import { CommodityCategoryEntity } from '../../commodity-category/commodity-category.entity';
 
 @Injectable()
@@ -15,7 +20,6 @@ export class CommodityService {
   ) {}
 
   /**
-   *
    * 获取商品列表
    */
   async getcommodityPageList(
@@ -31,6 +35,7 @@ export class CommodityService {
         isQuotaInvolved,
         isSupplySubsidyInvolved,
         isGiftEligible,
+        enabled,
       } = params;
 
       // 分页参数--页码、页数
@@ -106,11 +111,18 @@ export class CommodityService {
       // 分类
       if (categoryId) {
         queryBuilder = queryBuilder.andWhere(
-          'commodity.commodity_second_category = :categoryId',
+          '(commodity.commodity_first_category = :categoryId OR commodity.commodity_second_category = :categoryId)',
           {
             categoryId,
           },
         );
+      }
+
+      // 是否启用
+      if (enabled) {
+        queryBuilder = queryBuilder.andWhere('commodity.enabled = :enabled', {
+          enabled,
+        });
       }
 
       // 商品状态
@@ -163,6 +175,197 @@ export class CommodityService {
       return { items: commodity, total };
     } catch (error) {
       throw new BusinessException('获取商品列表失败');
+    }
+  }
+
+  /**
+   * 获取商品详情
+   */
+  async getCommodityById(id: string): Promise<CommodityResponseDto> {
+    try {
+      // 使用 QueryBuilder 获取实体对象（不指定字段）
+      const commodity = await this.commodityRepositor
+        .createQueryBuilder('commodity')
+        .where('commodity.deleted = :deleted', {
+          deleted: GlobalStatusEnum.NO,
+        })
+        .andWhere('commodity.id = :id', { id })
+        .getOne();
+
+      if (!commodity) {
+        throw new BusinessException('商品不存在');
+      }
+
+      // 单独获取分类信息
+      let firstCategoryName = null;
+      let secondCategoryName = null;
+
+      if (commodity.commodityFirstCategory) {
+        const firstCategory = await this.commodityRepositor.manager
+          .getRepository(CommodityCategoryEntity)
+          .findOne({
+            where: { id: commodity.commodityFirstCategory },
+          });
+        firstCategoryName = firstCategory ? firstCategory.categoryName : null;
+      }
+
+      if (commodity.commoditySecondCategory) {
+        const secondCategory = await this.commodityRepositor.manager
+          .getRepository(CommodityCategoryEntity)
+          .findOne({
+            where: { id: commodity.commoditySecondCategory },
+          });
+        secondCategoryName = secondCategory
+          ? secondCategory.categoryName
+          : null;
+      }
+
+      // 构建返回对象
+      const response = {
+        ...commodity,
+        commodityFirstCategoryName: firstCategoryName,
+        commoditySecondCategoryName: secondCategoryName,
+      } as CommodityResponseDto;
+
+      if (commodity.isBundledProducts === 1) {
+        // 获取组合商品信息
+        const compositeCommodity =
+          await this.getBundledSkusWithCommodityInfoByCommodityId(id);
+        response.compositeCommodity = compositeCommodity;
+      } else {
+        response.compositeCommodity = [];
+      }
+
+      return response;
+    } catch (error) {
+      if (error instanceof BusinessException) {
+        throw error;
+      }
+      throw new BusinessException('获取商品详情失败');
+    }
+  }
+
+  /**
+   * 根据商品ID获取绑定的组合商品信息
+   */
+  async getBundledSkusWithCommodityInfoByCommodityId(
+    commodityId: string,
+  ): Promise<CommodityBundledSkuResponseDto[]> {
+    try {
+      // 查询绑定的组合商品信息
+      const bundledSkus = await this.commodityRepositor.manager
+        .getRepository(CommodityBundledSkuInfoEntity)
+        .createQueryBuilder('bundledSku')
+        .where('bundledSku.commodityId = :commodityId', { commodityId })
+        .andWhere('bundledSku.deleted = :deleted', {
+          deleted: GlobalStatusEnum.NO,
+        })
+        .getMany();
+
+      // 获取所有组合商品ID
+      const bundledCommodityIds = bundledSkus
+        .map((sku) => sku.bundledCommodityId)
+        .filter((id) => id !== null && id !== undefined);
+
+      // 批量查询组合商品详细信息
+      let bundledCommodityInfoMap: Record<
+        string,
+        {
+          commodityName: string;
+          commodityInternalCode: string;
+          commodityBarcode: string;
+          itemSpecInfo: string;
+        }
+      > = {};
+
+      if (bundledCommodityIds.length > 0) {
+        const bundledCommodities = await this.commodityRepositor
+          .createQueryBuilder('commodity')
+          .select([
+            'commodity.id',
+            'commodity.commodityName',
+            'commodity.commodityInternalCode',
+            'commodity.commodityBarcode',
+            'commodity.itemSpecInfo',
+          ])
+          .where('commodity.id IN (:...ids)', { ids: bundledCommodityIds })
+          .andWhere('commodity.deleted = :deleted', {
+            deleted: GlobalStatusEnum.NO,
+          })
+          .andWhere('commodity.enabled = :enabled', {
+            enabled: GlobalStatusEnum.YES,
+          })
+          .getMany();
+
+        // 构建ID到商品信息的映射
+        bundledCommodityInfoMap = bundledCommodities.reduce(
+          (map, commodity) => {
+            map[commodity.id] = {
+              commodityName: commodity.commodityName,
+              commodityInternalCode: commodity.commodityInternalCode || '',
+              commodityBarcode: commodity.commodityBarcode || '',
+              itemSpecInfo: commodity.itemSpecInfo || '',
+            };
+            return map;
+          },
+          {} as Record<
+            string,
+            {
+              commodityName: string;
+              commodityInternalCode: string;
+              commodityBarcode: string;
+              itemSpecInfo: string;
+            }
+          >,
+        );
+      }
+
+      // 构造返回结果
+      return bundledSkus.map((sku) => {
+        const commodityInfo = bundledCommodityInfoMap[
+          sku.bundledCommodityId
+        ] || {
+          commodityName: '',
+          commodityInternalCode: '',
+          commodityBarcode: '',
+          itemSpecInfo: '',
+        };
+
+        return {
+          id: String(sku.id),
+          commodityName: commodityInfo.commodityName,
+          commodityInternalCode: commodityInfo.commodityInternalCode,
+          commodityBarcode: commodityInfo.commodityBarcode,
+          itemSpecInfo: commodityInfo.itemSpecInfo,
+          bundledCommodityId: sku.bundledCommodityId,
+        };
+      });
+    } catch (error) {
+      throw new BusinessException('获取组合商品信息失败');
+    }
+  }
+
+  /**
+   * 根据分类id查询商品，判断当前分类是否被使用
+   */
+  async checkCategoryIsUsed(categoryId: string): Promise<boolean> {
+    try {
+      const isUsed = await this.commodityRepositor.manager
+        .getRepository(CommodityInfoEntity)
+        .createQueryBuilder('commodity')
+        .where('commodity.commodityFirstCategory = :categoryId', {
+          categoryId,
+        })
+        .orWhere('commodity.commoditySecondCategory = :categoryId', {
+          categoryId,
+        })
+        .andWhere('commodity.deleted = :deleted', {
+          deleted: GlobalStatusEnum.NO,
+        });
+
+      return (await isUsed.getCount()) > 0;
+    } catch (error) {
+      throw new BusinessException('查询商品失败');
     }
   }
 }

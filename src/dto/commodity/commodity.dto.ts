@@ -31,7 +31,7 @@ export class QueryCommodityDto extends PageRequestDto {
   commodityName?: string;
 
   @ApiProperty({
-    description: '分类（二级分类ID）',
+    description: '分类',
     required: false,
   })
   @IsOptional()
@@ -51,24 +51,32 @@ export class QueryCommodityDto extends PageRequestDto {
     required: false,
   })
   @IsOptional()
-  @IsIn(['1', '0'], { message: '是否参与额度计算必须是1-是，0-否' })
-  isQuotaInvolved?: string;
+  @IsIn([1, 0], { message: '是否参与额度计算必须是1-是，0-否' })
+  isQuotaInvolved?: number;
 
   @ApiProperty({
     description: '是否参与货补',
     required: false,
   })
   @IsOptional()
-  @IsIn(['1', '0'], { message: '是否参与货补必须是1-是，0-否' })
-  isSupplySubsidyInvolved?: string;
+  @IsIn([1, 0], { message: '是否参与货补必须是1-是，0-否' })
+  isSupplySubsidyInvolved?: number;
 
   @ApiProperty({
     description: '是否可做赠品',
     required: false,
   })
   @IsOptional()
-  @IsIn(['1', '0'], { message: '是否可做赠品必须是1-是，0-否' })
-  isGiftEligible?: string;
+  @IsIn([1, 0], { message: '是否可做赠品必须是1-是，0-否' })
+  isGiftEligible?: number;
+
+  @ApiProperty({
+    description: '是否启用',
+    required: false,
+  })
+  @IsOptional()
+  @IsIn(['YES', 'NO'], { message: '是否启用必须是YES-启用，NO-禁用' })
+  enabled?: string;
 }
 
 /**
@@ -137,21 +145,21 @@ export class CommodityResponseDto {
 
   @ApiProperty({
     description: '是否参与额度计算',
-    example: '1',
+    example: 1,
   })
-  isQuotaInvolved: string;
+  isQuotaInvolved: number;
 
   @ApiProperty({
     description: '是否参与货补',
-    example: '1',
+    example: 1,
   })
-  isSupplySubsidyInvolved: string;
+  isSupplySubsidyInvolved: number;
 
   @ApiProperty({
     description: '是否可做赠品',
-    example: '1',
+    example: 1,
   })
-  isGiftEligible: string;
+  isGiftEligible: number;
 
   @ApiProperty({
     description: '商品状态',
@@ -182,4 +190,51 @@ export class CommodityResponseDto {
     example: '2021-01-01 00:00:00',
   })
   createdTime: Date;
+
+  @ApiProperty({
+    description: '组合商品',
+    required: false,
+  })
+  @IsOptional()
+  compositeCommodity?: CommodityBundledSkuResponseDto[];
+}
+
+/**
+ * 组合商品响应信息DTO
+ */
+export class CommodityBundledSkuResponseDto {
+  @ApiProperty({
+    description: '主键',
+    example: '1',
+  })
+  id: string;
+
+  @ApiProperty({
+    description: '商品名称',
+    example: '水卫士洗碗机专用洗涤粉剂1Kg/瓶',
+  })
+  commodityName: string;
+
+  @ApiProperty({
+    description: '商品内部编码',
+  })
+  commodityInternalCode: string;
+
+  @ApiProperty({
+    description: '商品条码',
+    example: '6973688401213',
+  })
+  commodityBarcode: string;
+
+  @ApiProperty({
+    description: '箱规信息',
+    example: '260x240x50mm/个',
+  })
+  itemSpecInfo: string;
+
+  @ApiProperty({
+    description: '组合商品ID',
+    example: '1143705629588279297',
+  })
+  bundledCommodityId: string;
 }
