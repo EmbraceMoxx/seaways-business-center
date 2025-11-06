@@ -3,10 +3,8 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  BeforeInsert,
   PrimaryColumn,
 } from 'typeorm';
-import { generateId } from '@src/utils';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 
 @Entity('commodity_category')

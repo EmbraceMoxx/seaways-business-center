@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, In } from 'typeorm';
+import { Repository } from 'typeorm';
 import { CommodityCategoryEntity } from './commodity-category.entity';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
@@ -26,7 +26,7 @@ export class CommodityCategoryService {
       .where('category.deleted = :deleted', {
         deleted: GlobalStatusEnum.NO,
       })
-      .orderBy('category.sort_order', 'DESC');
+      .orderBy('category.created_time', 'DESC');
 
     const categoryList = await queryBuilder.getMany();
 
@@ -34,7 +34,7 @@ export class CommodityCategoryService {
   }
 
   /**
-   * 商品分类下拉选择列表-树状（未删除）
+   * 商品分类下拉选择列表-树状（未删除且启用）
    */
   async getCategorySelectTree(): Promise<any[]> {
     const queryBuilder = this.categoryRepositor
@@ -42,7 +42,10 @@ export class CommodityCategoryService {
       .where('category.deleted = :deleted', {
         deleted: GlobalStatusEnum.NO,
       })
-      .orderBy('category.sort_order', 'DESC');
+      .andWhere('category.enabled = :enabled', {
+        enabled: GlobalStatusEnum.YES,
+      })
+      .orderBy('category.created_time', 'DESC');
 
     const categoryList = await queryBuilder.getMany();
     const tree = await this.buildCategoryTree(categoryList);
@@ -116,8 +119,8 @@ export class CommodityCategoryService {
       category.reviserName = user.username;
       category.revisedTime = dayjs().toDate();
 
-      // 3、新创建的分类默认是叶子节点
-      category.isLeaf = GlobalStatusEnum.YES;
+      // 3、新创建的分类默认是【非】叶子节点
+      category.isLeaf = parentId ? GlobalStatusEnum.YES : GlobalStatusEnum.NO;
 
       // 4、检查分类编码是否唯一（全局唯一）
       await this.checkCategoryCodeUnique(categoryCode);
@@ -136,7 +139,7 @@ export class CommodityCategoryService {
 
       return finalCategory;
     } catch (error) {
-      throw new BusinessException('新增失败: ' + error.message);
+      throw new BusinessException(error.message);
     }
   }
 
@@ -163,12 +166,23 @@ export class CommodityCategoryService {
         throw new BusinessException('分类不存在');
       }
 
-      // 2、保存原始值用于后续比较
+      // 2、如果禁用，需判断是否存在子分类
+      const hasDisabledChildren = await this.hasDisabledChildren(categoryId);
+      const isHasChildren = await this.hasChildren(categoryId);
+      if (
+        enabled === GlobalStatusEnum.NO &&
+        isHasChildren &&
+        !hasDisabledChildren
+      ) {
+        throw new BusinessException('请先禁用所有子分类');
+      }
+
+      // 3、保存原始值用于后续比较
       const originalParentId = category.parentId;
       const originalCategoryCode = category.categoryCode;
       const originalCategoryName = category.categoryName;
 
-      // 3、更新基础字段--只有在提供了新值的情况下才更新字段
+      // 4、更新基础字段--只有在提供了新值的情况下才更新字段
       const fieldMap = {
         categoryName,
         description,
@@ -182,22 +196,22 @@ export class CommodityCategoryService {
         }
       });
 
-      // 4、更新修订信息
+      // 5、更新修订信息
       category.reviserId = user.userId;
       category.reviserName = user.username;
       category.revisedTime = dayjs().toDate();
 
-      // 5、只有分类编码有变更时才检查唯一性
+      // 6、只有分类编码有变更时才检查【编码唯一性】
       if (categoryCode !== undefined && categoryCode !== originalCategoryCode) {
         await this.checkCategoryCodeUnique(categoryCode, categoryId);
       }
 
-      // 6、只有分类名称或父级有变更时才检查名称唯一性
+      // 7、只有分类名称或父级有变更时才检查【名称唯一性】
       if (
         (categoryName !== undefined && categoryName !== originalCategoryName) ||
         (parentId !== undefined && parentId !== originalParentId)
       ) {
-        // 7、使用新的parentId或者保持原来的parentId
+        // 使用新的parentId或者保持原来的parentId
         const parentIdToCheck =
           parentId !== undefined ? parentId : originalParentId;
         await this.checkCategoryNameUnique(
@@ -208,32 +222,48 @@ export class CommodityCategoryService {
       }
 
       // 8、如果父级发生了变化，需要更新树结构关系
-      if (parentId !== originalParentId) {
-        // 检查【旧父级】是否应变为叶子节点
-        if (originalParentId && originalParentId !== '1') {
-          const childCount = await this.categoryRepositor.count({
-            where: {
-              parentId: originalParentId,
-              deleted: GlobalStatusEnum.NO,
-              id: Not(categoryId), // 排除当前正在移动的分类
-            },
-          });
+      // 判断是否需要处理父级变更逻辑:
+      // 1. 明确传入parentId且与原parentId不同
+      // 2. 未传入parentId但原本不是一级分类(需要转为一级分类)
+      const shouldHandleParentChange =
+        (parentId !== undefined && parentId !== originalParentId) ||
+        (parentId === undefined && originalParentId !== '1');
 
-          // 如果【旧父级】分类没有子分类了，则更新为叶子节点
-          if (childCount === 0) {
-            await this.categoryRepositor.update(originalParentId, {
-              isLeaf: GlobalStatusEnum.YES,
-            });
-          }
+      if (shouldHandleParentChange) {
+        // 检查当前分类是否存在未删除的子分类
+        if (isHasChildren) {
+          throw new BusinessException('当前分类存子分类，无法更换父级');
         }
 
-        // 先更新分类的父子关系
-        await this.setCategoryParentRelation(category, parentId);
+        // 检查【旧父级】是否应变为叶子节点，一级节点不更改
+        if (originalParentId !== '1') {
+          await this.updateParentAsLeaf(originalParentId, categoryId);
+        }
 
-        // 更新【新父级】为非叶子节点（如果有新父级）
-        if (parentId) {
+        // 直接设置分类的父子关系，而不是调用setCategoryParentRelation
+        if (parentId === undefined) {
+          // 转为一级分类
+          category.parentId = '1';
+          category.categoryLevel = 1;
+          category.idRoute = `1_${category.id}`;
+        } else {
+          // 更换到指定父级
+          await this.setCategoryParentRelation(category, parentId);
+        }
+
+        // 更新isLeaf状态
+        if (category.parentId === '1') {
+          // 一级分类始终为非叶子节点
+          category.isLeaf = GlobalStatusEnum.NO;
+        } else if (parentId) {
+          // 更新【新父级】为非叶子节点（如果有新父级）
           await this.updateParentAsNonLeaf(parentId);
+          // 非一级分类默认为叶子节点（除非有子节点）
+          category.isLeaf = GlobalStatusEnum.YES;
         }
+      } else if (originalParentId === '1') {
+        // 特殊处理：确保一级分类始终为非叶子节点
+        category.isLeaf = GlobalStatusEnum.NO;
       }
 
       // 9、保存更新后的分类
@@ -241,7 +271,7 @@ export class CommodityCategoryService {
 
       return savedCategory;
     } catch (error) {
-      throw new BusinessException('修改失败: ' + error.message);
+      throw new BusinessException(error.message);
     }
   }
 
@@ -256,22 +286,25 @@ export class CommodityCategoryService {
         throw new BusinessException(`分类不存在`);
       }
 
-      // 2、检查分类下是否存在子分类
-      const childCount = await this.categoryRepositor.count({
-        where: {
-          parentId: categoryId,
-          deleted: GlobalStatusEnum.NO,
-        },
-      });
-      if (childCount > 0) {
+      // 2、检查分类下是否有子集
+      const isHasChildren = await this.hasChildren(categoryId);
+
+      if (isHasChildren) {
         throw new BusinessException(`存在子分类，请先删除子分类`);
       }
-      // 3、执行删除操作（标记为已删除）
+
+      // 3、判断更换上级isLeaf字段,不更改一级分类
+      const parentCategory = await this.getCategoryById(category.parentId);
+      if (parentCategory?.parentId !== '1') {
+        await this.updateParentAsLeaf(category.parentId, categoryId);
+      }
+
+      // 4、执行删除操作（标记为已删除）
       await this.categoryRepositor.update(categoryId, {
         deleted: GlobalStatusEnum.YES,
       });
     } catch (error) {
-      throw new BusinessException(`删除失败: ${error.message}`);
+      throw new BusinessException(error.message);
     }
   }
 
@@ -393,5 +426,59 @@ export class CommodityCategoryService {
         isLeaf: GlobalStatusEnum.NO,
       });
     }
+  }
+
+  /**
+   * 更新父级分类为叶子节点
+   */
+  private async updateParentAsLeaf(
+    originalParentId: string,
+    categoryId: string,
+  ): Promise<void> {
+    if (originalParentId && originalParentId !== '1') {
+      const childCount = await this.categoryRepositor.count({
+        where: {
+          parentId: originalParentId,
+          deleted: GlobalStatusEnum.NO,
+          id: Not(categoryId), // 排除当前正在移动的分类
+        },
+      });
+
+      // 该节点下无子集，则更新为叶子节点
+      if (childCount === 0) {
+        await this.categoryRepositor.update(originalParentId, {
+          isLeaf: GlobalStatusEnum.YES,
+        });
+      }
+    }
+  }
+
+  /**
+   * 判断分类下是否存在被禁用的子分类
+   */
+  private async hasDisabledChildren(categoryId: string): Promise<boolean> {
+    const count = await this.categoryRepositor.count({
+      where: {
+        parentId: categoryId,
+        enabled: GlobalStatusEnum.NO,
+        deleted: GlobalStatusEnum.NO,
+      },
+    });
+
+    return count > 0;
+  }
+
+  /**
+   * 判断分类下是否存在未删除子分类
+   */
+  private async hasChildren(categoryId: string): Promise<boolean> {
+    const count = await this.categoryRepositor.count({
+      where: {
+        parentId: categoryId,
+        deleted: GlobalStatusEnum.NO,
+      },
+    });
+
+    return count > 0;
   }
 }
