@@ -8,6 +8,7 @@ import { RedisModule } from '@modules/redis/redis.module';
 import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import { CommodityModule } from '@modules/commodity/commodity.module';
 import { CommodityCategoryModule } from '@modules/commodity-category/commodity-category.module';
+import { SharedModule } from '@modules/shared/shared.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { CommodityCategoryModule } from '@modules/commodity-category/commodity-c
     RedisModule,
     CommodityModule,
     CommodityCategoryModule,
+    SharedModule,
   ],
   providers: [
     {

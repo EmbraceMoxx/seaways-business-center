@@ -21,15 +21,16 @@
     "swagger:export": "curl -o swagger.json http://localhost:3337/auth/api-docs-json"
   },
   "dependencies": {
-    "@alicloud/dysmsapi20170525": "^4.1.1",
     "@alicloud/ding-util": "^1.0.0",
     "@alicloud/dingtalk": "^2.2.29",
+    "@alicloud/dysmsapi20170525": "^4.1.1",
     "@alicloud/openapi-client": "^0.4.14",
     "@alicloud/tea-fileform": "^1.2.0",
     "@alicloud/tea-typescript": "^1.8.0",
     "@alicloud/tea-url": "^1.0.0",
     "@alicloud/tea-util": "^1.4.10",
     "@kingdee-nodejs/k3cloud": "^0.0.2",
+    "@nestjs/axios": "^4.0.1",
     "@nestjs/cache-manager": "^2.2.2",
     "@nestjs/common": "^9.0.0",
     "@nestjs/config": "^3.2.3",

@@ -250,3 +250,36 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 2. **类型安全**: 使用`JwtUserPayload`类型确保类型安全
 3. **错误处理**: 在控制器中适当处理用户不存在的异常
 4. **API文档**: 使用`@ApiBearerAuth()`装饰器生成正确的API文档
+
+# Http代理使用指南
+
+## 概述
+
+通过Http代理，调用其他服务中的接口
+
+## 使用方法
+
+### 1. 在config中配置请求前缀
+
+```JSON
+# HTTP Proxy
+httpProxy:
+  baseURL: http://192.168.110.163:5183/api
+```
+
+### 2. 请求示例 
+
+```typescript
+  import { CurrentToken } from '@src/decorators/current-token.decorator';
+
+  @Get('')
+  async getXxxList(
+    @CurrentToken() token: string,
+  ) {
+    const userMenuList = await this.httpProxy.get(
+      ResourceEndpoints.USER_MENU_ALL,
+      token,
+    );
+    this.logger.log(`userMenuList:${JSON.stringify(userMenuList)}`);
+  }
+```

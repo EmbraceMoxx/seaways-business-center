@@ -40,6 +40,10 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       .exists(`blacklist:${token}`)
       .then((isBlack) => {
         if (isBlack) throw new UnauthorizedException('Token has been revoked');
+
+        // 挂载Token
+        request.jwtToken = token;
+
         // 黑名单通过后，再走父类 JWT 验证
         return super.canActivate(context);
       });
