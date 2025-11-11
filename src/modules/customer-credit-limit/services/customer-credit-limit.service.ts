@@ -12,7 +12,10 @@ import {
   CreditLimitStatisticsResponseDto,
   CustomerInfoResponseDto,
   CustomerInfoCreditResponseDto,
+  CustomerInfoUpdateDto,
 } from '@src/dto';
+import { JwtUserPayload } from '@modules/auth/jwt.strategy';
+import * as dayjs from 'dayjs';
 
 @Injectable()
 export class CustomerCreditLimitService {
@@ -106,9 +109,46 @@ export class CustomerCreditLimitService {
     }
   }
 
+  /**
+   * 更新客户
+   */
+  async updateCustomerInfo(
+    customerId: string,
+    customerData: CustomerInfoUpdateDto,
+    user: JwtUserPayload,
+  ) {
+    try {
+      // 1、获判断客户是否存在
+      const customerInfo = await this.getCustomerInfoById(customerId);
+      if (!customerInfo) {
+        throw new BusinessException('客户不存在');
+      }
+      // 2、更新客户信息
+      const customer = new CustomerInfoEntity();
+      customer.id = customerId;
+      customer.regionalHead = customerData?.regionalHead;
+      customer.provincialHead = customerData?.provincialHead;
+      customer.distributorType = customerData?.distributorType;
+      customer.contractValidityPeriod = customerData?.contractValidityPeriod;
+      customer.contractAmount = customerData?.contractAmount;
+      customer.reconciliationMail = customerData?.reconciliationMail;
+      customer.coStatus = customerData?.coStatus;
+
+      // 3、当前更新人信息
+      customer.reviserId = user.userId;
+      customer.reviserName = user.username;
+      customer.revisedTime = dayjs().toDate();
+
+      // 4、执行更新
+      await this.customerInfoRepositor.update(customerId, customer);
+    } catch (error) {
+      throw new BusinessException(error.message);
+    }
+  }
+
   // -------------------------------辅助方法------------------------------------
   /**
-   * 获取客户额度统计信息
+   * 获取客户额度列表-客户额度统计累计信息
    */
   private async getCreditStatistics(
     queryBuilder: any,
@@ -169,7 +209,10 @@ export class CustomerCreditLimitService {
   }
 
   /**
-   * 先获取当月的客户月度信息
+   * 获取当月的客户月度信息
+   * @param customerId 客户ID
+   * @param year 年份
+   * @param month 月份
    */
   private async getMonthlyCreditInfo(
     customerId: string,

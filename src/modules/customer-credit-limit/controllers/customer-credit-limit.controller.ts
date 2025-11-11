@@ -14,7 +14,10 @@ import {
   QueryCreditLimitDto,
   CreditLimitListResponseDto,
   CustomerInfoResponseDto,
+  CustomerInfoUpdateDto,
 } from '@src/dto';
+import { JwtUserPayload } from '@modules/auth/jwt.strategy';
+import { CurrentUser } from '@src/decorators/current-user.decorator';
 
 @ApiTags('客户额度')
 @ApiBearerAuth()
@@ -38,5 +41,16 @@ export class CustomerCreditLimitController {
   ): Promise<SuccessResponseDto<CustomerInfoResponseDto>> {
     const commodity = await this.CreditLimitService.getCustomerInfoById(id);
     return new SuccessResponseDto(commodity);
+  }
+
+  @ApiOperation({ summary: '更新客户信息' })
+  @Put('updateCustomerInfo/:id')
+  async updateCustomerInfo(
+    @Param('id') id: string,
+    @Body() cstomerInfo: CustomerInfoUpdateDto,
+    @CurrentUser() user: JwtUserPayload,
+  ): Promise<SuccessResponseDto<CustomerInfoResponseDto>> {
+    await this.CreditLimitService.updateCustomerInfo(id, cstomerInfo, user);
+    return new SuccessResponseDto(null, '更新成功');
   }
 }

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsIn, IsNotEmpty } from 'class-validator';
 import { PageRequestDto } from '@src/dto/common/common.dto';
 
 /**
@@ -391,4 +391,72 @@ export class CustomerInfoCreditResponseDto {
     required: false,
   })
   cumulativeCredit?: CreditLimitStatisticsResponseDto;
+}
+
+/**
+ * 客户信息更新请求DTO
+ */
+export class CustomerInfoUpdateDto {
+  @ApiProperty({
+    description: '大区负责人',
+    example: '张三',
+    required: false,
+  })
+  @IsNotEmpty()
+  @IsString({ message: '大区负责人必须是字符串' })
+  regionalHead?: string;
+
+  @ApiProperty({
+    description: '省区负责人',
+    example: '李四',
+    required: false,
+  })
+  @IsNotEmpty()
+  @IsString({ message: '省区负责人必须是字符串' })
+  provincialHead?: string;
+
+  @ApiProperty({
+    description: '经销商类型，多个使用逗号间隔',
+    example: '一级经销商,二级经销商',
+    required: false,
+  })
+  @IsNotEmpty()
+  @IsString({ message: '经销商类型必须是字符串' })
+  distributorType?: string;
+
+  @ApiProperty({
+    description: '合同有效期',
+    example: '2023-01-01至2023-12-31',
+    required: false,
+  })
+  @IsNotEmpty()
+  @IsString({ message: '合同有效期必须是字符串' })
+  contractValidityPeriod?: string;
+
+  @ApiProperty({
+    description: '合同任务金额，元',
+    example: 100000.0,
+    required: false,
+  })
+  @IsNotEmpty()
+  @IsString({ message: '合同任务金额必须是字符串' })
+  contractAmount?: string;
+
+  @ApiProperty({
+    description: '对账邮箱',
+    example: 'finance@company.com',
+    required: false,
+  })
+  @IsNotEmpty()
+  @IsString({ message: '对账邮箱必须是字符串' })
+  reconciliationMail?: string;
+
+  @ApiProperty({
+    description: '客户合作状态：1-合作 0-不合作',
+    example: '1',
+    required: false,
+  })
+  @IsNotEmpty()
+  @IsIn(['1', '0'], { message: '客户合作状态只能是1或0' })
+  coStatus?: string;
 }
