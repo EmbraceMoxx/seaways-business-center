@@ -160,9 +160,13 @@ export class CustomerCreditLimitService {
         'SUM(credit.repaymentAmount) as repaymentAmount',
         'SUM(credit.auxiliarySaleGoodsAmount) as auxiliarySaleGoodsAmount',
         'SUM(credit.usedAuxiliarySaleGoodsAmount) as usedAuxiliarySaleGoodsAmount',
+        'SUM(credit.frozenSaleGoodsAmount) as frozenSaleGoodsAmount',
+        'SUM(credit.frozenUsedSaleGoodsAmount) as frozenUsedSaleGoodsAmount',
         'SUM(credit.remainAuxiliarySaleGoodsAmount) as remainAuxiliarySaleGoodsAmount',
         'SUM(credit.replenishingGoodsAmount) as replenishingGoodsAmount',
         'SUM(credit.usedReplenishingGoodsAmount) as usedReplenishingGoodsAmount',
+        'SUM(credit.frozenReplenishingGoodsAmount) as frozenReplenishingGoodsAmount',
+        'SUM(credit.frozenUsedReplenishingGoodsAmount) as frozenUsedReplenishingGoodsAmount',
         'SUM(credit.remainReplenishingGoodsAmount) as remainReplenishingGoodsAmount',
       ])
       .getRawOne();
@@ -177,6 +181,17 @@ export class CustomerCreditLimitService {
     customerId: string,
   ): Promise<CustomerInfoCreditResponseDto> {
     try {
+      // 默认信息
+      const defaultCreditInfo: CreditLimitStatisticsResponseDto = {
+        shippedAmount: '',
+        repaymentAmount: '',
+        auxiliarySaleGoodsAmount: '',
+        usedAuxiliarySaleGoodsAmount: '',
+        remainAuxiliarySaleGoodsAmount: '',
+        replenishingGoodsAmount: '',
+        usedReplenishingGoodsAmount: '',
+        remainReplenishingGoodsAmount: '',
+      };
       // 1、先获取当月的客户月度信息
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
@@ -199,9 +214,9 @@ export class CustomerCreditLimitService {
       const cumulativeCredit = await this.getCumulativeCreditInfo(customerId);
 
       return {
-        monthlyCredit,
-        annualCredit,
-        cumulativeCredit,
+        monthlyCredit: monthlyCredit || defaultCreditInfo,
+        annualCredit: annualCredit || defaultCreditInfo,
+        cumulativeCredit: cumulativeCredit || defaultCreditInfo,
       };
     } catch (error) {
       throw new BusinessException('获取客户详情失败');

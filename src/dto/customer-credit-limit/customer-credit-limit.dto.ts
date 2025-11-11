@@ -82,6 +82,18 @@ export class CreditLimitResponseDto {
   usedAuxiliarySaleGoodsAmount: string;
 
   @ApiProperty({
+    description: '冻结产生辅销金额，元',
+    example: 150.0,
+  })
+  frozenSaleGoodsAmount: string;
+
+  @ApiProperty({
+    description: '冻结使用辅销品金额，元',
+    example: 150.0,
+  })
+  frozenUsedSaleGoodsAmount: string;
+
+  @ApiProperty({
     description: '剩余辅销金额，元',
     example: 150.0,
   })
@@ -92,6 +104,18 @@ export class CreditLimitResponseDto {
     example: 500.0,
   })
   usedReplenishingGoodsAmount: string;
+
+  @ApiProperty({
+    description: '冻结产生货补金额，元',
+    example: 150.0,
+  })
+  frozenReplenishingGoodsAmount: string;
+
+  @ApiProperty({
+    description: '冻结使用货补金额，元',
+    example: 150.0,
+  })
+  frozenUsedReplenishingGoodsAmount: string;
 
   @ApiProperty({
     description: '剩余货补金额，元',

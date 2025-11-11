@@ -90,6 +90,26 @@ export class CustomerCreditAmountInfoEntity {
   usedAuxiliarySaleGoodsAmount: string;
 
   @Column({
+    name: 'frozen_sale_goods_amount',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    comment: '冻结产生辅销金额，元',
+  })
+  frozenSaleGoodsAmount: string;
+
+  @Column({
+    name: 'frozen_used_sale_goods_amount',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    comment: '冻结使用辅销品金额，元',
+  })
+  frozenUsedSaleGoodsAmount: string;
+
+  @Column({
     name: 'remain_auxiliary_sale_goods_amount',
     type: 'decimal',
     precision: 12,
@@ -108,6 +128,26 @@ export class CustomerCreditAmountInfoEntity {
     comment: '已提货补金额，元',
   })
   usedReplenishingGoodsAmount: string;
+
+  @Column({
+    name: 'frozen_replenishing_goods_amount',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    comment: '冻结产生货补金额，元',
+  })
+  frozenReplenishingGoodsAmount: string;
+
+  @Column({
+    name: 'frozen_used_replenishing_goods_amount',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    comment: '冻结使用货补金额，元',
+  })
+  frozenUsedReplenishingGoodsAmount: string;
 
   @Column({
     name: 'remain_replenishing_goods_amount',
