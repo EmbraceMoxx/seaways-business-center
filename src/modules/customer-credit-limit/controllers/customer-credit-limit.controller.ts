@@ -5,11 +5,7 @@ import {
   SuccessResponseDto,
   QueryCreditLimitDto,
   CreditLimitListResponseDto,
-  CustomerInfoResponseDto,
-  CustomerInfoUpdateDto,
 } from '@src/dto';
-import { JwtUserPayload } from '@modules/auth/jwt.strategy';
-import { CurrentUser } from '@src/decorators/current-user.decorator';
 
 @ApiTags('客户额度')
 @ApiBearerAuth()
@@ -19,30 +15,10 @@ export class CustomerCreditLimitController {
 
   @ApiOperation({ summary: '获取客户额度列表' })
   @Post('list')
-  async getCommodityList(
+  async getCreditPageList(
     @Body() body: QueryCreditLimitDto,
   ): Promise<SuccessResponseDto<CreditLimitListResponseDto>> {
     const list = await this.CreditLimitService.getCreditPageList(body);
     return new SuccessResponseDto(list);
-  }
-
-  @ApiOperation({ summary: '获取客户详情' })
-  @Get('customerInfo/:id')
-  async getCustomerInfo(
-    @Param('id') id: string,
-  ): Promise<SuccessResponseDto<CustomerInfoResponseDto>> {
-    const commodity = await this.CreditLimitService.getCustomerInfoById(id);
-    return new SuccessResponseDto(commodity);
-  }
-
-  @ApiOperation({ summary: '更新客户信息' })
-  @Put('updateCustomerInfo/:id')
-  async updateCustomerInfo(
-    @Param('id') id: string,
-    @Body() cstomerInfo: CustomerInfoUpdateDto,
-    @CurrentUser() user: JwtUserPayload,
-  ): Promise<SuccessResponseDto<CustomerInfoResponseDto>> {
-    await this.CreditLimitService.updateCustomerInfo(id, cstomerInfo, user);
-    return new SuccessResponseDto(null, '更新成功');
   }
 }

@@ -1,10 +1,9 @@
-import { Module, Global } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommodityController } from './controllers/commodity.controller';
 import { CommodityService } from './services/commodity.service';
 import { CommodityInfoEntity } from './entities/commodity-info.entity';
 
-@Global()
 @Module({
   imports: [TypeOrmModule.forFeature([CommodityInfoEntity])],
   providers: [CommodityService],

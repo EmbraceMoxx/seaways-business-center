@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { CustomerCreditLimitDetail } from './customer-credit-limit-detail.entity';
-import { CustomerInfoEntity } from '../customer-credit-limit/entities/customer-info.entity';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import { CustomerCreditLimitService } from '@src/modules/customer-credit-limit/services/customer-credit-limit.service';
@@ -13,14 +12,14 @@ import {
 } from '@src/dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
+import { CustomerService } from '@src/modules/customer/customer.service';
 
 @Injectable()
 export class CustomerCreditLimitDetailService {
   constructor(
     @InjectRepository(CustomerCreditLimitDetail)
     private creditDetailRepositor: Repository<CustomerCreditLimitDetail>,
-    @InjectRepository(CustomerInfoEntity)
-    private customerInfoRepositor: Repository<CustomerInfoEntity>,
+    private customerService: CustomerService,
     private customerCreditLimitService: CustomerCreditLimitService,
     private dataSource: DataSource,
   ) {}
@@ -91,17 +90,17 @@ export class CustomerCreditLimitDetailService {
   }
 
   /**
-   * 新增客户个度流水
+   * 新增客户额度流水
    */
-  async addCommodity(
+  async addCreditDetail(
     creditParam: CreditLimitDetailRequestDto,
     userPayload: JwtUserPayload,
   ) {
     try {
       // 1、获取客户信息
-      const customer = await this.customerInfoRepositor.findOneBy({
-        id: creditParam?.customerId,
-      });
+      const customer = await this.customerService.getCustomerInfoById(
+        creditParam?.customerId,
+      );
       if (!customer) {
         throw new BusinessException('客户不存在');
       }
@@ -156,9 +155,7 @@ export class CustomerCreditLimitDetailService {
   async onReceipt(flag: boolean, customerId: string, user: JwtUserPayload) {
     try {
       // 1、判断该客户是否存在
-      const customer = this.customerInfoRepositor.findOneBy({
-        id: customerId,
-      });
+      const customer = this.customerService.getCustomerInfoById(customerId);
       if (!customer) {
         throw new BusinessException('客户不存在');
       }

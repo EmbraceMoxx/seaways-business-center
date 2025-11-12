@@ -10,6 +10,7 @@ import { CommodityModule } from '@modules/commodity/commodity.module';
 import { CommodityCategoryModule } from '@modules/commodity-category/commodity-category.module';
 import { CustomerCreditLimitModule } from '@modules/customer-credit-limit/customer-credit-limit.module';
 import { CustomerCreditLimitDetailModule } from '@modules/customer-credit-limit-detail/customer-credit-limit-detail.module';
+import { CustomerModule } from '@modules/customer/customer.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { CustomerCreditLimitDetailModule } from '@modules/customer-credit-limit-
     CommodityCategoryModule,
     CustomerCreditLimitModule,
     CustomerCreditLimitDetailModule,
+    CustomerModule,
   ],
   providers: [
     {

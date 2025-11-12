@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CustomerCreditAmountInfoEntity } from '../entities/customer-credit-limit.entity';
-import { CustomerInfoEntity } from '../entities/customer-info.entity';
 import { CustomerMonthlyCreditLimitEntity } from '../entities/customer-monthly-credit-limit.entity';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
@@ -10,23 +9,16 @@ import {
   QueryCreditLimitDto,
   CreditLimitListResponseDto,
   CreditLimitStatisticsResponseDto,
-  CustomerInfoResponseDto,
   CustomerInfoCreditResponseDto,
-  CustomerInfoUpdateDto,
   CreditLimitDetailResponseDto,
   CreditLimitResponseDto,
 } from '@src/dto';
-import { JwtUserPayload } from '@modules/auth/jwt.strategy';
-import * as dayjs from 'dayjs';
-import { log } from 'console';
 
 @Injectable()
 export class CustomerCreditLimitService {
   constructor(
     @InjectRepository(CustomerCreditAmountInfoEntity)
     private creditRepositor: Repository<CustomerCreditAmountInfoEntity>,
-    @InjectRepository(CustomerInfoEntity)
-    private customerInfoRepositor: Repository<CustomerInfoEntity>,
     @InjectRepository(CustomerMonthlyCreditLimitEntity)
     private monthlyCreditRepositor: Repository<CustomerMonthlyCreditLimitEntity>,
   ) {}
@@ -83,73 +75,6 @@ export class CustomerCreditLimitService {
       return { items, total, statisticsInfo };
     } catch (error) {
       throw new BusinessException('获取客户额度列表失败');
-    }
-  }
-
-  /**
-   * 获取客户额详情
-   */
-  async getCustomerInfoById(id: string): Promise<
-    CustomerInfoResponseDto & {
-      creditInfo: CustomerInfoCreditResponseDto;
-    }
-  > {
-    try {
-      // 查询详情
-      const customerInfo = await this.customerInfoRepositor.findOne({
-        where: {
-          id,
-          deleted: GlobalStatusEnum.NO,
-        },
-      });
-
-      // 获取客户额度详情-额度信息
-      const creditInfo = await this.getCustomerCreditInfo(id);
-
-      return { ...customerInfo, creditInfo };
-    } catch (error) {
-      throw new BusinessException('获取客户详情失败');
-    }
-  }
-
-  /**
-   * 更新客户
-   */
-  async updateCustomerInfo(
-    customerId: string,
-    customerData: CustomerInfoUpdateDto,
-    user: JwtUserPayload,
-  ) {
-    try {
-      // 1、获判断客户是否存在
-      const customerInfo = await this.getCustomerInfoById(customerId);
-      if (!customerInfo) {
-        throw new BusinessException('客户不存在');
-      }
-      // 2、更新客户信息
-      const customer = new CustomerInfoEntity();
-      customer.id = customerId;
-      customer.regionalHead = customerData?.regionalHead;
-      customer.regionalHeadId = customerData?.regionalHeadId;
-      customer.provincialHead = customerData?.provincialHead;
-      customer.provincialHeadId = customerData?.provincialHeadId;
-      customer.distributorType = customerData?.distributorType;
-      customer.contractValidityPeriod = customerData?.contractValidityPeriod;
-      customer.contractAmount = customerData?.contractAmount
-        ? String(customerData?.contractAmount)
-        : null;
-      customer.reconciliationMail = customerData?.reconciliationMail;
-      customer.coStatus = customerData?.coStatus;
-
-      // 3、当前更新人信息
-      customer.reviserId = user.userId;
-      customer.reviserName = user.username;
-      customer.revisedTime = dayjs().toDate();
-
-      // 4、执行更新
-      await this.customerInfoRepositor.update(customerId, customer);
-    } catch (error) {
-      throw new BusinessException(error.message);
     }
   }
 

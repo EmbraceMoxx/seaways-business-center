@@ -20,7 +20,7 @@ export class CustomerCreditLimitDetailController {
 
   @ApiOperation({ summary: '获取客户额度流水明细列表' })
   @Post('list')
-  async getCommodityList(
+  async getCreditDetailPageList(
     @Body() body: QueryCreditLimiDetailtDto,
   ): Promise<
     SuccessResponseDto<{ items: CreditLimitDetailResponseDto[]; total: number }>
@@ -33,11 +33,11 @@ export class CustomerCreditLimitDetailController {
 
   @ApiOperation({ summary: '新增客户额度流水明细' })
   @Post('create')
-  async addCommodity(
+  async addCreditDetail(
     @Body() body: CreditLimitDetailRequestDto,
     @CurrentUser() user: JwtUserPayload,
   ) {
-    await this.CreditLimitDetailService.addCommodity(body, user);
+    await this.CreditLimitDetailService.addCreditDetail(body, user);
     return new SuccessResponseDto(null, '新增成功');
   }
 
