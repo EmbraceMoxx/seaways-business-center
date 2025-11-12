@@ -36,7 +36,7 @@ export class CustomerInfoEntity {
     name: 'customer_type',
     type: 'int',
     default: -1,
-    comment: '类型：1-店铺2-分销商-1待确认',
+    comment: '类型：1-店铺，2-分销商，-1-待开通',
   })
   customerType: number;
 

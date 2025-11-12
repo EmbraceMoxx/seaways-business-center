@@ -259,7 +259,7 @@ export class CustomerInfoResponseDto {
   customerJstId: string;
 
   @ApiProperty({
-    description: '客户类型：1-店铺 2-分销商 -1待确认',
+    description: '客户类型：1-店铺 2-分销商 -1待开通',
     example: 1,
   })
   customerType: number;
@@ -424,27 +424,43 @@ export class CustomerInfoUpdateDto {
   @ApiProperty({
     description: '大区负责人',
     example: '张三',
-    required: false,
   })
   @IsNotEmpty()
   @IsString({ message: '大区负责人必须是字符串' })
-  regionalHead?: string;
+  regionalHead: string;
+
+  @ApiProperty({
+    description: '大区负责人Id',
+    example: '123456789012346',
+  })
+  @IsNotEmpty()
+  @IsString({ message: '大区负责人Id必须是字符串' })
+  regionalHeadId: string;
 
   @ApiProperty({
     description: '省区负责人',
     example: '李四',
     required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString({ message: '省区负责人必须是字符串' })
   provincialHead?: string;
+
+  @ApiProperty({
+    description: '省区负责人Id',
+    example: '12221',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '省区负责人Id必须是字符串' })
+  provincialHeadId?: string;
 
   @ApiProperty({
     description: '经销商类型，多个使用逗号间隔',
     example: '一级经销商,二级经销商',
     required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString({ message: '经销商类型必须是字符串' })
   distributorType?: string;
 
@@ -453,7 +469,7 @@ export class CustomerInfoUpdateDto {
     example: '2023-01-01至2023-12-31',
     required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString({ message: '合同有效期必须是字符串' })
   contractValidityPeriod?: string;
 
@@ -462,7 +478,7 @@ export class CustomerInfoUpdateDto {
     example: 100000.0,
     required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString({ message: '合同任务金额必须是字符串' })
   contractAmount?: string;
 
@@ -471,16 +487,15 @@ export class CustomerInfoUpdateDto {
     example: 'finance@company.com',
     required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString({ message: '对账邮箱必须是字符串' })
   reconciliationMail?: string;
 
   @ApiProperty({
     description: '客户合作状态：1-合作 0-不合作',
     example: '1',
-    required: false,
   })
   @IsNotEmpty()
   @IsIn(['1', '0'], { message: '客户合作状态只能是1或0' })
-  coStatus?: string;
+  coStatus: string;
 }

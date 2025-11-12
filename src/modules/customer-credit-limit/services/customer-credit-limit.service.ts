@@ -127,7 +127,9 @@ export class CustomerCreditLimitService {
       const customer = new CustomerInfoEntity();
       customer.id = customerId;
       customer.regionalHead = customerData?.regionalHead;
+      customer.regionalHeadId = customerData?.regionalHeadId;
       customer.provincialHead = customerData?.provincialHead;
+      customer.provincialHeadId = customerData?.provincialHeadId;
       customer.distributorType = customerData?.distributorType;
       customer.contractValidityPeriod = customerData?.contractValidityPeriod;
       customer.contractAmount = customerData?.contractAmount;
