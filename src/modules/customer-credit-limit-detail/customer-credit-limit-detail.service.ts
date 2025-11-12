@@ -13,6 +13,7 @@ import {
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
 import { CustomerService } from '@src/modules/customer/customer.service';
+import { TimeFormatterUtil } from '@utils/time-formatter.util';
 
 @Injectable()
 export class CustomerCreditLimitDetailService {
@@ -31,7 +32,8 @@ export class CustomerCreditLimitDetailService {
     params: QueryCreditLimiDetailtDto,
   ): Promise<{ items: CreditLimitDetailResponseDto[]; total: number }> {
     try {
-      const { customerName, onlineOrderId, flowCode } = params;
+      const { customerName, onlineOrderId, flowCode, startTime, endTime } =
+        params;
       // 分页参数--页码、页数
       const page = Math.max(1, Number(params.page) || 1);
       const pageSize = Number(params.pageSize) || 20;
@@ -70,6 +72,38 @@ export class CustomerCreditLimitDetailService {
             onlineOrderId: `%${onlineOrderId}%`,
           },
         );
+      }
+
+      // 时间范围查询
+      if (startTime || endTime) {
+        const timeRange = TimeFormatterUtil.getTimeRange(startTime, endTime);
+
+        if (startTime && endTime) {
+          // 时间范围查询：开始时间 <= created_time <= 结束时间
+          queryBuilder = queryBuilder.andWhere(
+            'creditDetail.created_time BETWEEN :startTime AND :endTime',
+            {
+              startTime: timeRange.start,
+              endTime: timeRange.end,
+            },
+          );
+        } else if (startTime) {
+          // 只查询开始时间之后的数据：created_time >= 开始时间
+          queryBuilder = queryBuilder.andWhere(
+            'creditDetail.created_time >= :startTime',
+            {
+              startTime: timeRange.start,
+            },
+          );
+        } else if (endTime) {
+          // 只查询结束时间之前的数据：created_time <= 结束时间
+          queryBuilder = queryBuilder.andWhere(
+            'creditDetail.created_time <= :endTime',
+            {
+              endTime: timeRange.end,
+            },
+          );
+        }
       }
 
       // 执行计数查询
@@ -163,13 +197,18 @@ export class CustomerCreditLimitDetailService {
       return await this.dataSource.transaction(async (manager) => {
         // 2.1 获取流水详情信息
         const creditDetail = await this.getCreditDetailById(customerId);
-        // 2.2、计算并修改客户额度列表的相关金额
+
+        // 2.2 判断该流水是否可操作
+        if (creditDetail?.status !== -1) {
+          throw new BusinessException('该流水已处理');
+        }
+        // 2.3、计算并修改客户额度列表的相关金额
         await this.customerCreditLimitService.updateAuxiliaryAndReplenishingAmount(
           creditDetail,
           flag,
           manager,
         );
-        // 2.3、修改流水列表的状态 1为已完成，2为已关闭
+        // 2.4、修改流水列表的状态 1为已完成，2为已关闭
         const params = {
           status: flag ? 1 : 2,
           reviserId: user?.userId,

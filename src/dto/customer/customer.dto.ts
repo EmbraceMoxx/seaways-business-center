@@ -4,7 +4,7 @@ import { PageRequestDto } from '@src/dto/common/common.dto';
 import { CreditLimitStatisticsResponseDto } from '../customer-credit-limit/customer-credit-limit.dto';
 
 /**
- * 客户额度列表查询参数DTO
+ * 客户列表查询参数DTO
  */
 export class QueryCustomerDto extends PageRequestDto {
   @ApiProperty({

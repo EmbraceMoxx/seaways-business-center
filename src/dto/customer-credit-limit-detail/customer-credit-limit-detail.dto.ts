@@ -29,6 +29,22 @@ export class QueryCreditLimiDetailtDto extends PageRequestDto {
   @IsOptional()
   @IsString({ message: '线上订单号必须是字符串' })
   onlineOrderId?: string;
+
+  @ApiProperty({
+    description: '开始时间',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '开始时间是字符串' })
+  startTime?: string;
+
+  @ApiProperty({
+    description: '结束时间',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '结束时间是字符串' })
+  endTime?: string;
 }
 
 /**

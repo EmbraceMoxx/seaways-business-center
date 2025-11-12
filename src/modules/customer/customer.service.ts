@@ -36,6 +36,7 @@ export class CustomerService {
         region,
         customerType,
       } = params;
+
       // 分页参数--页码、页数
       const page = Math.max(1, Number(params.page) || 1);
       const pageSize = Number(params.pageSize) || 20;
@@ -105,7 +106,6 @@ export class CustomerService {
           region,
         });
       }
-      console.log(11111, customerType);
 
       // 类型
       if (customerType) {
