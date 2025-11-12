@@ -9,8 +9,10 @@ import { CustomerCreditLimitService } from '@src/modules/customer-credit-limit/s
 import {
   QueryCreditLimiDetailtDto,
   CreditLimitDetailResponseDto,
+  CreditLimitDetailRequestDto,
 } from '@src/dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
+import * as dayjs from 'dayjs';
 
 @Injectable()
 export class CustomerCreditLimitDetailService {
@@ -89,6 +91,63 @@ export class CustomerCreditLimitDetailService {
   }
 
   /**
+   * 新增客户个度流水
+   */
+  async addCommodity(
+    creditParam: CreditLimitDetailRequestDto,
+    userPayload: JwtUserPayload,
+  ) {
+    try {
+      // 1、获取客户信息
+      const customer = await this.customerInfoRepositor.findOneBy({
+        id: creditParam?.customerId,
+      });
+      if (!customer) {
+        throw new BusinessException('客户不存在');
+      }
+
+      // 创建新的额度流水实体
+      const creditDetail = new CustomerCreditLimitDetail();
+      creditDetail.customerId = creditParam.customerId;
+      creditDetail.customerName = creditParam.customerName;
+      creditDetail.flowCode = creditParam.flowCode;
+      creditDetail.orderId = creditParam.orderId;
+      creditDetail.onlineOrderId = creditParam.onlineOrderId;
+      creditDetail.shippedAmount = creditParam.shippedAmount;
+      creditDetail.auxiliarySaleGoodsAmount =
+        creditParam.auxiliarySaleGoodsAmount;
+      creditDetail.replenishingGoodsAmount =
+        creditParam.replenishingGoodsAmount;
+      creditDetail.usedAuxiliarySaleGoodsAmount =
+        creditParam.usedAuxiliarySaleGoodsAmount;
+      creditDetail.remainAuxiliarySaleGoodsAmount =
+        creditParam.remainAuxiliarySaleGoodsAmount;
+      creditDetail.usedReplenishingGoodsAmount =
+        creditParam.usedReplenishingGoodsAmount;
+      creditDetail.remainReplenishingGoodsAmount =
+        creditParam.remainReplenishingGoodsAmount;
+      creditDetail.payableVoucher = creditParam.payableVoucher;
+      // 默认
+      creditDetail.deleted = GlobalStatusEnum.NO;
+      creditDetail.status = -1;
+
+      // 设置创建时间
+      creditDetail.creatorId = userPayload.userId;
+      creditDetail.creatorName = userPayload.username;
+      creditDetail.createdTime = dayjs().toDate();
+
+      // 设置更新时间
+      creditDetail.reviserId = userPayload.userId;
+      creditDetail.reviserName = userPayload.username;
+      creditDetail.revisedTime = dayjs().toDate();
+
+      return await this.creditDetailRepositor.save(creditDetail);
+    } catch (error) {
+      throw new BusinessException('新增客户额度流水失败' + error.message);
+    }
+  }
+
+  /**
    * 确认收款 or 取消订单(事务)
    * @param flag 状态 true:确认收款 false:取消订单
    * @param customerId 客户ID
@@ -113,14 +172,18 @@ export class CustomerCreditLimitDetailService {
           flag,
           manager,
         );
-        // 2.3、修改流水列表的状态 1为已扣减，2为已关闭
+        // 2.3、修改流水列表的状态 1为已完成，2为已关闭
         const params = {
           status: flag ? 1 : 2,
           reviserId: user?.userId,
           reviserName: user?.username,
           revisedTime: new Date(),
         };
-        await manager.update(CustomerCreditLimitDetail, customerId, params);
+        await manager.update(
+          CustomerCreditLimitDetail,
+          creditDetail.id,
+          params,
+        );
       });
     } catch (error) {
       throw new BusinessException(

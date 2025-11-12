@@ -167,3 +167,92 @@ export class CreditLimitDetailResponseDto {
   })
   reviserName: string;
 }
+
+/**
+ * 客户额度流水请求DTO响应DTO
+ */
+export class CreditLimitDetailRequestDto {
+  @ApiProperty({
+    description: '客户ID',
+    example: '1735123456789012346',
+  })
+  customerId: string;
+
+  @ApiProperty({
+    description: '客户名称',
+    example: '某某公司',
+  })
+  customerName: string;
+
+  @ApiProperty({
+    description: '流水状态',
+    example: -1,
+  })
+  status: number;
+
+  @ApiProperty({
+    description: '流水编号',
+    example: 'XX20251111+时间戳',
+  })
+  flowCode: string;
+
+  @ApiProperty({
+    description: '内部订单ID',
+    example: '1211123456789012347',
+  })
+  orderId: string;
+
+  @ApiProperty({
+    description: '聚水潭线上订单号',
+    example: 'SXYXJ20251101001',
+  })
+  onlineOrderId: string;
+
+  @ApiProperty({
+    description: '发货金额 = 订单金额，元',
+    example: 1000.0,
+  })
+  shippedAmount: string;
+
+  @ApiProperty({
+    description: '3%辅销品金额，元',
+    example: 150.0,
+  })
+  auxiliarySaleGoodsAmount: string;
+
+  @ApiProperty({
+    description: '10%货补金额，元',
+    example: 150.0,
+  })
+  replenishingGoodsAmount: string;
+
+  @ApiProperty({
+    description: '已提辅销金额，元',
+    example: 150.0,
+  })
+  usedAuxiliarySaleGoodsAmount: string;
+
+  @ApiProperty({
+    description: '剩余辅销金额，元',
+    example: 150.0,
+  })
+  remainAuxiliarySaleGoodsAmount: string;
+
+  @ApiProperty({
+    description: '已提货补金额，元',
+    example: 500.0,
+  })
+  usedReplenishingGoodsAmount: string;
+
+  @ApiProperty({
+    description: '剩余货补金额，元',
+    example: 150.0,
+  })
+  remainReplenishingGoodsAmount: string;
+
+  @ApiProperty({
+    description: '回款凭证，预留用于记录回款截图',
+    example: 150.0,
+  })
+  payableVoucher: string;
+}

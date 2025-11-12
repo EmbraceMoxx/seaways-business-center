@@ -5,6 +5,7 @@ import {
   SuccessResponseDto,
   QueryCreditLimiDetailtDto,
   CreditLimitDetailResponseDto,
+  CreditLimitDetailRequestDto,
 } from '@src/dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
@@ -28,6 +29,16 @@ export class CustomerCreditLimitDetailController {
       body,
     );
     return new SuccessResponseDto(list);
+  }
+
+  @ApiOperation({ summary: '新增客户额度流水明细' })
+  @Post('create')
+  async addCommodity(
+    @Body() body: CreditLimitDetailRequestDto,
+    @CurrentUser() user: JwtUserPayload,
+  ) {
+    await this.CreditLimitDetailService.addCommodity(body, user);
+    return new SuccessResponseDto(null, '新增成功');
   }
 
   @ApiOperation({ summary: '确认收款' })

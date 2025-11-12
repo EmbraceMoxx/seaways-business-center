@@ -1,4 +1,5 @@
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, BeforeInsert } from 'typeorm';
+import { generateId } from '@src/utils';
 
 @Entity('customer_credit_flow_detail')
 export class CustomerCreditLimitDetail {
@@ -18,7 +19,7 @@ export class CustomerCreditLimitDetail {
   @Column('int', {
     name: 'status',
     nullable: true,
-    comment: '流水状态，-1冻结1已扣减2已关闭',
+    comment: '流水状态，-1冻结1已完成2已关闭',
     default: () => "'-1'",
   })
   status: number | null;
@@ -151,4 +152,11 @@ export class CustomerCreditLimitDetail {
     length: 255,
   })
   reviserName: string | null;
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = generateId();
+    }
+  }
 }
