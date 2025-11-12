@@ -479,8 +479,7 @@ export class CustomerInfoUpdateDto {
     required: false,
   })
   @IsOptional()
-  @IsString({ message: '合同任务金额必须是字符串' })
-  contractAmount?: string;
+  contractAmount?: number;
 
   @ApiProperty({
     description: '对账邮箱',

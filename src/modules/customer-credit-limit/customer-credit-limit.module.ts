@@ -17,5 +17,6 @@ import { CustomerMonthlyCreditLimitEntity } from './entities/customer-monthly-cr
   ],
   providers: [CustomerCreditLimitService],
   controllers: [CustomerCreditLimitController],
+  exports: [CustomerCreditLimitService],
 })
 export class CustomerCreditLimitModule {}

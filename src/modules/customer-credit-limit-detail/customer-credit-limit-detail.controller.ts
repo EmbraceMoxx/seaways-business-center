@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CustomerCreditLimitDetailService } from './customer-credit-limit-detail.service';
 import {
@@ -6,6 +6,8 @@ import {
   QueryCreditLimiDetailtDto,
   CreditLimitDetailResponseDto,
 } from '@src/dto';
+import { JwtUserPayload } from '@modules/auth/jwt.strategy';
+import { CurrentUser } from '@src/decorators/current-user.decorator';
 
 @ApiTags('客户额度流水明细')
 @ApiBearerAuth()
@@ -26,5 +28,25 @@ export class CustomerCreditLimitDetailController {
       body,
     );
     return new SuccessResponseDto(list);
+  }
+
+  @ApiOperation({ summary: '确认收款' })
+  @Post('confirmReceipt')
+  async confirmReceipt(
+    @Body('customerId') customerId: string,
+    @CurrentUser() user: JwtUserPayload,
+  ): Promise<SuccessResponseDto> {
+    await this.CreditLimitDetailService.onReceipt(false, customerId, user);
+    return new SuccessResponseDto(null, '确认收款成功');
+  }
+
+  @ApiOperation({ summary: '取消订单' })
+  @Post('cancelOrder')
+  async cancelOrder(
+    @Body('customerId') customerId: string,
+    @CurrentUser() user: JwtUserPayload,
+  ): Promise<SuccessResponseDto> {
+    await this.CreditLimitDetailService.onReceipt(true, customerId, user);
+    return new SuccessResponseDto(null, '取消订单成功');
   }
 }

@@ -1,19 +1,26 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { CustomerCreditLimitDetail } from './customer-credit-limit-detail.entity';
+import { CustomerInfoEntity } from '../customer-credit-limit/entities/customer-info.entity';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
+import { CustomerCreditLimitService } from '@src/modules/customer-credit-limit/services/customer-credit-limit.service';
 import {
   QueryCreditLimiDetailtDto,
   CreditLimitDetailResponseDto,
 } from '@src/dto';
+import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 
 @Injectable()
 export class CustomerCreditLimitDetailService {
   constructor(
     @InjectRepository(CustomerCreditLimitDetail)
     private creditDetailRepositor: Repository<CustomerCreditLimitDetail>,
+    @InjectRepository(CustomerInfoEntity)
+    private customerInfoRepositor: Repository<CustomerInfoEntity>,
+    private customerCreditLimitService: CustomerCreditLimitService,
+    private dataSource: DataSource,
   ) {}
 
   /**
@@ -79,5 +86,59 @@ export class CustomerCreditLimitDetailService {
     } catch (error) {
       throw new BusinessException('获取客户额度流水列表失败' + error.message);
     }
+  }
+
+  /**
+   * 确认收款 or 取消订单(事务)
+   * @param flag 状态 true:确认收款 false:取消订单
+   * @param customerId 客户ID
+   * @param user 用户信息
+   */
+  async onReceipt(flag: boolean, customerId: string, user: JwtUserPayload) {
+    try {
+      // 1、判断该客户是否存在
+      const customer = this.customerInfoRepositor.findOneBy({
+        id: customerId,
+      });
+      if (!customer) {
+        throw new BusinessException('客户不存在');
+      }
+      // 2、事务
+      return await this.dataSource.transaction(async (manager) => {
+        // 2.1 获取流水详情信息
+        const creditDetail = await this.getCreditDetailById(customerId);
+        // 2.2、计算并修改客户额度列表的相关金额
+        await this.customerCreditLimitService.updateAuxiliaryAndReplenishingAmount(
+          creditDetail,
+          flag,
+          manager,
+        );
+        // 2.3、修改流水列表的状态 1为已扣减，2为已关闭
+        const params = {
+          status: flag ? 1 : 2,
+          reviserId: user?.userId,
+          reviserName: user?.username,
+          revisedTime: new Date(),
+        };
+        await manager.update(CustomerCreditLimitDetail, customerId, params);
+      });
+    } catch (error) {
+      throw new BusinessException(
+        `${flag ? '确认收款' : '取消订单'}失败` + error.message,
+      );
+    }
+  }
+
+  /**
+   * 获取客户额度流水详情信息
+   */
+  async getCreditDetailById(
+    customerId: string,
+  ): Promise<CreditLimitDetailResponseDto> {
+    // 获取流水详情
+    const creditDetail = await this.creditDetailRepositor.findOneBy({
+      customerId,
+    });
+    return creditDetail;
   }
 }

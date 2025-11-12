@@ -13,9 +13,12 @@ import {
   CustomerInfoResponseDto,
   CustomerInfoCreditResponseDto,
   CustomerInfoUpdateDto,
+  CreditLimitDetailResponseDto,
+  CreditLimitResponseDto,
 } from '@src/dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
+import { log } from 'console';
 
 @Injectable()
 export class CustomerCreditLimitService {
@@ -132,7 +135,9 @@ export class CustomerCreditLimitService {
       customer.provincialHeadId = customerData?.provincialHeadId;
       customer.distributorType = customerData?.distributorType;
       customer.contractValidityPeriod = customerData?.contractValidityPeriod;
-      customer.contractAmount = customerData?.contractAmount;
+      customer.contractAmount = customerData?.contractAmount
+        ? String(customerData?.contractAmount)
+        : null;
       customer.reconciliationMail = customerData?.reconciliationMail;
       customer.coStatus = customerData?.coStatus;
 
@@ -313,5 +318,154 @@ export class CustomerCreditLimitService {
       .where('credit.customer_id = :customerId', { customerId })
       .andWhere('credit.deleted = :deleted', { deleted: GlobalStatusEnum.NO })
       .getRawOne();
+  }
+
+  /**
+   * 转换为数字
+   * @param value 待转换的值
+   * @returns 转换后的数字
+   */
+  private toNumber(value: string | number | undefined | null): number {
+    const num = Number(value);
+    return isNaN(num) ? null : num;
+  }
+
+  /**
+   * 执行数值计算
+   * @param value1 第一个值
+   * @param value2 第二个值
+   * @param operator 运算符 ('+', '-')
+   * @returns 计算结果
+   */
+  private calculate(
+    value1: string | number | undefined | null,
+    value2: string | number | undefined | null,
+    operator: '+' | '-',
+  ): string | null {
+    const num1 = this.toNumber(value1);
+    const num2 = this.toNumber(value2);
+
+    switch (operator) {
+      case '+':
+        return String(num1 + num2);
+      case '-':
+        return String(num1 - num2);
+      default:
+        return null;
+    }
+  }
+
+  /**
+   * 更新辅销品、货补相关金额
+   * @param creditDetail 额度流水明细信息
+   * @param isProceeds 是否是进账
+   * @param manager 数据库事务管理器
+   */
+
+  async updateAuxiliaryAndReplenishingAmount(
+    creditDetail: CreditLimitDetailResponseDto,
+    isProceeds: boolean,
+    manager: any,
+  ): Promise<void> {
+    // 1、获取客户原有额度信息
+    const {
+      auxiliarySaleGoodsAmount,
+      usedAuxiliarySaleGoodsAmount,
+      frozenSaleGoodsAmount,
+      frozenUsedSaleGoodsAmount,
+      replenishingGoodsAmount,
+      usedReplenishingGoodsAmount,
+      frozenReplenishingGoodsAmount,
+      frozenUsedReplenishingGoodsAmount,
+    } = await this.getCreditInfoByCustomerId(creditDetail?.customerId);
+
+    // 2、设置参数（默认释放冻结金额）
+    let params: Partial<CustomerCreditAmountInfoEntity> = {
+      // 冻结产生辅销金额=原本金额-产生辅销额度1
+      frozenSaleGoodsAmount: this.calculate(
+        frozenSaleGoodsAmount,
+        creditDetail?.auxiliarySaleGoodsAmount,
+        '-',
+      ),
+      // 冻结使用辅销金额=原本金额-使用辅销额度1
+      frozenUsedSaleGoodsAmount: this.calculate(
+        frozenUsedSaleGoodsAmount,
+        creditDetail?.usedAuxiliarySaleGoodsAmount,
+        '-',
+      ),
+
+      // 冻结产生货补金额=原本金额-产生货补额度1
+      frozenReplenishingGoodsAmount: this.calculate(
+        frozenReplenishingGoodsAmount,
+        creditDetail?.replenishingGoodsAmount,
+        '-',
+      ),
+      // 冻结使用货补金额=原本金额-使用货补额度1
+      frozenUsedReplenishingGoodsAmount: this.calculate(
+        frozenUsedReplenishingGoodsAmount,
+        creditDetail?.usedReplenishingGoodsAmount,
+        '-',
+      ),
+    };
+
+    // 3、进账
+    if (isProceeds) {
+      params = {
+        // 3%辅销品金额=原本的金额+产生辅销额度1
+        auxiliarySaleGoodsAmount: this.calculate(
+          auxiliarySaleGoodsAmount,
+          creditDetail?.auxiliarySaleGoodsAmount,
+          '+',
+        ),
+        // 已提辅销金额=原本金额+使用辅销额度1
+        usedAuxiliarySaleGoodsAmount: this.calculate(
+          usedAuxiliarySaleGoodsAmount,
+          creditDetail?.usedAuxiliarySaleGoodsAmount,
+          '+',
+        ),
+        // 10%货补金额=原本的金额+产生货补额度1
+        replenishingGoodsAmount: this.calculate(
+          replenishingGoodsAmount,
+          creditDetail?.replenishingGoodsAmount,
+          '+',
+        ),
+        // 已提货补金额=原本金额+使用货补额度1
+        usedReplenishingGoodsAmount: this.calculate(
+          usedReplenishingGoodsAmount,
+          creditDetail?.usedReplenishingGoodsAmount,
+          '+',
+        ),
+      };
+
+      // 剩余辅销金额=3%辅销品金额-已提辅销金额
+      params.remainAuxiliarySaleGoodsAmount = this.calculate(
+        params.auxiliarySaleGoodsAmount,
+        params.usedAuxiliarySaleGoodsAmount,
+        '-',
+      );
+
+      // 剩余货补金额=10%货补金额-已提货补金额
+      params.remainReplenishingGoodsAmount = this.calculate(
+        params.replenishingGoodsAmount,
+        params.usedReplenishingGoodsAmount,
+        '-',
+      );
+    }
+    // 4、更新额度信息
+    await manager.update(
+      CustomerCreditAmountInfoEntity,
+      { customerId: creditDetail?.customerId },
+      params,
+    );
+  }
+
+  /**
+   * 获取客户额度信息
+   * @param customerId 客户ID
+   */
+  async getCreditInfoByCustomerId(
+    customerId: string,
+  ): Promise<CreditLimitResponseDto> {
+    return await this.creditRepositor.findOneBy({ customerId });
   }
 }
