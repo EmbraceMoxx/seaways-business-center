@@ -47,7 +47,7 @@ export class CustomerCreditLimitDetailController {
     @Body('customerId') customerId: string,
     @CurrentUser() user: JwtUserPayload,
   ): Promise<SuccessResponseDto> {
-    await this.CreditLimitDetailService.onReceipt(false, customerId, user);
+    await this.CreditLimitDetailService.onReceipt(true, customerId, user);
     return new SuccessResponseDto(null, '确认收款成功');
   }
 
@@ -57,7 +57,7 @@ export class CustomerCreditLimitDetailController {
     @Body('customerId') customerId: string,
     @CurrentUser() user: JwtUserPayload,
   ): Promise<SuccessResponseDto> {
-    await this.CreditLimitDetailService.onReceipt(true, customerId, user);
+    await this.CreditLimitDetailService.onReceipt(false, customerId, user);
     return new SuccessResponseDto(null, '取消订单成功');
   }
 }
