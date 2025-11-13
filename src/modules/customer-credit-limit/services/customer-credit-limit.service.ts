@@ -294,6 +294,7 @@ export class CustomerCreditLimitService {
   ): Promise<void> {
     // 1、获取客户原有额度信息
     const {
+      id,
       auxiliarySaleGoodsAmount,
       usedAuxiliarySaleGoodsAmount,
       frozenSaleGoodsAmount,
@@ -377,11 +378,7 @@ export class CustomerCreditLimitService {
       );
     }
     // 4、更新额度信息
-    await manager.update(
-      CustomerCreditAmountInfoEntity,
-      { customerId: creditDetail?.customerId },
-      params,
-    );
+    await manager.update(CustomerCreditAmountInfoEntity, id, params);
   }
 
   /**
