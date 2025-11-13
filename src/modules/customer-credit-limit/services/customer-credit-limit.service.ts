@@ -337,6 +337,7 @@ export class CustomerCreditLimitService {
     // 3、进账
     if (isProceeds) {
       params = {
+        ...params,
         // 3%辅销品金额=原本的金额+产生辅销额度1
         auxiliarySaleGoodsAmount: this.calculate(
           auxiliarySaleGoodsAmount,
