@@ -150,6 +150,9 @@ export class CustomerService {
           deleted: GlobalStatusEnum.NO,
         },
       });
+      if (!customerInfo) {
+        throw new BusinessException('客户不存在');
+      }
 
       // 获取客户额度详情-额度信息
       const creditInfo =

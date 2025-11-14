@@ -124,7 +124,7 @@ export class CustomerCreditLimitDetailService {
   }
 
   /**
-   * 新增客户额度流水
+   * 新增客户额度流水（后续逻辑预测：把产生货补金额、使用货补金额、产生辅销金额、使用辅销金额加到客户额度中的冻结金额里面）
    */
   async addCreditDetail(
     creditParam: CreditLimitDetailRequestDto,
