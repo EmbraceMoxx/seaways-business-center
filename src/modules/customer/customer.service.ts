@@ -36,11 +36,9 @@ export class CustomerService {
         region,
         customerType,
         principalUserId,
+        page,
+        pageSize,
       } = params;
-
-      // 分页参数--页码、页数
-      const page = Math.max(1, Number(params.page) || 1);
-      const pageSize = Number(params.pageSize) || 20;
 
       let queryBuilder = this.customerRepositor
         .createQueryBuilder('customer')

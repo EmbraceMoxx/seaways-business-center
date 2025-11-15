@@ -1,4 +1,5 @@
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, BeforeInsert } from 'typeorm';
+import { generateId } from '@src/utils';
 
 @Entity('customer_address')
 export class CustomerAddressEntity {
@@ -106,4 +107,11 @@ export class CustomerAddressEntity {
     length: 255,
   })
   reviserName: string | null;
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = generateId();
+    }
+  }
 }

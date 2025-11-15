@@ -5,7 +5,7 @@ import { PageRequestDto } from '@src/dto/common/common.dto';
 /**
  * 客户地址管理列表查询参数DTO
  */
-export class QueryCustomerAddresstDto extends PageRequestDto {
+export class QueryCustomerAddressDto extends PageRequestDto {
   @ApiProperty({
     description:
       '地址：省份(province)或城市(city)或区县(district)或详细地址(address)',
@@ -161,7 +161,7 @@ export class CustomerAddressRequestDto {
     required: false,
   })
   @IsOptional()
-  province?: number;
+  province?: string;
 
   @ApiProperty({
     description: '城市',

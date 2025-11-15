@@ -3,17 +3,23 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
-import { QueryCustomerAddresstDto, CustomerAddressResponseDto } from '@src/dto';
+import {
+  QueryCustomerAddressDto,
+  CustomerAddressResponseDto,
+  CustomerAddressRequestDto,
+} from '@src/dto';
 import { CustomerInfoEntity } from '@modules/customer/customer.entity';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
 import { CustomerAddressEntity } from '@modules/customer-address/customer-address.entity';
+import { CustomerService } from '@src/modules/customer/customer.service';
 
 @Injectable()
 export class CustomerAddressService {
   constructor(
     @InjectRepository(CustomerAddressEntity)
     private customerAddress: Repository<CustomerAddressEntity>,
+    private customerService: CustomerService,
   ) {}
 
   /**
@@ -21,13 +27,10 @@ export class CustomerAddressService {
    * @param params 查询参数
    */
   async getCustomerAddressPageList(
-    params: QueryCustomerAddresstDto,
+    params: QueryCustomerAddressDto,
   ): Promise<{ items: CustomerAddressResponseDto[]; total: number }> {
     try {
-      const { consigneeName, phone, searchKeyValue } = params;
-      // 分页参数--页码、页数
-      const page = Math.max(1, Number(params.page) || 1);
-      const pageSize = Number(params.pageSize) || 20;
+      const { consigneeName, phone, searchKeyValue, page, pageSize } = params;
 
       let queryBuilder = this.customerAddress
         .createQueryBuilder('customerAddress')
@@ -103,6 +106,196 @@ export class CustomerAddressService {
       return { items, total };
     } catch (error) {
       throw new BusinessException('获取客户地址管理列表失败' + error.message);
+    }
+  }
+
+  /**
+   * 新增客户地址
+   * @param creditParam 客户地址信息
+   * @param userPayload 用户信息
+   */
+  async addCustomerAddress(
+    customerAddressParam: CustomerAddressRequestDto,
+    userPayload: JwtUserPayload,
+  ) {
+    try {
+      // 1、获取客户信息
+      const customer = await this.customerService.getCustomerInfoById(
+        customerAddressParam?.customerId,
+      );
+      if (!customer) {
+        throw new BusinessException('客户Id不存在');
+      }
+
+      // 创建新的客户地址实体
+      const customerAddressDetail = new CustomerAddressEntity();
+
+      // 2、查询该客户下是否有地址列表且不传isDefault，没有则默认为1
+      const isExist = await this.customerAddress.findOne({
+        where: {
+          customerId: customerAddressParam.customerId,
+          deleted: GlobalStatusEnum.NO,
+          enabled: GlobalStatusEnum.YES,
+        },
+      });
+      if (!isExist && !customerAddressParam?.isDefault) {
+        customerAddressDetail.isDefault = 1;
+      } else if (!customerAddressParam?.isDefault) {
+        customerAddressDetail.isDefault = 0;
+      } else {
+        customerAddressDetail.isDefault = customerAddressParam.isDefault;
+      }
+
+      // 3、检查客户地址默认地址已存在，即同一个客户下的地址只有一个地址的is_default为1
+      const isSefaultExist = await this.customerAddress.findOne({
+        where: {
+          customerId: customerAddressParam.customerId,
+          isDefault: 1,
+          deleted: GlobalStatusEnum.NO,
+        },
+      });
+      if (customerAddressParam.isDefault === 1 && isSefaultExist) {
+        throw new BusinessException('同一个客户下的地址只能有一个默认地址');
+      }
+
+      customerAddressDetail.customerId = customerAddressParam.customerId;
+      customerAddressDetail.province = customerAddressParam.province;
+      customerAddressDetail.city = customerAddressParam.city;
+      customerAddressDetail.district = customerAddressParam.district;
+      customerAddressDetail.address = customerAddressParam.address;
+      customerAddressDetail.consigneeName = customerAddressParam.consigneeName;
+      customerAddressDetail.phone = customerAddressParam.phone;
+
+      // 3、默认
+      customerAddressDetail.enabled = GlobalStatusEnum.YES;
+      customerAddressDetail.deleted = GlobalStatusEnum.NO;
+
+      // 5、设置创建时间
+      customerAddressDetail.creatorId = userPayload.userId;
+      customerAddressDetail.creatorName = userPayload.username;
+      customerAddressDetail.createdTime = dayjs().toDate();
+
+      // 6、设置更新时间
+      customerAddressDetail.reviserId = userPayload.userId;
+      customerAddressDetail.reviserName = userPayload.username;
+      customerAddressDetail.revisedTime = dayjs().toDate();
+
+      return await this.customerAddress.save(customerAddressDetail);
+    } catch (error) {
+      throw new BusinessException(error.message);
+    }
+  }
+
+  /**
+   * 修改客户地址
+   * @param id 客户地址id
+   * @param creditParam 客户地址信息
+   * @param userPayload 用户信息
+   */
+  async updatCustomerAddress(
+    id: string,
+    customerAddressParam: CustomerAddressRequestDto,
+    userPayload: JwtUserPayload,
+  ) {
+    try {
+      // 1、判断客户地址id是否存在
+      const customerAddress = await this.customerAddress.findOne({
+        where: {
+          id,
+          deleted: GlobalStatusEnum.NO,
+        },
+      });
+      if (!customerAddress) {
+        throw new BusinessException('客户地址Id不存在');
+      }
+
+      // 2、检查客户地址默认地址已存在，即同一个客户下的地址只有一个地址的is_default为1
+      const isSefaultExist = await this.customerAddress.findOne({
+        where: {
+          customerId: customerAddressParam.customerId,
+          isDefault: 1,
+          deleted: GlobalStatusEnum.NO,
+        },
+      });
+      if (customerAddressParam.isDefault === 1 && isSefaultExist) {
+        throw new BusinessException('同一个客户下的地址只能有一个默认地址');
+      }
+
+      // 3、创建新的客户地址实体
+      const customerAddressDetail = new CustomerAddressEntity();
+
+      customerAddressDetail.customerId = customerAddressParam.customerId;
+      customerAddressDetail.province = customerAddressParam.province;
+      customerAddressDetail.city = customerAddressParam.city;
+      customerAddressDetail.district = customerAddressParam.district;
+      customerAddressDetail.address = customerAddressParam.address;
+      customerAddressDetail.consigneeName = customerAddressParam.consigneeName;
+      customerAddressDetail.phone = customerAddressParam.phone;
+      customerAddressDetail.isDefault = customerAddressParam.isDefault;
+
+      // 4、设置更新时间
+      customerAddressDetail.reviserId = userPayload.userId;
+      customerAddressDetail.reviserName = userPayload.username;
+      customerAddressDetail.revisedTime = dayjs().toDate();
+
+      // 5、更新客户地址
+      await this.customerAddress.update(id, customerAddressDetail);
+    } catch (error) {
+      throw new BusinessException(error.message);
+    }
+  }
+
+  /**
+   * 删除客户地址
+   * @param id 客户地址id
+   */
+  async deleteCustomerAddress(id: string) {
+    try {
+      // 1、判断客户地址id是否存在
+      const customerAddress = await this.customerAddress.findOne({
+        where: {
+          id,
+          deleted: GlobalStatusEnum.NO,
+        },
+      });
+      if (!customerAddress) {
+        throw new BusinessException('客户地址Id不存在');
+      }
+
+      // 2、删除客户地址
+      await this.customerAddress.update(id, {
+        deleted: GlobalStatusEnum.YES,
+      });
+    } catch (error) {
+      throw new BusinessException(error.message);
+    }
+  }
+
+  /**
+   * 获取客户地址详情
+   * @param id 客户地址id
+   */
+  async getCustomerAddressInfo(id: string) {
+    try {
+      // 1、判断客户地址id是否存在
+      const customerAddress = await this.customerAddress.findOne({
+        where: {
+          id,
+          deleted: GlobalStatusEnum.NO,
+          enabled: GlobalStatusEnum.YES,
+        },
+      });
+      if (!customerAddress) {
+        throw new BusinessException('客户地址Id不存在');
+      }
+
+      // 2、获取客户信息
+      const customer = await this.customerService.getCustomerInfoById(
+        customerAddress?.customerId,
+      );
+      return { ...customerAddress, customerName: customer?.customerName };
+    } catch (error) {
+      throw new BusinessException(error.message);
     }
   }
 }

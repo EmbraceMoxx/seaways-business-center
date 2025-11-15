@@ -30,10 +30,7 @@ export class CustomerCreditLimitService {
     params: QueryCreditLimitDto,
   ): Promise<CreditLimitListResponseDto> {
     try {
-      const { customerName, region } = params;
-      // 分页参数--页码、页数
-      const page = Math.max(1, Number(params.page) || 1);
-      const pageSize = Number(params.pageSize) || 20;
+      const { customerName, region, page, pageSize } = params;
 
       let queryBuilder = this.creditRepositor
         .createQueryBuilder('credit')
