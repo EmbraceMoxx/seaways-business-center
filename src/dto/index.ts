@@ -15,3 +15,6 @@ export * from './customer-credit-limit-detail/customer-credit-limit-detail.dto';
 
 // 客户管理相关DTO
 export * from './customer/customer.dto';
+
+// 客户地址管理相关DTO
+export * from './customer-address/customer-address.dto';
