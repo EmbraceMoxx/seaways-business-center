@@ -102,6 +102,14 @@ export class CustomerInfoEntity {
   provincialHeadId: string;
 
   @Column({
+    name: 'principal_user_id',
+    type: 'bigint',
+    nullable: true,
+    comment: '客户负责--销售ID',
+  })
+  principalUserId: string;
+
+  @Column({
     name: 'distributor_type',
     type: 'varchar',
     length: 128,

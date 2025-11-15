@@ -39,6 +39,14 @@ export class QueryCustomerDto extends PageRequestDto {
   provincialHead?: string;
 
   @ApiProperty({
+    description: '客户负责人-销售ID',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '客户负责人必须是字符串' })
+  principalUserId?: string;
+
+  @ApiProperty({
     description: '客户所属区域',
     required: false,
   })
@@ -98,6 +106,12 @@ export class CustomerListInfoResponseDto {
     example: '1735123456789012347',
   })
   provincialHeadId: string;
+
+  @ApiProperty({
+    description: '客户负责人-销售ID',
+    example: '1735123456789012347',
+  })
+  principalUserId: string;
 
   @ApiProperty({
     description: '省份',

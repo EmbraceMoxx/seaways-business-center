@@ -35,6 +35,7 @@ export class CustomerService {
         regionalHead,
         region,
         customerType,
+        principalUserId,
       } = params;
 
       // 分页参数--页码、页数
@@ -53,6 +54,7 @@ export class CustomerService {
           'customer.regional_head as regionalHead',
           'customer.regional_head_id as regionalHeadId',
           'customer.province as province',
+          'customer.principal_user_id as principalUserId',
           'customer.city as city',
           'customer.distributor_type as distributorType',
           'customer.is_contract as isContract',
@@ -100,6 +102,15 @@ export class CustomerService {
         );
       }
 
+      // 客户负责人-销售ID
+      if (principalUserId) {
+        queryBuilder = queryBuilder.andWhere(
+          'customer.principal_user_id LIKE :principalUserId',
+          {
+            principalUserId: `%${principalUserId}%`,
+          },
+        );
+      }
       // 客户所属区域
       if (region) {
         queryBuilder = queryBuilder.andWhere('customer.region = :region', {
