@@ -16,7 +16,7 @@
       "@utils/*": ["src/utils/*"], // 实用工具
       "@interfaces/*": ["src/interfaces/*"], // 接口定义
       "@config/*": ["src/config/*"], // 配置文件
-      "@shared/*": ["src/shared/*"], // 跨模块共享内容
+      "@shared/*": ["src/modules/shared/*"], // 跨模块共享内容
     },
     "incremental": true,
     "skipLibCheck": true,

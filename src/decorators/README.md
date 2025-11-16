@@ -271,15 +271,17 @@ httpProxy:
 
 ```typescript
   import { CurrentToken } from '@src/decorators/current-token.decorator';
+  import { HttpProxyService } from '@shared/http-proxy.service';
+  import { UserEndpoints } from '@src/constants/index';
 
-  @Get('')
-  async getXxxList(
+  @Get('user-roles')
+  async getUserRolesList(
     @CurrentToken() token: string,
   ) {
-    const userMenuList = await this.httpProxy.get(
-      ResourceEndpoints.USER_MENU_ALL,
+    const userRoles  = await this.httpProxyServices.get(
+      UserEndpoints.CURRENT_USER_ROLES, 
       token,
     );
-    this.logger.log(`userMenuList:${JSON.stringify(userMenuList)}`);
+    this.logger.log(`CURRENT_USER_ROLES:${JSON.stringify(userRoles)}`);
   }
 ```

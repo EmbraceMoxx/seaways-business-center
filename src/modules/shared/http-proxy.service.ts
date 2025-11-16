@@ -45,7 +45,8 @@ export class HttpProxyService {
           .pipe(
             retry({
               count: this.maxRetries,
-              delay: this.retryDelay,
+              delay: (error: any, retryCount: number) =>
+                this.retryDelay(error, retryCount),
             }),
           ),
       );
