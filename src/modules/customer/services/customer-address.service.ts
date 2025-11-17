@@ -8,11 +8,11 @@ import {
   CustomerAddressResponseDto,
   CustomerAddressRequestDto,
 } from '@src/dto';
-import { CustomerInfoEntity } from '@modules/customer/customer.entity';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
-import { CustomerAddressEntity } from '@modules/customer-address/customer-address.entity';
-import { CustomerService } from '@src/modules/customer/customer.service';
+import { CustomerInfoEntity } from '../entities/customer.entity';
+import { CustomerAddressEntity } from '../entities/customer-address.entity';
+import { CustomerService } from '../services/customer.service';
 
 @Injectable()
 export class CustomerAddressService {

@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CustomerCreditAmountInfoEntity } from '../entities/customer-credit-limit.entity';
-import { CustomerMonthlyCreditLimitEntity } from '../entities/customer-monthly-credit-limit.entity';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import {
@@ -13,6 +11,8 @@ import {
   CreditLimitDetailResponseDto,
   CreditLimitResponseDto,
 } from '@src/dto';
+import { CustomerCreditAmountInfoEntity } from '../entities/customer-credit-limit.entity';
+import { CustomerMonthlyCreditLimitEntity } from '../entities/customer-monthly-credit-limit.entity';
 
 @Injectable()
 export class CustomerCreditLimitService {

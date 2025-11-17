@@ -8,7 +8,6 @@ import {
   Get,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { CustomerAddressService } from './customer-address.service';
 import {
   SuccessResponseDto,
   QueryCustomerAddressDto,
@@ -17,6 +16,7 @@ import {
 } from '@src/dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
+import { CustomerAddressService } from '../services/customer-address.service';
 
 @ApiTags('客户地址管理')
 @ApiBearerAuth()

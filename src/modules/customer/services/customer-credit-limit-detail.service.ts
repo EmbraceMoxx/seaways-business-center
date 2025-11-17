@@ -1,10 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { CustomerCreditLimitDetail } from './customer-credit-limit-detail.entity';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
-import { CustomerCreditLimitService } from '@src/modules/customer-credit-limit/services/customer-credit-limit.service';
 import {
   QueryCreditLimiDetailtDto,
   CreditLimitDetailResponseDto,
@@ -12,14 +10,16 @@ import {
 } from '@src/dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
-import { CustomerService } from '@src/modules/customer/customer.service';
 import { TimeFormatterUtil } from '@utils/time-formatter.util';
+import { CustomerCreditLimitDetailEntity } from '../entities/customer-credit-limit-detail.entity';
+import { CustomerCreditLimitService } from '../services/customer-credit-limit.service';
+import { CustomerService } from '../services/customer.service';
 
 @Injectable()
 export class CustomerCreditLimitDetailService {
   constructor(
-    @InjectRepository(CustomerCreditLimitDetail)
-    private creditDetailRepositor: Repository<CustomerCreditLimitDetail>,
+    @InjectRepository(CustomerCreditLimitDetailEntity)
+    private creditDetailRepositor: Repository<CustomerCreditLimitDetailEntity>,
     private customerService: CustomerService,
     private customerCreditLimitService: CustomerCreditLimitService,
     private dataSource: DataSource,
@@ -144,7 +144,7 @@ export class CustomerCreditLimitDetailService {
       }
 
       // 创建新的额度流水实体
-      const creditDetail = new CustomerCreditLimitDetail();
+      const creditDetail = new CustomerCreditLimitDetailEntity();
       creditDetail.customerId = creditParam.customerId;
       creditDetail.customerName = creditParam.customerName;
       creditDetail.flowCode = creditParam.flowCode;
@@ -220,7 +220,7 @@ export class CustomerCreditLimitDetailService {
           revisedTime: new Date(),
         };
         await manager.update(
-          CustomerCreditLimitDetail,
+          CustomerCreditLimitDetailEntity,
           creditDetail.id,
           params,
         );

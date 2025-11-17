@@ -1,10 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CustomerInfoEntity } from './customer.entity';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
-import { CustomerCreditLimitService } from '../customer-credit-limit/services/customer-credit-limit.service';
 import {
   CustomerInfoResponseDto,
   CustomerInfoCreditResponseDto,
@@ -13,6 +11,8 @@ import {
 } from '@src/dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
+import { CustomerInfoEntity } from '../entities/customer.entity';
+import { CustomerCreditLimitService } from '../services/customer-credit-limit.service';
 
 @Injectable()
 export class CustomerService {

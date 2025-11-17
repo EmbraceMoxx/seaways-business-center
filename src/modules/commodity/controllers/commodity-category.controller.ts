@@ -8,12 +8,12 @@ import {
   Delete,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { CommodityCategoryService } from './commodity-category.service';
 import { SuccessResponseDto } from '@src/dto';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { CategoryRequestDto } from '@src/dto';
-import { CommodityCategoryEntity } from './commodity-category.entity';
+import { CommodityCategoryEntity } from '../entities/commodity-category.entity';
+import { CommodityCategoryService } from '../services/commodity-category.service';
 
 @ApiTags('商品分类管理')
 @ApiBearerAuth()
