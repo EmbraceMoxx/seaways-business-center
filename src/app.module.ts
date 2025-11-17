@@ -11,6 +11,7 @@ import { SharedModule } from '@modules/shared/shared.module';
 import { CustomerModule } from '@modules/customer/customer.module';
 import { OrderModule } from '@modules/order/order.module';
 import { BusinessLogModule } from './modules/common/business-log/business-log.module';
+import { ApprovalModule } from '@modules/approval/approval.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { BusinessLogModule } from './modules/common/business-log/business-log.mo
     CustomerModule,
     OrderModule,
     BusinessLogModule,
+    ApprovalModule,
   ],
   providers: [
     {
