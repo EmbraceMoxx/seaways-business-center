@@ -71,4 +71,15 @@ export class OrderController {
     const list = await this.orderService.getOrderList(body);
     return new SuccessResponseDto(list, '获取订单列表成功');
   }
+
+  @ApiOperation({ summary: '获取订单列表' })
+  @Post('unReviewlist')
+  async getUnReviewOrderList(
+    @Body() body: QueryOrderDto,
+  ): Promise<
+    SuccessResponseDto<{ items: OrderInfoResponseDto[]; total: number }>
+  > {
+    const list = await this.orderService.getUnReviewOrderList(body);
+    return new SuccessResponseDto(list, '获取待审核订单列表成功');
+  }
 }
