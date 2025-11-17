@@ -9,6 +9,7 @@ import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import { CommodityModule } from '@modules/commodity/commodity.module';
 import { SharedModule } from '@modules/shared/shared.module';
 import { CustomerModule } from '@modules/customer/customer.module';
+import { OrderModule } from '@modules/order/order.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { CustomerModule } from '@modules/customer/customer.module';
     CommodityModule,
     SharedModule,
     CustomerModule,
+    OrderModule,
   ],
   providers: [
     {

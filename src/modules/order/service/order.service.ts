@@ -5,11 +5,129 @@ import {
   CheckOrderAmountRequest,
   CheckOrderAmountResponse,
   UpdateOfflineOrderRequest,
+  QueryOrderDto,
+  OrderInfoResponseDto,
 } from '@src/dto/order/order.common.dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { GlobalStatusEnum } from '@src/enums/global-status.enum';
+import { BusinessException } from '@src/dto/common/common.dto';
+import { OrderMainEntity } from '../entities/order.main.entity';
+
 @Injectable()
 export class OrderService {
+  constructor(
+    @InjectRepository(OrderMainEntity)
+    private orderReposity: Repository<OrderMainEntity>,
+  ) {}
+
+  /**
+   * 获取订单列表
+   */
+  async getOrderList(
+    params: QueryOrderDto,
+  ): Promise<{ items: OrderInfoResponseDto[]; total: number }> {
+    try {
+      const {
+        onlineOrderCode,
+        oriInnerOrderCode,
+        customerName,
+        orderCode,
+        orderStatus,
+        page,
+        pageSize,
+      } = params;
+
+      let queryBuilder = this.orderReposity
+        .createQueryBuilder('order')
+        .select([
+          'order.id as id',
+          'order.order_code as orderCode',
+          'order.online_order_code as onlineOrderCode',
+          'order.ori_inner_order_code as oriInnerOrderCode',
+          'order.order_status as orderStatus',
+          'order.customer_id as customerId',
+          'order.customer_name as customerName',
+          'order.amount as amount',
+          'order.replenish_amount as replenishAmount',
+          'order.auxiliary_sales_amount as auxiliarySalesAmount',
+          'order.contact as contact',
+          'order.contact_phone as contactPhone',
+          'order.created_time as createdTime',
+        ])
+        .where('order.deleted = :deleted', {
+          deleted: GlobalStatusEnum.NO,
+        });
+
+      // 线上订单号
+      if (onlineOrderCode) {
+        queryBuilder = queryBuilder.andWhere(
+          'order.online_order_code LIKE :onlineOrderCode',
+          {
+            onlineOrderCode: `%${onlineOrderCode}%`,
+          },
+        );
+      }
+
+      // 内部单号
+      if (oriInnerOrderCode) {
+        queryBuilder = queryBuilder.andWhere(
+          'order.ori_inner_order_code LIKE :oriInnerOrderCode',
+          {
+            oriInnerOrderCode: `%${oriInnerOrderCode}%`,
+          },
+        );
+      }
+
+      // 客户名称
+      if (customerName) {
+        queryBuilder = queryBuilder.andWhere(
+          'order.customer_name LIKE :customerName',
+          {
+            customerName: `%${customerName}%`,
+          },
+        );
+      }
+
+      // 订单编号
+      if (customerName) {
+        queryBuilder = queryBuilder.andWhere(
+          'order.order_code LIKE :orderCode',
+          {
+            orderCode: `%${orderCode}%`,
+          },
+        );
+      }
+
+      // 订单状态
+      if (orderStatus) {
+        queryBuilder = queryBuilder.andWhere(
+          'order.order_status = :orderStatus',
+          {
+            orderStatus,
+          },
+        );
+      }
+
+      // 执行计数查询
+      const countQueryBuilder = queryBuilder.clone();
+      const total = await countQueryBuilder.getCount();
+
+      queryBuilder = queryBuilder
+        .orderBy('order.created_time', 'DESC')
+        .limit(pageSize)
+        .offset((page - 1) * pageSize);
+
+      const items = await queryBuilder.getRawMany();
+
+      return { items, total };
+    } catch (error) {
+      throw new BusinessException('获取订单列表失败' + error.message);
+    }
+  }
+
   /**
    * 检查订单金额
    * @param req - 检查订单金额请求参数

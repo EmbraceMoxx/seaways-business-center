@@ -18,3 +18,6 @@ export * from './customer/customer.dto';
 
 // 客户地址管理相关DTO
 export * from './customer/customer-address.dto';
+
+// 订单相关DTO
+export * from './order/order.common.dto';
