@@ -27,7 +27,7 @@ import { CommodityService } from '@modules/commodity/services/commodity.service'
 export class OrderService {
   constructor(
     @InjectRepository(OrderMainEntity)
-    private orderReposity: Repository<OrderMainEntity>,
+    private orderRepository: Repository<OrderMainEntity>,
     private commodityService: CommodityService,
   ) {}
 
@@ -50,7 +50,7 @@ export class OrderService {
         pageSize,
       } = params;
 
-      let queryBuilder = this.orderReposity
+      let queryBuilder = this.orderRepository
         .createQueryBuilder('order')
         .select([
           'order.id as id',
@@ -188,7 +188,7 @@ export class OrderService {
       } = params;
 
       // 差一个审核原因(连表查询)
-      let queryBuilder = this.orderReposity
+      let queryBuilder = this.orderRepository
         .createQueryBuilder('order')
         .select([
           'order.id as id',

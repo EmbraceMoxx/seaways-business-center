@@ -18,7 +18,7 @@ import { CustomerCreditLimitService } from '../services/customer-credit-limit.se
 export class CustomerService {
   constructor(
     @InjectRepository(CustomerInfoEntity)
-    private customerRepositor: Repository<CustomerInfoEntity>,
+    private customerRepository: Repository<CustomerInfoEntity>,
     private customerCreditLimitService: CustomerCreditLimitService,
   ) {}
 
@@ -40,7 +40,7 @@ export class CustomerService {
         pageSize,
       } = params;
 
-      let queryBuilder = this.customerRepositor
+      let queryBuilder = this.customerRepository
         .createQueryBuilder('customer')
         .select([
           'customer.id as id',
@@ -153,7 +153,7 @@ export class CustomerService {
   > {
     try {
       // 查询详情
-      const customerInfo = await this.customerRepositor.findOne({
+      const customerInfo = await this.customerRepository.findOne({
         where: {
           id,
           deleted: GlobalStatusEnum.NO,
@@ -208,7 +208,7 @@ export class CustomerService {
       customer.revisedTime = dayjs().toDate();
 
       // 4、执行更新
-      await this.customerRepositor.update(customerId, customer);
+      await this.customerRepository.update(customerId, customer);
     } catch (error) {
       throw new BusinessException(error.message);
     }
