@@ -31,6 +31,14 @@ export class QueryCommodityDto extends PageRequestDto {
   commodityName?: string;
 
   @ApiProperty({
+    description: '商品简称',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '商品简称必须是字符串' })
+  commodityAliaName?: string;
+
+  @ApiProperty({
     description: '分类',
     required: false,
   })
@@ -102,6 +110,12 @@ export class CommodityResponseDto {
   commodityName: string;
 
   @ApiProperty({
+    description: '商品简称',
+    example: '水卫土特惠装强效洁厕净',
+  })
+  commodityAliaName: string;
+
+  @ApiProperty({
     description: '单件规格',
     example: '1Kg',
   })
@@ -142,6 +156,18 @@ export class CommodityResponseDto {
     example: '分类',
   })
   commoditySecondCategoryName: string;
+
+  @ApiProperty({
+    description: '箱规格信息',
+    example: '15瓶/箱',
+  })
+  boxSpecInfo: string;
+
+  @ApiProperty({
+    description: '出厂价',
+    example: '13.97',
+  })
+  itemExFactoryPrice: string;
 
   @ApiProperty({
     description: '是否参与额度计算',

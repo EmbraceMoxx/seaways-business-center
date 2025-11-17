@@ -36,6 +36,7 @@ export class CommodityService {
         isSupplySubsidyInvolved,
         isGiftEligible,
         enabled,
+        commodityAliaName,
       } = params;
 
       // 分页参数--页码、页数
@@ -48,10 +49,13 @@ export class CommodityService {
           'commodity.id AS id',
           'commodity.commodity_code AS commodityCode',
           'commodity.commodity_name AS commodityName',
+          'commodity.commodity_alia_name AS commodityAliaName',
           'commodity.item_spec_piece AS itemSpecPiece',
           'commodity.commodity_internal_code AS commodityInternalCode',
           'commodity.commodity_barcode AS commodityBarcode',
           'commodity.commodity_first_category AS commodityFirstCategory',
+          'commodity.box_spec_info AS boxSpecInfo',
+          'commodity.item_ex_factory_price AS itemExFactoryPrice',
           'firstCategory.category_name AS commodityFirstCategoryName',
           'commodity.commodity_second_category AS commoditySecondCategory',
           'secondCategory.category_name AS commoditySecondCategoryName',
@@ -104,6 +108,16 @@ export class CommodityService {
           'commodity.commodity_name LIKE :commodityName',
           {
             commodityName: `%${commodityName}%`,
+          },
+        );
+      }
+
+      // 商品简称
+      if (commodityAliaName) {
+        queryBuilder = queryBuilder.andWhere(
+          'commodity.commodity_alia_name LIKE :commodityAliaName',
+          {
+            commodityAliaName: `%${commodityAliaName}%`,
           },
         );
       }
