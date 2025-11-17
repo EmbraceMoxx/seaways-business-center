@@ -1,5 +1,5 @@
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import {
   SuccessResponseDto,
   QueryOrderDto,
@@ -9,6 +9,8 @@ import {
   CheckOrderAmountResponse,
   UpdateOfflineOrderRequest,
   AddOfflineOrderRequest,
+  GetOrderDetailDto,
+  OrderDetailResponseDto,
 } from '@src/dto';
 import { OrderService } from '@modules/order/service/order.service';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
@@ -70,6 +72,15 @@ export class OrderController {
   > {
     const list = await this.orderService.getOrderList(body);
     return new SuccessResponseDto(list, '获取订单列表成功');
+  }
+
+  @Post('detail')
+  @ApiOperation({ summary: '获取订单详情' })
+  async getOrderDetail(
+    @Body() body: GetOrderDetailDto,
+  ): Promise<SuccessResponseDto<OrderDetailResponseDto>> {
+    const orderDetail = await this.orderService.getOrderDetail(body.orderId);
+    return new SuccessResponseDto(orderDetail, '获取订单详情成功');
   }
 
   @ApiOperation({ summary: '获取订单列表' })

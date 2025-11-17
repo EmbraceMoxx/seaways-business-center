@@ -4,8 +4,8 @@ import { Repository } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import {
-  CustomerInfoResponseDto,
   CustomerInfoCreditResponseDto,
+  CustomerInfoResponseDto,
   CustomerInfoUpdateDto,
   QueryCustomerDto,
 } from '@src/dto';
@@ -153,12 +153,7 @@ export class CustomerService {
   > {
     try {
       // 查询详情
-      const customerInfo = await this.customerRepository.findOne({
-        where: {
-          id,
-          deleted: GlobalStatusEnum.NO,
-        },
-      });
+      const customerInfo = await this.getCustomerBaseInfoById(id);
       if (!customerInfo) {
         throw new BusinessException('客户不存在');
       }
@@ -171,6 +166,15 @@ export class CustomerService {
     } catch (error) {
       throw new BusinessException('获取客户详情失败');
     }
+  }
+
+  public async getCustomerBaseInfoById(id: string) {
+    return await this.customerRepository.findOne({
+      where: {
+        id,
+        deleted: GlobalStatusEnum.NO,
+      },
+    });
   }
 
   /**

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { PageRequestDto } from '@src/dto/common/common.dto';
 
 export class OrderItem {
@@ -235,4 +235,158 @@ export class OrderInfoResponseDto {
     example: '2021-01-01T00:00:00Z',
   })
   createdTime: string;
+}
+
+export class GetOrderDetailDto {
+  @ApiProperty({
+    description: '订单ID',
+    example: 'XX20251111123456',
+  })
+  @IsNotEmpty({ message: '订单ID不能为空' })
+  @IsString({ message: '订单ID必须是字符串' })
+  orderId: string;
+}
+
+export class OrderDetailItem {
+  @ApiProperty({ description: '订单明细项ID' })
+  id: string;
+
+  @ApiProperty({ description: '商品类型' })
+  type: string;
+
+  @ApiProperty({ description: '商品名称' })
+  name: string;
+
+  @ApiProperty({ description: '商品别名' })
+  alias: string;
+
+  @ApiProperty({ description: '商品内部编码' })
+  internalCode: string;
+
+  @ApiProperty({ description: '规格信息' })
+  specInfo: string;
+
+  @ApiProperty({ description: '箱规信息' })
+  boxSpecInfo: string;
+
+  @ApiProperty({ description: '箱规件数' })
+  boxSpecPiece: number;
+
+  @ApiProperty({ description: '箱数' })
+  boxQty: number;
+
+  @ApiProperty({ description: '推单数量' })
+  qty: number;
+
+  @ApiProperty({ description: '出厂价' })
+  exFactoryPrice: string;
+
+  @ApiProperty({ description: '是否涉及配额' })
+  isQuotaInvolved: string;
+
+  @ApiProperty({ description: '金额' })
+  amount: string;
+
+  @ApiProperty({ description: '货补金额' })
+  replenishAmount: string;
+
+  @ApiProperty({ description: '辅销金额' })
+  auxiliarySalesAmount: string;
+}
+export class OrderDetailResponseDto {
+  @ApiProperty({ description: '订单ID' })
+  id: string;
+
+  @ApiProperty({ description: '订单编号' })
+  orderCode: string;
+
+  @ApiProperty({ description: '线上订单号' })
+  onlineOrderCode: string;
+
+  @ApiProperty({ description: '原内部单号' })
+  oriInnerOrderCode: string;
+
+  @ApiProperty({ description: '订单状态' })
+  orderStatus: string;
+
+  @ApiProperty({ description: '订单取消原因' })
+  cancelledMessage: string;
+
+  @ApiProperty({ description: '订单审核通过时间' })
+  auditTime: string;
+
+  @ApiProperty({ description: '订单推送时间' })
+  pushTime: string;
+
+  @ApiProperty({ description: '订单发货时间' })
+  deliveryTime: string;
+
+  @ApiProperty({ description: '客户ID' })
+  customerId: string;
+
+  @ApiProperty({ description: '客户名称' })
+  customerName: string;
+
+  @ApiProperty({ description: '区域负责人ID' })
+  regionalHeadId: string;
+
+  @ApiProperty({ description: '区域负责人名称' })
+  regionalHeadName: string;
+
+  @ApiProperty({ description: '省区负责人ID' })
+  provincialHeadId: string;
+
+  @ApiProperty({ description: '省区负责人名称' })
+  provincialHeadName: string;
+
+  @ApiProperty({ description: '下单联系人' })
+  contact: string;
+
+  @ApiProperty({ description: '下单联系人电话' })
+  contactPhone: string;
+
+  @ApiProperty({ description: '收货省份' })
+  receiverProvince: string;
+
+  @ApiProperty({ description: '收货城市' })
+  receiverCity: string;
+
+  @ApiProperty({ description: '收货区/街道' })
+  receiverDistrict: string;
+
+  @ApiProperty({ description: '收货人详细地址' })
+  receiverAddress: string;
+
+  @ApiProperty({ description: '收货人姓名' })
+  receiverName: string;
+
+  @ApiProperty({ description: '收货人电话' })
+  receiverPhone: string;
+
+  @ApiProperty({ description: '备注' })
+  remark: string;
+
+  @ApiProperty({ description: '订单总金额(发货金额），单位：元' })
+  amount: string;
+
+  @ApiProperty({ description: '产生的货补金额, 单位：元' })
+  replenishAmount: string;
+
+  @ApiProperty({ description: '产生辅销金额, 单位：元' })
+  auxiliarySalesAmount: string;
+
+  @ApiProperty({ description: '使用的货补金额, 单位：元' })
+  usedReplenishAmount: string;
+
+  @ApiProperty({ description: '使用的货补比例, 单位：%' })
+  usedReplenishRatio: string;
+
+  @ApiProperty({ description: '使用的辅销金额, 单位：元' })
+  usedAuxiliarySalesAmount: string;
+
+  @ApiProperty({ description: '使用的辅销比例, 单位：%' })
+  usedAuxiliarySalesRatio: string;
+
+  @ApiProperty({ description: '订单明细项列表', type: [OrderDetailItem] })
+  items: OrderDetailItem[];
 }

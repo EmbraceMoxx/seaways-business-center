@@ -6,7 +6,13 @@ import { Column, Entity, Index } from 'typeorm';
 @Index('idx_customer_time', ['customerId', 'createdTime'], {})
 @Index('idx_order_status', ['orderStatus'], {})
 @Index('idx_created_time', ['createdTime'], {})
-@Entity('order_main', { schema: 'seaways_base_business_center' })
+@Entity({
+  name: 'order_main',
+  engine: 'InnoDB',
+  comment: '订单主表',
+  database: 'seaways_base_business_center',
+  synchronize: false,
+})
 export class OrderMainEntity {
   @Column('bigint', {
     primary: true,
