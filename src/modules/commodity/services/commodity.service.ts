@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CommodityInfoEntity } from '../entities/commodity-info.entity';
-import { CommodityBundledSkuInfoEntity } from '../entities/commodity-bundled-sku-info.entity';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import {
@@ -10,7 +8,9 @@ import {
   CommodityResponseDto,
   CommodityBundledSkuResponseDto,
 } from '@src/dto';
-import { CommodityCategoryEntity } from '../../commodity-category/commodity-category.entity';
+import { CommodityInfoEntity } from '../entities/commodity-info.entity';
+import { CommodityBundledSkuInfoEntity } from '../entities/commodity-bundled-sku-info.entity';
+import { CommodityCategoryEntity } from '../entities/commodity-category.entity';
 
 @Injectable()
 export class CommodityService {

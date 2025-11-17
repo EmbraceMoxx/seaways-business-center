@@ -2,7 +2,7 @@ import { Column, Entity, BeforeInsert } from 'typeorm';
 import { generateId } from '@src/utils';
 
 @Entity('customer_credit_flow_detail')
-export class CustomerCreditLimitDetail {
+export class CustomerCreditLimitDetailEntity {
   @Column('bigint', { primary: true, name: 'id', comment: '主键id' })
   id: string;
 

@@ -1,6 +1,5 @@
 import { Controller, Post, Body, Param, Get, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { CustomerService } from './customer.service';
 import {
   SuccessResponseDto,
   QueryCustomerDto,
@@ -9,6 +8,7 @@ import {
 } from '@src/dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
+import { CustomerService } from '../services/customer.service';
 
 @ApiTags('客户管理')
 @ApiBearerAuth()

@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CommodityCategoryEntity } from './commodity-category.entity';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
@@ -9,7 +8,8 @@ import { BusinessException } from '@src/dto/common/common.dto';
 import { CategoryRequestDto } from '@src/dto';
 import { generateId } from '@src/utils';
 import { Not } from 'typeorm';
-import { CommodityService } from '../commodity/services/commodity.service';
+import { CommodityCategoryEntity } from '../entities/commodity-category.entity';
+import { CommodityService } from './commodity.service';
 
 @Injectable()
 export class CommodityCategoryService {

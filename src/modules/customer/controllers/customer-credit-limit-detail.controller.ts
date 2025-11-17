@@ -1,6 +1,5 @@
-import { Controller, Post, Body, Param } from '@nestjs/common';
+import { Controller, Post, Body } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { CustomerCreditLimitDetailService } from './customer-credit-limit-detail.service';
 import {
   SuccessResponseDto,
   QueryCreditLimiDetailtDto,
@@ -9,6 +8,7 @@ import {
 } from '@src/dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
+import { CustomerCreditLimitDetailService } from '../services/customer-credit-limit-detail.service';
 
 @ApiTags('客户额度流水明细')
 @ApiBearerAuth()

@@ -1,19 +1,11 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  Put,
-  Param,
-  Delete,
-} from '@nestjs/common';
+import { Controller, Post, Get, Body, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { CommodityService } from '../services/commodity.service';
 import {
   SuccessResponseDto,
   QueryCommodityDto,
   CommodityResponseDto,
 } from '@src/dto';
+import { CommodityService } from '../services/commodity.service';
 
 @ApiTags('商品管理')
 @ApiBearerAuth()
