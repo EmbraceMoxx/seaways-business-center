@@ -4,8 +4,8 @@ import { Repository } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import {
-  CustomerInfoResponseDto,
   CustomerInfoCreditResponseDto,
+  CustomerInfoResponseDto,
   CustomerInfoUpdateDto,
   QueryCustomerDto,
 } from '@src/dto';
@@ -18,7 +18,7 @@ import { CustomerCreditLimitService } from '../services/customer-credit-limit.se
 export class CustomerService {
   constructor(
     @InjectRepository(CustomerInfoEntity)
-    private customerRepositor: Repository<CustomerInfoEntity>,
+    private customerRepository: Repository<CustomerInfoEntity>,
     private customerCreditLimitService: CustomerCreditLimitService,
   ) {}
 
@@ -40,7 +40,7 @@ export class CustomerService {
         pageSize,
       } = params;
 
-      let queryBuilder = this.customerRepositor
+      let queryBuilder = this.customerRepository
         .createQueryBuilder('customer')
         .select([
           'customer.id as id',
@@ -153,12 +153,7 @@ export class CustomerService {
   > {
     try {
       // 查询详情
-      const customerInfo = await this.customerRepositor.findOne({
-        where: {
-          id,
-          deleted: GlobalStatusEnum.NO,
-        },
-      });
+      const customerInfo = await this.getCustomerBaseInfoById(id);
       if (!customerInfo) {
         throw new BusinessException('客户不存在');
       }
@@ -171,6 +166,15 @@ export class CustomerService {
     } catch (error) {
       throw new BusinessException('获取客户详情失败');
     }
+  }
+
+  public async getCustomerBaseInfoById(id: string) {
+    return await this.customerRepository.findOne({
+      where: {
+        id,
+        deleted: GlobalStatusEnum.NO,
+      },
+    });
   }
 
   /**
@@ -208,7 +212,7 @@ export class CustomerService {
       customer.revisedTime = dayjs().toDate();
 
       // 4、执行更新
-      await this.customerRepositor.update(customerId, customer);
+      await this.customerRepository.update(customerId, customer);
     } catch (error) {
       throw new BusinessException(error.message);
     }

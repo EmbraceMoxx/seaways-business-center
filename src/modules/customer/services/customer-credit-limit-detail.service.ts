@@ -19,7 +19,7 @@ import { CustomerService } from '../services/customer.service';
 export class CustomerCreditLimitDetailService {
   constructor(
     @InjectRepository(CustomerCreditLimitDetailEntity)
-    private creditDetailRepositor: Repository<CustomerCreditLimitDetailEntity>,
+    private creditDetailRepository: Repository<CustomerCreditLimitDetailEntity>,
     private customerService: CustomerService,
     private customerCreditLimitService: CustomerCreditLimitService,
     private dataSource: DataSource,
@@ -42,7 +42,7 @@ export class CustomerCreditLimitDetailService {
         pageSize,
       } = params;
 
-      let queryBuilder = this.creditDetailRepositor
+      let queryBuilder = this.creditDetailRepository
         .createQueryBuilder('creditDetail')
         .where('creditDetail.deleted = :deleted', {
           deleted: GlobalStatusEnum.NO,
@@ -178,7 +178,7 @@ export class CustomerCreditLimitDetailService {
       creditDetail.reviserName = userPayload.username;
       creditDetail.revisedTime = dayjs().toDate();
 
-      return await this.creditDetailRepositor.save(creditDetail);
+      return await this.creditDetailRepository.save(creditDetail);
     } catch (error) {
       throw new BusinessException('新增客户额度流水失败' + error.message);
     }
@@ -239,7 +239,7 @@ export class CustomerCreditLimitDetailService {
     customerId: string,
   ): Promise<CreditLimitDetailResponseDto> {
     // 获取流水详情
-    const creditDetail = await this.creditDetailRepositor.findOneBy({
+    const creditDetail = await this.creditDetailRepository.findOneBy({
       customerId,
     });
     return creditDetail;

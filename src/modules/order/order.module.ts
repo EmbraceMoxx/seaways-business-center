@@ -6,6 +6,9 @@ import { OrderController } from '@modules/order/controller/order.controller';
 import { OrderService } from '@modules/order/service/order.service';
 import { CommodityService } from '@modules/commodity/services/commodity.service';
 import { CommodityInfoEntity } from '@modules/commodity/entities/commodity-info.entity';
+import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
+import { CustomerModule } from '@modules/customer/customer.module';
+import { CommodityModule } from '@modules/commodity/commodity.module';
 
 @Module({
   imports: [
@@ -13,7 +16,10 @@ import { CommodityInfoEntity } from '@modules/commodity/entities/commodity-info.
       OrderItemEntity,
       OrderMainEntity,
       CommodityInfoEntity,
+      CustomerInfoEntity,
     ]),
+    CustomerModule,
+    CommodityModule,
   ],
   providers: [OrderService, CommodityService],
   controllers: [OrderController],

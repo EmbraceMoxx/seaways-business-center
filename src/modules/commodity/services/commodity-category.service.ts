@@ -15,7 +15,7 @@ import { CommodityService } from './commodity.service';
 export class CommodityCategoryService {
   constructor(
     @InjectRepository(CommodityCategoryEntity)
-    private categoryRepositor: Repository<CommodityCategoryEntity>,
+    private categoryRepository: Repository<CommodityCategoryEntity>,
     private commodityService: CommodityService,
   ) {}
 
@@ -23,7 +23,7 @@ export class CommodityCategoryService {
    * 获取商品分类列表-树状（未删除）
    */
   async getCategoryListTree(): Promise<CommodityCategoryEntity[]> {
-    const queryBuilder = this.categoryRepositor
+    const queryBuilder = this.categoryRepository
       .createQueryBuilder('category')
       .where('category.deleted = :deleted', {
         deleted: GlobalStatusEnum.NO,
@@ -39,7 +39,7 @@ export class CommodityCategoryService {
    * 商品分类下拉选择列表-树状（未删除且启用）
    */
   async getCategorySelectTree(): Promise<any[]> {
-    const queryBuilder = this.categoryRepositor
+    const queryBuilder = this.categoryRepository
       .createQueryBuilder('category')
       .where('category.deleted = :deleted', {
         deleted: GlobalStatusEnum.NO,
@@ -78,7 +78,7 @@ export class CommodityCategoryService {
    * 根据id查询商品分类
    */
   async getCategoryById(id: string): Promise<CommodityCategoryEntity> {
-    return await this.categoryRepositor.findOne({
+    return await this.categoryRepository.findOne({
       where: {
         id,
         deleted: GlobalStatusEnum.NO,
@@ -134,7 +134,7 @@ export class CommodityCategoryService {
       await this.setCategoryParentRelation(category, parentId);
 
       // 7、重新保存更新后的分类信息
-      const finalCategory = await this.categoryRepositor.save(category);
+      const finalCategory = await this.categoryRepository.save(category);
 
       // 8、如果有父级分类，需要更新父级分类为非叶子节点
       await this.updateParentAsNonLeaf(parentId);
@@ -286,7 +286,7 @@ export class CommodityCategoryService {
       }
 
       // 11、保存更新后的分类
-      const savedCategory = await this.categoryRepositor.save(category);
+      const savedCategory = await this.categoryRepository.save(category);
 
       return savedCategory;
     } catch (error) {
@@ -327,7 +327,7 @@ export class CommodityCategoryService {
       }
 
       // 5、执行删除操作（标记为已删除）
-      await this.categoryRepositor.update(categoryId, {
+      await this.categoryRepository.update(categoryId, {
         deleted: GlobalStatusEnum.YES,
       });
     } catch (error) {
@@ -409,7 +409,7 @@ export class CommodityCategoryService {
   ): Promise<void> {
     if (!categoryCode) return;
 
-    const existingCategory = await this.categoryRepositor.findOne({
+    const existingCategory = await this.categoryRepository.findOne({
       where: {
         categoryCode,
         deleted: GlobalStatusEnum.NO,
@@ -430,7 +430,7 @@ export class CommodityCategoryService {
     categoryName: string,
     excludeId?: string,
   ): Promise<void> {
-    const existingCategory = await this.categoryRepositor.findOne({
+    const existingCategory = await this.categoryRepository.findOne({
       where: {
         parentId: parentId || '1',
         categoryName,
@@ -449,7 +449,7 @@ export class CommodityCategoryService {
    */
   private async updateParentAsNonLeaf(parentId: string): Promise<void> {
     if (parentId) {
-      await this.categoryRepositor.update(parentId, {
+      await this.categoryRepository.update(parentId, {
         isLeaf: GlobalStatusEnum.NO,
       });
     }
@@ -463,7 +463,7 @@ export class CommodityCategoryService {
     categoryId: string,
   ): Promise<void> {
     if (originalParentId && originalParentId !== '1') {
-      const childCount = await this.categoryRepositor.count({
+      const childCount = await this.categoryRepository.count({
         where: {
           parentId: originalParentId,
           deleted: GlobalStatusEnum.NO,
@@ -477,7 +477,7 @@ export class CommodityCategoryService {
         const parentCategory = await this.getCategoryById(originalParentId);
         // 只有非一级分类且无子节点时才设为叶子节点
         if (parentCategory && parentCategory.parentId !== '1') {
-          await this.categoryRepositor.update(originalParentId, {
+          await this.categoryRepository.update(originalParentId, {
             isLeaf: GlobalStatusEnum.YES,
           });
         }
@@ -489,7 +489,7 @@ export class CommodityCategoryService {
    * 判断分类下是否存在被禁用的子分类
    */
   private async hasDisabledChildren(categoryId: string): Promise<boolean> {
-    const count = await this.categoryRepositor.count({
+    const count = await this.categoryRepository.count({
       where: {
         parentId: categoryId,
         enabled: GlobalStatusEnum.NO,
@@ -504,7 +504,7 @@ export class CommodityCategoryService {
    * 判断分类下是否存在未删除子分类
    */
   private async hasChildren(categoryId: string): Promise<boolean> {
-    const count = await this.categoryRepositor.count({
+    const count = await this.categoryRepository.count({
       where: {
         parentId: categoryId,
         deleted: GlobalStatusEnum.NO,

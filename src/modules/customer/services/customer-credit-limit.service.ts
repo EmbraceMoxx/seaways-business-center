@@ -18,9 +18,9 @@ import { CustomerMonthlyCreditLimitEntity } from '../entities/customer-monthly-c
 export class CustomerCreditLimitService {
   constructor(
     @InjectRepository(CustomerCreditAmountInfoEntity)
-    private creditRepositor: Repository<CustomerCreditAmountInfoEntity>,
+    private creditRepository: Repository<CustomerCreditAmountInfoEntity>,
     @InjectRepository(CustomerMonthlyCreditLimitEntity)
-    private monthlyCreditRepositor: Repository<CustomerMonthlyCreditLimitEntity>,
+    private monthlyCreditRepository: Repository<CustomerMonthlyCreditLimitEntity>,
   ) {}
 
   /**
@@ -32,7 +32,7 @@ export class CustomerCreditLimitService {
     try {
       const { customerName, region, page, pageSize } = params;
 
-      let queryBuilder = this.creditRepositor
+      let queryBuilder = this.creditRepository
         .createQueryBuilder('credit')
         .where('credit.deleted = :deleted', {
           deleted: GlobalStatusEnum.NO,
@@ -165,7 +165,7 @@ export class CustomerCreditLimitService {
   ): Promise<CreditLimitStatisticsResponseDto> {
     const yearMonth = year * 100 + month;
 
-    return await this.monthlyCreditRepositor
+    return await this.monthlyCreditRepository
       .createQueryBuilder('monthly')
       .select([
         'monthly.shipped_amount AS shippedAmount',
@@ -197,7 +197,7 @@ export class CustomerCreditLimitService {
     const startYearMonth = year * 100 + 1; // 年初 (如202301)
     const endYearMonth = year * 100 + month; // 当前月 (如202311)
 
-    const annualSummary = await this.monthlyCreditRepositor
+    const annualSummary = await this.monthlyCreditRepository
       .createQueryBuilder('monthly')
       .select([
         'SUM(monthly.shipped_amount) AS shippedAmount',
@@ -225,7 +225,7 @@ export class CustomerCreditLimitService {
   private async getCumulativeCreditInfo(
     customerId: string,
   ): Promise<CreditLimitStatisticsResponseDto> {
-    return await this.creditRepositor
+    return await this.creditRepository
       .createQueryBuilder('credit')
       .select([
         'credit.shipped_amount AS shippedAmount',
@@ -386,6 +386,6 @@ export class CustomerCreditLimitService {
   async getCreditInfoByCustomerId(
     customerId: string,
   ): Promise<CreditLimitResponseDto> {
-    return await this.creditRepositor.findOneBy({ customerId });
+    return await this.creditRepository.findOneBy({ customerId });
   }
 }
