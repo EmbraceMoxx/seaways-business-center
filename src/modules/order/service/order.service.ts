@@ -9,7 +9,7 @@ import {
   OrderInfoResponseDto,
 } from '@src/dto/order/order.common.dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
-
+import { TimeFormatterUtil } from '@utils/time-formatter.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
@@ -36,6 +36,8 @@ export class OrderService {
         customerName,
         orderCode,
         orderStatus,
+        startTime,
+        endTime,
         page,
         pageSize,
       } = params;
@@ -60,6 +62,7 @@ export class OrderService {
         .where('order.deleted = :deleted', {
           deleted: GlobalStatusEnum.NO,
         });
+
       // 线上订单号
       if (onlineOrderCode) {
         queryBuilder = queryBuilder.andWhere(
@@ -110,6 +113,38 @@ export class OrderService {
         );
       }
 
+      // 时间范围查询
+      if (startTime || endTime) {
+        const timeRange = TimeFormatterUtil.getTimeRange(startTime, endTime);
+
+        if (startTime && endTime) {
+          // 时间范围查询：开始时间 <= created_time <= 结束时间
+          queryBuilder = queryBuilder.andWhere(
+            'order.created_time BETWEEN :startTime AND :endTime',
+            {
+              startTime: timeRange.start,
+              endTime: timeRange.end,
+            },
+          );
+        } else if (startTime) {
+          // 只查询开始时间之后的数据：created_time >= 开始时间
+          queryBuilder = queryBuilder.andWhere(
+            'order.created_time >= :startTime',
+            {
+              startTime: timeRange.start,
+            },
+          );
+        } else if (endTime) {
+          // 只查询结束时间之前的数据：created_time <= 结束时间
+          queryBuilder = queryBuilder.andWhere(
+            'order.created_time <= :endTime',
+            {
+              endTime: timeRange.end,
+            },
+          );
+        }
+      }
+
       // 执行计数查询
       const countQueryBuilder = queryBuilder.clone();
       const total = await countQueryBuilder.getCount();
@@ -134,7 +169,15 @@ export class OrderService {
     params: QueryOrderDto,
   ): Promise<{ items: OrderInfoResponseDto[]; total: number }> {
     try {
-      const { customerName, orderCode, orderStatus, page, pageSize } = params;
+      const {
+        customerName,
+        orderCode,
+        orderStatus,
+        startTime,
+        endTime,
+        page,
+        pageSize,
+      } = params;
 
       // 差一个审核原因(连表查询)
       let queryBuilder = this.orderReposity
@@ -187,6 +230,38 @@ export class OrderService {
             orderStatus,
           },
         );
+      }
+
+      // 时间范围查询
+      if (startTime || endTime) {
+        const timeRange = TimeFormatterUtil.getTimeRange(startTime, endTime);
+
+        if (startTime && endTime) {
+          // 时间范围查询：开始时间 <= created_time <= 结束时间
+          queryBuilder = queryBuilder.andWhere(
+            'order.created_time BETWEEN :startTime AND :endTime',
+            {
+              startTime: timeRange.start,
+              endTime: timeRange.end,
+            },
+          );
+        } else if (startTime) {
+          // 只查询开始时间之后的数据：created_time >= 开始时间
+          queryBuilder = queryBuilder.andWhere(
+            'order.created_time >= :startTime',
+            {
+              startTime: timeRange.start,
+            },
+          );
+        } else if (endTime) {
+          // 只查询结束时间之前的数据：created_time <= 结束时间
+          queryBuilder = queryBuilder.andWhere(
+            'order.created_time <= :endTime',
+            {
+              endTime: timeRange.end,
+            },
+          );
+        }
       }
 
       // 执行计数查询
