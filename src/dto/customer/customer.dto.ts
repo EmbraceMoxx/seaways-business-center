@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, IsIn, IsNotEmpty } from 'class-validator';
 import { PageRequestDto } from '@src/dto/common/common.dto';
-import { CreditLimitStatisticsResponseDto } from '../customer-credit-limit/customer-credit-limit.dto';
+import { CreditLimitStatisticsResponseDto } from './customer-credit-limit.dto';
 
 /**
  * 客户列表查询参数DTO
