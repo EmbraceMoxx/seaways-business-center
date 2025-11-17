@@ -424,7 +424,14 @@ export class OrderService {
       usedReplenishRatio: orderMain.usedReplenishRatio ?? '0',
       usedAuxiliarySalesAmount: orderMain.usedAuxiliarySalesAmount ?? '0',
       usedAuxiliarySalesRatio: orderMain.usedAuxiliarySalesRatio ?? '0',
-      items: orderItems.map((item) => ({
+      finishGoods: [],
+      replenishGoods: [],
+      auxiliaryGoods: [],
+    };
+
+    //按照 type 装入不同的商品类型数组
+    for (const item of orderItems) {
+      const goodsItem = {
         id: item.id,
         type: item.type,
         name: item.name,
@@ -440,8 +447,25 @@ export class OrderService {
         amount: item.amount ?? '0',
         replenishAmount: item.replenishAmount ?? '0',
         auxiliarySalesAmount: item.auxiliarySalesAmount ?? '0',
-      })),
-    };
+      };
+
+      switch (item.type) {
+        case 'FINISH_GOODS':
+          orderDetail.finishGoods.push(goodsItem);
+          break;
+        case 'REPLENISH_GOODS':
+          orderDetail.replenishGoods.push(goodsItem);
+          break;
+        case 'AUXILIARY_GOODS':
+          orderDetail.auxiliaryGoods.push(goodsItem);
+          break;
+        default:
+          this.logger.warn(
+            `Unknown item type '${item.type}' for order item ID: ${item.id}`,
+          );
+      }
+    }
+
     return orderDetail;
   }
 

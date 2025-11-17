@@ -387,6 +387,12 @@ export class OrderDetailResponseDto {
   @ApiProperty({ description: '使用的辅销比例, 单位：%' })
   usedAuxiliarySalesRatio: string;
 
-  @ApiProperty({ description: '订单明细项列表', type: [OrderDetailItem] })
-  items: OrderDetailItem[];
+  @ApiProperty({ description: '成品商品明细项列表' })
+  finishGoods: OrderDetailItem[];
+
+  @ApiProperty({ description: '货补商品明细项列表' })
+  replenishGoods: OrderDetailItem[];
+
+  @ApiProperty({ description: '辅销商品明细项列表' })
+  auxiliaryGoods: OrderDetailItem[];
 }
