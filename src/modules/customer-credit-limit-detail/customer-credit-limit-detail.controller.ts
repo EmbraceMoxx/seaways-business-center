@@ -15,7 +15,7 @@ import { CurrentUser } from '@src/decorators/current-user.decorator';
 @Controller('customerCreditLimitDetail')
 export class CustomerCreditLimitDetailController {
   constructor(
-    private CreditLimitDetailService: CustomerCreditLimitDetailService,
+    private creditLimitDetailService: CustomerCreditLimitDetailService,
   ) {}
 
   @ApiOperation({ summary: '获取客户额度流水明细列表' })
@@ -25,7 +25,7 @@ export class CustomerCreditLimitDetailController {
   ): Promise<
     SuccessResponseDto<{ items: CreditLimitDetailResponseDto[]; total: number }>
   > {
-    const list = await this.CreditLimitDetailService.getCreditDetailPageList(
+    const list = await this.creditLimitDetailService.getCreditDetailPageList(
       body,
     );
     return new SuccessResponseDto(list);
@@ -37,7 +37,7 @@ export class CustomerCreditLimitDetailController {
     @Body() body: CreditLimitDetailRequestDto,
     @CurrentUser() user: JwtUserPayload,
   ) {
-    await this.CreditLimitDetailService.addCreditDetail(body, user);
+    await this.creditLimitDetailService.addCreditDetail(body, user);
     return new SuccessResponseDto(null, '新增成功');
   }
 
@@ -47,7 +47,7 @@ export class CustomerCreditLimitDetailController {
     @Body('customerId') customerId: string,
     @CurrentUser() user: JwtUserPayload,
   ): Promise<SuccessResponseDto> {
-    await this.CreditLimitDetailService.onReceipt(true, customerId, user);
+    await this.creditLimitDetailService.onReceipt(true, customerId, user);
     return new SuccessResponseDto(null, '确认收款成功');
   }
 
@@ -57,7 +57,7 @@ export class CustomerCreditLimitDetailController {
     @Body('customerId') customerId: string,
     @CurrentUser() user: JwtUserPayload,
   ): Promise<SuccessResponseDto> {
-    await this.CreditLimitDetailService.onReceipt(false, customerId, user);
+    await this.creditLimitDetailService.onReceipt(false, customerId, user);
     return new SuccessResponseDto(null, '取消订单成功');
   }
 }

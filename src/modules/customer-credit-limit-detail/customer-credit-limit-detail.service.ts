@@ -32,11 +32,15 @@ export class CustomerCreditLimitDetailService {
     params: QueryCreditLimiDetailtDto,
   ): Promise<{ items: CreditLimitDetailResponseDto[]; total: number }> {
     try {
-      const { customerName, onlineOrderId, flowCode, startTime, endTime } =
-        params;
-      // 分页参数--页码、页数
-      const page = Math.max(1, Number(params.page) || 1);
-      const pageSize = Number(params.pageSize) || 20;
+      const {
+        customerName,
+        onlineOrderId,
+        flowCode,
+        startTime,
+        endTime,
+        page,
+        pageSize,
+      } = params;
 
       let queryBuilder = this.creditDetailRepositor
         .createQueryBuilder('creditDetail')

@@ -12,6 +12,7 @@ import { SharedModule } from '@modules/shared/shared.module';
 import { CustomerCreditLimitModule } from '@modules/customer-credit-limit/customer-credit-limit.module';
 import { CustomerCreditLimitDetailModule } from '@modules/customer-credit-limit-detail/customer-credit-limit-detail.module';
 import { CustomerModule } from '@modules/customer/customer.module';
+import { CustomerAddressModule } from '@modules/customer-address/customer-address.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { CustomerModule } from '@modules/customer/customer.module';
     CustomerCreditLimitModule,
     CustomerCreditLimitDetailModule,
     CustomerModule,
+    CustomerAddressModule,
   ],
   providers: [
     {
