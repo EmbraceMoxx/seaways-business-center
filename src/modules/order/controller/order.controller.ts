@@ -1,14 +1,16 @@
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Body, Controller, Post } from '@nestjs/common';
-import { OrderService } from '@modules/order/service/order.service';
 import {
-  AddOfflineOrderRequest,
+  SuccessResponseDto,
+  QueryOrderDto,
+  OrderInfoResponseDto,
   CancelOrderRequest,
   CheckOrderAmountRequest,
   CheckOrderAmountResponse,
   UpdateOfflineOrderRequest,
-} from '@src/dto/order/order.common.dto';
-import { SuccessResponseDto } from '@src/dto';
+  AddOfflineOrderRequest,
+} from '@src/dto';
+import { OrderService } from '@modules/order/service/order.service';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 
@@ -48,6 +50,7 @@ export class OrderController {
     const orderId = await this.orderService.update(req, user);
     return new SuccessResponseDto(orderId, '订单新增成功！');
   }
+
   @Post('cancel')
   @ApiOperation({ summary: '取消订单' })
   async cancel(
@@ -56,5 +59,16 @@ export class OrderController {
   ) {
     await this.orderService.cancel(req, user);
     return new SuccessResponseDto('id', '订单已取消！');
+  }
+
+  @ApiOperation({ summary: '获取订单列表' })
+  @Post('list')
+  async getOrderList(
+    @Body() body: QueryOrderDto,
+  ): Promise<
+    SuccessResponseDto<{ items: OrderInfoResponseDto[]; total: number }>
+  > {
+    const list = await this.orderService.getOrderList(body);
+    return new SuccessResponseDto(list, '获取订单列表成功');
   }
 }

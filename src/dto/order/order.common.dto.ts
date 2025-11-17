@@ -1,4 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsOptional, IsString } from 'class-validator';
+import { PageRequestDto } from '@src/dto/common/common.dto';
 
 export class OrderItem {
   @ApiProperty({ description: '项目ID' })
