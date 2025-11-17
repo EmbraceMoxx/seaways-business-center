@@ -95,6 +95,8 @@ export class CheckOrderAmountResponse {
   customerName: string;
   @ApiProperty({ description: '订单金额' })
   orderAmount: string;
+  @ApiProperty({ description: '额度计算订单总额' })
+  orderSubsidyAmount: string;
   @ApiProperty({ description: '货补金额' })
   replenishAmount: string;
   @ApiProperty({ description: '辅助金额' })

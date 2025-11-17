@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { GlobalStatusEnum } from '@src/enums/global-status.enum';
+import {
+  BooleanStatusEnum,
+  GlobalStatusEnum,
+} from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import {
-  QueryCommodityDto,
-  CommodityResponseDto,
   CommodityBundledSkuResponseDto,
+  CommodityResponseDto,
+  QueryCommodityDto,
 } from '@src/dto';
 import { CommodityInfoEntity } from '../entities/commodity-info.entity';
 import { CommodityBundledSkuInfoEntity } from '../entities/commodity-bundled-sku-info.entity';
@@ -16,7 +19,7 @@ import { CommodityCategoryEntity } from '../entities/commodity-category.entity';
 export class CommodityService {
   constructor(
     @InjectRepository(CommodityInfoEntity)
-    private commodityRepositor: Repository<CommodityInfoEntity>,
+    private commodityRepository: Repository<CommodityInfoEntity>,
   ) {}
 
   /**
@@ -41,7 +44,7 @@ export class CommodityService {
         commodityAliaName,
       } = params;
 
-      let queryBuilder = this.commodityRepositor
+      let queryBuilder = this.commodityRepository
         .createQueryBuilder('commodity')
         .select([
           'commodity.id AS id',
@@ -196,7 +199,7 @@ export class CommodityService {
   async getCommodityById(id: string): Promise<CommodityResponseDto> {
     try {
       // 使用 QueryBuilder 获取实体对象（不指定字段）
-      const commodity = await this.commodityRepositor
+      const commodity = await this.commodityRepository
         .createQueryBuilder('commodity')
         .where('commodity.deleted = :deleted', {
           deleted: GlobalStatusEnum.NO,
@@ -213,7 +216,7 @@ export class CommodityService {
       let secondCategoryName = null;
 
       if (commodity.commodityFirstCategory) {
-        const firstCategory = await this.commodityRepositor.manager
+        const firstCategory = await this.commodityRepository.manager
           .getRepository(CommodityCategoryEntity)
           .findOne({
             where: { id: commodity.commodityFirstCategory },
@@ -222,7 +225,7 @@ export class CommodityService {
       }
 
       if (commodity.commoditySecondCategory) {
-        const secondCategory = await this.commodityRepositor.manager
+        const secondCategory = await this.commodityRepository.manager
           .getRepository(CommodityCategoryEntity)
           .findOne({
             where: { id: commodity.commoditySecondCategory },
@@ -265,7 +268,7 @@ export class CommodityService {
   ): Promise<CommodityBundledSkuResponseDto[]> {
     try {
       // 查询绑定的组合商品信息
-      const bundledSkus = await this.commodityRepositor.manager
+      const bundledSkus = await this.commodityRepository.manager
         .getRepository(CommodityBundledSkuInfoEntity)
         .createQueryBuilder('bundledSku')
         .where('bundledSku.commodityId = :commodityId', { commodityId })
@@ -291,7 +294,7 @@ export class CommodityService {
       > = {};
 
       if (bundledCommodityIds.length > 0) {
-        const bundledCommodities = await this.commodityRepositor
+        const bundledCommodities = await this.commodityRepository
           .createQueryBuilder('commodity')
           .select([
             'commodity.id',
@@ -362,7 +365,7 @@ export class CommodityService {
    */
   async checkCategoryIsUsed(categoryId: string): Promise<boolean> {
     try {
-      const isUsed = await this.commodityRepositor.manager
+      const isUsed = await this.commodityRepository.manager
         .getRepository(CommodityInfoEntity)
         .createQueryBuilder('commodity')
         .where('commodity.commodityFirstCategory = :categoryId', {
@@ -379,5 +382,23 @@ export class CommodityService {
     } catch (error) {
       throw new BusinessException('查询商品失败');
     }
+  }
+
+  async getCommodityListByCommodityIds(
+    commodityIds: string[],
+  ): Promise<CommodityInfoEntity[]> {
+    return await this.commodityRepository
+      .createQueryBuilder('commodity')
+      .where('commodity.id IN (:...commodityIds)', { commodityIds })
+      .andWhere('commodity.deleted = :deleted', {
+        deleted: GlobalStatusEnum.NO,
+      })
+      .andWhere('commodity.enabled = :enabled', {
+        enabled: GlobalStatusEnum.YES,
+      })
+      .andWhere('commodity.status = :status', {
+        status: BooleanStatusEnum.TRUE,
+      })
+      .getMany();
   }
 }

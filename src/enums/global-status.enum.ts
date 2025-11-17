@@ -7,6 +7,13 @@ export enum GlobalStatusEnum {
   YES = 'YES',
   /** 禁用/无效/否 */
   NO = 'NO',
+
+}
+export enum BooleanStatusEnum {
+  /** 是/真/启用 - 数字形式 */
+  TRUE = 1,
+  /** 否/假/禁用 - 数字形式 */
+  FALSE = 0,
 }
 
 /**
