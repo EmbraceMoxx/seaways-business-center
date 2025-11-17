@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { GlobalStatusEnum } from '@src/enums/global-status.enum';
+import {
+  BooleanStatusEnum,
+  GlobalStatusEnum,
+} from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import {
-  QueryCommodityDto,
-  CommodityResponseDto,
   CommodityBundledSkuResponseDto,
+  CommodityResponseDto,
+  QueryCommodityDto,
 } from '@src/dto';
 import { CommodityInfoEntity } from '../entities/commodity-info.entity';
 import { CommodityBundledSkuInfoEntity } from '../entities/commodity-bundled-sku-info.entity';
@@ -379,5 +382,23 @@ export class CommodityService {
     } catch (error) {
       throw new BusinessException('查询商品失败');
     }
+  }
+
+  async getCommodityListByCommodityIds(
+    commodityIds: string[],
+  ): Promise<CommodityInfoEntity[]> {
+    return await this.commodityRepository
+      .createQueryBuilder('commodity')
+      .where('commodity.id IN (:...commodityIds)', { commodityIds })
+      .andWhere('commodity.deleted = :deleted', {
+        deleted: GlobalStatusEnum.NO,
+      })
+      .andWhere('commodity.enabled = :enabled', {
+        enabled: GlobalStatusEnum.YES,
+      })
+      .andWhere('commodity.status = :status', {
+        status: BooleanStatusEnum.TRUE,
+      })
+      .getMany();
   }
 }
