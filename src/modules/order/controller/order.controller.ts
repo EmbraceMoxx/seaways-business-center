@@ -21,7 +21,6 @@ export class OrderController {
   @ApiOperation({ summary: '校验订单金额信息' })
   async checkOrderAmount(
     @Body() req: CheckOrderAmountRequest,
-    @CurrentUser() user: JwtUserPayload,
   ): Promise<SuccessResponseDto<CheckOrderAmountResponse>> {
     const response = await this.orderService.checkOrderAmount(req);
     return new SuccessResponseDto<CheckOrderAmountResponse>(
@@ -36,23 +35,26 @@ export class OrderController {
     @Body() req: AddOfflineOrderRequest,
     @CurrentUser() user: JwtUserPayload,
   ) {
-    return new SuccessResponseDto('id', '订单新增成功！');
+    const orderId = await this.orderService.add(req, user);
+    return new SuccessResponseDto(orderId, '订单新增成功！');
   }
 
-  @Post('update/:id')
+  @Post('update')
   @ApiOperation({ summary: '修改订单信息' })
   async update(
     @Body() req: UpdateOfflineOrderRequest,
     @CurrentUser() user: JwtUserPayload,
   ) {
-    return new SuccessResponseDto('id', '订单新增成功！');
+    const orderId = await this.orderService.update(req, user);
+    return new SuccessResponseDto(orderId, '订单新增成功！');
   }
-  @Post('cancel/:id')
+  @Post('cancel')
   @ApiOperation({ summary: '取消订单' })
   async cancel(
     @Body() req: CancelOrderRequest,
     @CurrentUser() user: JwtUserPayload,
   ) {
+    await this.orderService.cancel(req, user);
     return new SuccessResponseDto('id', '订单已取消！');
   }
 }
