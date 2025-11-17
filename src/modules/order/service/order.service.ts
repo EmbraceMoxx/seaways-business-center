@@ -24,6 +24,7 @@ import { OrderItemEntity } from '../entities/order.item.entity';
 import { CommodityInfoEntity } from '@modules/commodity/entities/commodity-info.entity';
 import { parseString } from 'xml2js';
 import { CommodityService } from '@modules/commodity/services/commodity.service';
+import { CustomerService } from '@modules/customer/services/customer.service';
 
 @Injectable()
 export class OrderService {
@@ -35,6 +36,7 @@ export class OrderService {
     @InjectRepository(OrderItemEntity)
     private orderItemRepository: Repository<OrderItemEntity>,
     private commodityService: CommodityService,
+    private customerService: CustomerService,
   ) {}
 
   /**
@@ -304,6 +306,14 @@ export class OrderService {
     req: CheckOrderAmountRequest,
   ): Promise<CheckOrderAmountResponse> {
     const response = new CheckOrderAmountResponse();
+    const customerInfo = await this.customerService.getCustomerBaseInfoById(
+      req.customerId,
+    );
+    if (!customerInfo) {
+      throw new BusinessException('客户不存在');
+    }
+    response.customerName = customerInfo.customerName;
+    response.customerId = customerInfo.id;
     // 计算订单金额 = 商品数量 * 出厂价相加
     const orderAmount = await this.calculateAmountWithQuery(req.finishGoods);
     // 订单金额
