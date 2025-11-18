@@ -3,10 +3,13 @@ import { CommodityInfoEntity } from '@modules/commodity/entities/commodity-info.
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { OrderItemEntity } from '@modules/order/entities/order.item.entity';
 import { IdUtil } from '@src/utils';
-import { BooleanStatusEnum, GlobalStatusEnum } from '@src/enums/global-status.enum';
+import {
+  BooleanStatusEnum,
+  GlobalStatusEnum,
+} from '@src/enums/global-status.enum';
 import * as dayjs from 'dayjs';
 
-export class OrderConvertHelper{
+export class OrderConvertHelper {
   static buildOrderItem(
     orderId: string,
     finish: OrderItem,
@@ -41,7 +44,6 @@ export class OrderConvertHelper{
     return { orderItem, commodityInfo };
   }
 
-
   /**
    * 根据商品列表计算总金额
    * @param goods 商品列表
@@ -59,8 +61,7 @@ export class OrderConvertHelper{
     let filteredCommodities = commodityInfos;
     if (onlySubsidyInvolved) {
       filteredCommodities = commodityInfos.filter(
-        (commodity) =>
-          commodity.isQuotaInvolved == BooleanStatusEnum.TRUE,
+        (commodity) => commodity.isQuotaInvolved == BooleanStatusEnum.TRUE,
       );
     }
     filteredCommodities.forEach((commodity) => {
