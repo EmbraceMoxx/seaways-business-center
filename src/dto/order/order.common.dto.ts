@@ -282,7 +282,7 @@ export class OrderDetailItem {
   exFactoryPrice: string;
 
   @ApiProperty({ description: '是否涉及配额' })
-  isQuotaInvolved: string;
+  isQuotaInvolved: number;
 
   @ApiProperty({ description: '金额' })
   amount: string;

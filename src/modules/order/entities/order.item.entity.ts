@@ -88,13 +88,12 @@ export class OrderItemEntity {
   })
   exFactoryBoxPrice: string | null;
 
-  @Column('varchar', {
+  @Column('int', {
     name: 'is_quota_involved',
-    comment: '是否参与额度计算，YES-是，NO-否',
-    length: 10,
-    default: () => "'NO'",
+    comment: '是否参与额度计算，1-是，0-否',
+    default: () => 0,
   })
-  isQuotaInvolved: string;
+  isQuotaInvolved: number;
 
   @Column('int', { name: 'box_qty', comment: '商品箱数' })
   boxQty: number;
