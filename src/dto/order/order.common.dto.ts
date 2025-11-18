@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, } from 'class-validator';
 import { PageRequestDto } from '@src/dto/common/common.dto';
+import { MaxLength } from 'class-validator/types/decorator/string/MaxLength';
 
 export class OrderItem {
   @ApiProperty({ description: '项目ID' })
@@ -9,10 +10,14 @@ export class OrderItem {
   orderId: string;
   @ApiProperty({ description: '商品ID' })
   commodityId: string;
+  @ApiProperty({ description: '商品内部编码' })
+  internalCode: string;
   @ApiProperty({ description: '箱数' })
   boxQty: number;
   @ApiProperty({ description: '推单数量' })
   qty: number;
+  @ApiProperty({ description: '商品金额' })
+  amount: string;
   @ApiProperty({ description: '出厂价' })
   exFactoryPrice: string;
 }
@@ -36,6 +41,7 @@ export class ReceiverAddress {
   @ApiProperty({ description: '收货区/街道' })
   receiverDistrict: string;
   @ApiProperty({ description: '收货人详细地址' })
+  @IsNotEmpty()
   receiverAddress: string;
   @ApiProperty({ description: '收货人姓名' })
   receiverName: string;
@@ -43,14 +49,16 @@ export class ReceiverAddress {
   receiverPhone: string;
 }
 export class AddOfflineOrderRequest {
-  @ApiProperty({ description: '收货地址信息' })
-  receiverAddress: ReceiverAddress;
   @ApiProperty({ description: '客户ID', example: 1 })
   customerId: string;
+  @ApiProperty({ description: '客户名称', example: 1 })
+  customerName: string;
   @ApiProperty({ description: '下单联系人' })
   contact: string;
   @ApiProperty({ description: '下单联系人电话' })
   contactPhone: string;
+  @ApiProperty({ description: '收货地址信息' })
+  receiverAddress: ReceiverAddress;
   @ApiProperty({ description: '成品商品集合' })
   finishGoods: OrderItem[];
   @ApiProperty({ description: '货补商品集合' })
@@ -58,6 +66,7 @@ export class AddOfflineOrderRequest {
   @ApiProperty({ description: '辅销商品集合' })
   auxiliaryGoods: OrderItem[];
   @ApiProperty({ description: '备注信息' })
+  @MaxLength(1000, { message: '备注信息过长，请简化描述' })
   remark: string;
 }
 

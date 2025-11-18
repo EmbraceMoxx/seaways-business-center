@@ -4,20 +4,17 @@ import {
   CancelOrderRequest,
   CheckOrderAmountRequest,
   CheckOrderAmountResponse,
-  UpdateOfflineOrderRequest,
-  QueryOrderDto,
-  OrderInfoResponseDto,
   OrderDetailResponseDto,
+  OrderInfoResponseDto,
   OrderItem,
+  QueryOrderDto,
+  UpdateOfflineOrderRequest,
 } from '@src/dto/order/order.common.dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { TimeFormatterUtil } from '@utils/time-formatter.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import {
-  BooleanStatusEnum,
-  GlobalStatusEnum,
-} from '@src/enums/global-status.enum';
+import { BooleanStatusEnum, GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import { OrderMainEntity } from '../entities/order.main.entity';
 import { OrderItemEntity } from '../entities/order.item.entity';
@@ -25,19 +22,23 @@ import { CommodityInfoEntity } from '@modules/commodity/entities/commodity-info.
 import { parseString } from 'xml2js';
 import { CommodityService } from '@modules/commodity/services/commodity.service';
 import { CustomerService } from '@modules/customer/services/customer.service';
+import { IdUtil } from '@src/utils';
+import { OrderItemTypeEnum } from '@src/enums/order-item-type.enum';
+import * as dayjs from 'dayjs';
 
 @Injectable()
 export class OrderService {
   private readonly logger = new Logger(OrderService.name);
+
   constructor(
     @InjectRepository(OrderMainEntity)
     private orderRepository: Repository<OrderMainEntity>,
-
     @InjectRepository(OrderItemEntity)
     private orderItemRepository: Repository<OrderItemEntity>,
     private commodityService: CommodityService,
     private customerService: CustomerService,
-  ) {}
+  ) {
+  }
 
   /**
    * 获取订单列表
@@ -368,14 +369,117 @@ export class OrderService {
     req: AddOfflineOrderRequest,
     user: JwtUserPayload,
   ): Promise<string> {
-    return 'orderId';
+    // 订单ID生成
+    const orderId = IdUtil.generateId();
+    // 包装客户基本信息
+    const customerInfo = await this.customerService.getCustomerInfoById(req.customerId);
+    if (!customerInfo) {
+      throw new BusinessException('客户信息不存在！');
+    }
+    const orderMain = new OrderMainEntity();
+    orderMain.id = orderId;
+    orderMain.customerId = customerInfo.id;
+    orderMain.customerName = customerInfo.customerName;
+    orderMain.customerJstId = customerInfo.customerJstId;
+    orderMain.regionalHeadId = customerInfo.regionalHeadId;
+    orderMain.regionalHeadName = customerInfo.regionalHead;
+    orderMain.provincialHeadId = customerInfo.provincialHeadId;
+    orderMain.provincialHeadName = customerInfo.provincialHead;
+    // 下单人联系人基本信息
+    orderMain.contact = req.contact;
+    orderMain.contactPhone = req.contactPhone;
+    // 收货人联系信息
+    const receiverAddress = req.receiverAddress;
+    orderMain.receiverProvince = receiverAddress.receiverProvince;
+    orderMain.receiverCity = receiverAddress.receiverCity;
+    orderMain.receiverDistrict = receiverAddress.receiverDistrict;
+    orderMain.receiverAddress = receiverAddress.receiverAddress;
+    orderMain.reviserName = receiverAddress.receiverName;
+    orderMain.receiverPhone = receiverAddress.receiverPhone;
+    const orderItemList: OrderItemEntity[] = [];
+    const commodityIds: string[] = [];
+    commodityIds.push(...req.finishGoods.map(finish => finish.commodityId));
+    commodityIds.push(...req.replenishGoods.map(replenish => replenish.commodityId));
+    commodityIds.push(...req.auxiliaryGoods.map(auxiliary => auxiliary.commodityId));
+    const commodityInfos =
+      await this.commodityService.getCommodityListByCommodityIds(commodityIds);
+    const commodityPriceMap = new Map<string, CommodityInfoEntity>();
+    commodityInfos.forEach(good => {
+      commodityPriceMap.set(good.id, good);
+    });
+    // 成品商品信息
+    if (!req.finishGoods || req.finishGoods.length === 0) {
+      throw new BusinessException('下单必须选择成品商品！');
+    }
+    const finishGoodList = req.finishGoods;
+    finishGoodList.forEach(finish => {
+      const { orderItem, commodityInfo, amount } = this.buildOrderItem(orderId, finish, commodityPriceMap, user);
+      orderItem.isQuotaInvolved = commodityInfo.isQuotaInvolved;
+      orderItem.replenishAmount = commodityInfo.isQuotaInvolved ? (amount * 0.1).toFixed(2) : null;
+      orderItem.auxiliarySalesAmount = commodityInfo.isQuotaInvolved ? (amount * 0.03).toFixed(2) : null;
+      orderItemList.push(orderItem);
+    });
+    // 货补商品信息
+    if (req.replenishGoods){
+      req.replenishGoods.forEach(item => {
+        const { orderItem, commodityInfo, amount } = this.buildOrderItem(orderId, item, commodityPriceMap, user);
+        orderItem.isQuotaInvolved = commodityInfo.isQuotaInvolved;
+        orderItem.replenishAmount = orderItem.amount;
+        orderItemList.push(orderItem);
+      });
+    }
+    // 辅销商品信息
+    if (req.auxiliaryGoods){
+      req.auxiliaryGoods.forEach(item => {
+        const { orderItem, commodityInfo, amount } = this.buildOrderItem(orderId, item, commodityPriceMap, user);
+        orderItem.isQuotaInvolved = commodityInfo.isQuotaInvolved;
+        orderItem.auxiliarySalesAmount = orderItem.amount;
+        orderItemList.push(orderItem);
+      })
+    }
+    this.orderRepository.save(orderMain);
+    this.orderItemRepository.save(orderItemList);
+    // 写入操作日志
+    return orderId;
   }
+
+  private buildOrderItem(orderId: string, finish: OrderItem, commodityPriceMap: Map<string, CommodityInfoEntity>, user: JwtUserPayload) {
+    const orderItem = new OrderItemEntity();
+    orderItem.id = IdUtil.generateId();
+    orderItem.orderId = orderId;
+    orderItem.type = OrderItemTypeEnum.FINISHED_PRODUCT;
+    orderItem.commodityId = finish.commodityId;
+    const commodityInfo = commodityPriceMap.get(finish.commodityId);
+    orderItem.name = commodityInfo.commodityName;
+    orderItem.aliasName = commodityInfo.commodityAliaName;
+    orderItem.internalCode = commodityInfo.commodityInternalCode;
+    orderItem.specInfo = commodityInfo.itemSpecInfo;
+    orderItem.boxSpecPiece = commodityInfo.boxSpecPiece;
+    orderItem.boxSpecInfo = commodityInfo.boxSpecInfo;
+    orderItem.exFactoryPrice = commodityInfo.itemExFactoryPrice;
+    orderItem.exFactoryBoxPrice = commodityInfo.boxExFactoryPrice;
+
+    orderItem.boxQty = finish.boxQty;
+    orderItem.qty = finish.qty;
+    const amount = finish.qty * parseFloat(commodityInfo.itemExFactoryPrice);
+    orderItem.amount = amount.toFixed(2);
+    orderItem.deleted = GlobalStatusEnum.NO;
+    orderItem.creatorId = user.userId;
+    orderItem.creatorName = user.username;
+    orderItem.createdTime = dayjs().toDate();
+    orderItem.reviserId = user.userId;
+    orderItem.reviserName = user.username;
+    orderItem.revisedTime = dayjs().toDate();
+    return { orderItem, commodityInfo, amount };
+  }
+
   async update(
     req: UpdateOfflineOrderRequest,
     user: JwtUserPayload,
   ): Promise<string> {
     return 'orderId';
   }
+
   async cancel(req: CancelOrderRequest, user: JwtUserPayload): Promise<string> {
     return req.orderId;
   }
