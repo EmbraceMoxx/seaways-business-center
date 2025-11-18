@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { PageRequestDto } from '@src/dto/common/common.dto';
-import { MaxLength } from 'class-validator/types/decorator/string/MaxLength';
+import { MaxLength } from 'class-validator';
 
 export class OrderItem {
   @ApiProperty({ description: '项目ID' })

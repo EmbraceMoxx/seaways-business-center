@@ -14,7 +14,10 @@ import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { TimeFormatterUtil } from '@utils/time-formatter.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { BooleanStatusEnum, GlobalStatusEnum } from '@src/enums/global-status.enum';
+import {
+  BooleanStatusEnum,
+  GlobalStatusEnum,
+} from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import { OrderMainEntity } from '../entities/order.main.entity';
 import { OrderItemEntity } from '../entities/order.item.entity';
@@ -37,8 +40,7 @@ export class OrderService {
     private orderItemRepository: Repository<OrderItemEntity>,
     private commodityService: CommodityService,
     private customerService: CustomerService,
-  ) {
-  }
+  ) {}
 
   /**
    * 获取订单列表
@@ -372,7 +374,9 @@ export class OrderService {
     // 订单ID生成
     const orderId = IdUtil.generateId();
     // 包装客户基本信息
-    const customerInfo = await this.customerService.getCustomerInfoById(req.customerId);
+    const customerInfo = await this.customerService.getCustomerInfoById(
+      req.customerId,
+    );
     if (!customerInfo) {
       throw new BusinessException('客户信息不存在！');
     }
@@ -398,13 +402,17 @@ export class OrderService {
     orderMain.receiverPhone = receiverAddress.receiverPhone;
     const orderItemList: OrderItemEntity[] = [];
     const commodityIds: string[] = [];
-    commodityIds.push(...req.finishGoods.map(finish => finish.commodityId));
-    commodityIds.push(...req.replenishGoods.map(replenish => replenish.commodityId));
-    commodityIds.push(...req.auxiliaryGoods.map(auxiliary => auxiliary.commodityId));
+    commodityIds.push(...req.finishGoods.map((finish) => finish.commodityId));
+    commodityIds.push(
+      ...req.replenishGoods.map((replenish) => replenish.commodityId),
+    );
+    commodityIds.push(
+      ...req.auxiliaryGoods.map((auxiliary) => auxiliary.commodityId),
+    );
     const commodityInfos =
       await this.commodityService.getCommodityListByCommodityIds(commodityIds);
     const commodityPriceMap = new Map<string, CommodityInfoEntity>();
-    commodityInfos.forEach(good => {
+    commodityInfos.forEach((good) => {
       commodityPriceMap.set(good.id, good);
     });
     // 成品商品信息
@@ -412,30 +420,50 @@ export class OrderService {
       throw new BusinessException('下单必须选择成品商品！');
     }
     const finishGoodList = req.finishGoods;
-    finishGoodList.forEach(finish => {
-      const { orderItem, commodityInfo, amount } = this.buildOrderItem(orderId, finish, commodityPriceMap, user);
+    finishGoodList.forEach((finish) => {
+      const { orderItem, commodityInfo } = this.buildOrderItem(
+        orderId,
+        finish,
+        commodityPriceMap,
+        user,
+      );
+      const amount = orderItem.amount;
       orderItem.isQuotaInvolved = commodityInfo.isQuotaInvolved;
-      orderItem.replenishAmount = commodityInfo.isQuotaInvolved ? (amount * 0.1).toFixed(2) : null;
-      orderItem.auxiliarySalesAmount = commodityInfo.isQuotaInvolved ? (amount * 0.03).toFixed(2) : null;
+      orderItem.replenishAmount = commodityInfo.isQuotaInvolved
+        ? (parseFloat(amount) * 0.1).toFixed(2)
+        : null;
+      orderItem.auxiliarySalesAmount = commodityInfo.isQuotaInvolved
+        ? (parseFloat(amount) * 0.03).toFixed(2)
+        : null;
       orderItemList.push(orderItem);
     });
     // 货补商品信息
-    if (req.replenishGoods){
-      req.replenishGoods.forEach(item => {
-        const { orderItem, commodityInfo, amount } = this.buildOrderItem(orderId, item, commodityPriceMap, user);
+    if (req.replenishGoods) {
+      req.replenishGoods.forEach((item) => {
+        const { orderItem, commodityInfo } = this.buildOrderItem(
+          orderId,
+          item,
+          commodityPriceMap,
+          user,
+        );
         orderItem.isQuotaInvolved = commodityInfo.isQuotaInvolved;
         orderItem.replenishAmount = orderItem.amount;
         orderItemList.push(orderItem);
       });
     }
     // 辅销商品信息
-    if (req.auxiliaryGoods){
-      req.auxiliaryGoods.forEach(item => {
-        const { orderItem, commodityInfo, amount } = this.buildOrderItem(orderId, item, commodityPriceMap, user);
+    if (req.auxiliaryGoods) {
+      req.auxiliaryGoods.forEach((item) => {
+        const { orderItem, commodityInfo } = this.buildOrderItem(
+          orderId,
+          item,
+          commodityPriceMap,
+          user,
+        );
         orderItem.isQuotaInvolved = commodityInfo.isQuotaInvolved;
         orderItem.auxiliarySalesAmount = orderItem.amount;
         orderItemList.push(orderItem);
-      })
+      });
     }
     this.orderRepository.save(orderMain);
     this.orderItemRepository.save(orderItemList);
@@ -443,7 +471,12 @@ export class OrderService {
     return orderId;
   }
 
-  private buildOrderItem(orderId: string, finish: OrderItem, commodityPriceMap: Map<string, CommodityInfoEntity>, user: JwtUserPayload) {
+  private buildOrderItem(
+    orderId: string,
+    finish: OrderItem,
+    commodityPriceMap: Map<string, CommodityInfoEntity>,
+    user: JwtUserPayload,
+  ) {
     const orderItem = new OrderItemEntity();
     orderItem.id = IdUtil.generateId();
     orderItem.orderId = orderId;
@@ -470,7 +503,7 @@ export class OrderService {
     orderItem.reviserId = user.userId;
     orderItem.reviserName = user.username;
     orderItem.revisedTime = dayjs().toDate();
-    return { orderItem, commodityInfo, amount };
+    return { orderItem, commodityInfo };
   }
 
   async update(
