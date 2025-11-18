@@ -539,7 +539,7 @@ export class OrderService {
     orderMain.replenishProductBoxCount = req.replenishGoods
       .map((good) => good.boxQty)
       .reduce((sum, current) => sum + current, 0);
-    orderMain.auxiliarySalesProductBoxCount = req.auxiliaryGoods
+    orderMain.auxiliarySalesProductCount = req.auxiliaryGoods
       .map((good) => good.qty)
       .reduce((sum, current) => sum + current, 0);
 
@@ -594,6 +594,7 @@ export class OrderService {
       deliveryTime: orderMain.deliveryTime?.toISOString() || null,
       customerId: orderMain.customerId,
       customerName: orderMain.customerName,
+      region: orderMain.region,
       regionalHeadId: orderMain.regionalHeadId,
       regionalHeadName: orderMain.regionalHeadName,
       provincialHeadId: orderMain.provincialHeadId,
@@ -623,6 +624,7 @@ export class OrderService {
     for (const item of orderItems) {
       const goodsItem = {
         id: item.id,
+        commodityId: item.commodityId,
         type: item.type,
         name: item.name,
         alias: item.aliasName,

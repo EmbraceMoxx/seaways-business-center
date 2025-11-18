@@ -94,6 +94,14 @@ export class OrderMainEntity {
   })
   customerJstId: string | null;
 
+  @Column('varchar', {
+    name: 'region',
+    nullable: true,
+    comment: '所属区域',
+    length: 32,
+  })
+  region: string | null;
+
   @Column('bigint', {
     name: 'regional_head_id',
     nullable: true,
@@ -142,19 +150,17 @@ export class OrderMainEntity {
 
   @Column('varchar', {
     name: 'receiver_name',
-    nullable: true,
     comment: '收货人姓名',
     length: 128,
   })
-  receiverName: string | null;
+  receiverName: string;
 
   @Column('varchar', {
     name: 'receiver_phone',
-    nullable: true,
     comment: '收货人电话',
     length: 32,
   })
-  receiverPhone: string | null;
+  receiverPhone: string;
 
   @Column('varchar', {
     name: 'receiver_province',
@@ -274,11 +280,11 @@ export class OrderMainEntity {
   replenishProductBoxCount: number;
 
   @Column('int', {
-    name: 'auxiliary_sales_product_box_count',
-    comment: '辅销商品总箱数',
+    name: 'auxiliary_sales_product_count',
+    comment: '辅销商品总数',
     default: () => "'0'",
   })
-  auxiliarySalesProductBoxCount: number;
+  auxiliarySalesProductCount: number;
 
   @Column('decimal', {
     name: 'paid_amount',

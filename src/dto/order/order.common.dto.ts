@@ -336,6 +336,9 @@ export class OrderDetailResponseDto {
   @ApiProperty({ description: '客户名称' })
   customerName: string;
 
+  @ApiProperty({ description: '所属区域' })
+  region: string;
+
   @ApiProperty({ description: '区域负责人ID' })
   regionalHeadId: string;
 
