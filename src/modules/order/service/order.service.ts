@@ -583,9 +583,11 @@ export class OrderService {
 
     await this.dataSource.transaction(async (manage) => {
       // 修改订单
-      await this.orderRepository.save(orderMain);
+
+      await manage.save(orderMain);
       // 修改商品
-      await this.orderItemRepository.save(finalOrderItemList);
+      console.log(JSON.stringify(finalOrderItemList));
+      await manage.save(finalOrderItemList);
     });
     // todo 添加日志
     // todo 确认审批流程
@@ -750,16 +752,16 @@ export class OrderService {
         case OrderItemTypeEnum.FINISHED_PRODUCT:
           orderItem.replenishAmount = commodityInfo.isQuotaInvolved
             ? (amount * 0.1).toFixed(2)
-            : null;
+            : '0';
           orderItem.auxiliarySalesAmount = commodityInfo.isQuotaInvolved
             ? (amount * 0.03).toFixed(2)
-            : null;
+            : '0';
           break;
         case OrderItemTypeEnum.REPLENISH_PRODUCT:
-          orderItem.replenishAmount = orderItem.amount;
+          orderItem.replenishAmount = orderItem.amount ?? '0';
           break;
         case OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT:
-          orderItem.auxiliarySalesAmount = orderItem.amount;
+          orderItem.auxiliarySalesAmount = orderItem.amount ?? '0';
           break;
       }
 

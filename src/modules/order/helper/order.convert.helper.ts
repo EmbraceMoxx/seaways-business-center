@@ -110,29 +110,36 @@ export class OrderConvertHelper {
     replenishGoods: OrderItem[],
     auxiliaryGoods: OrderItem[],
   ) {
+    console.log(JSON.stringify(orderItemList));
     const replenishAmount = orderItemList
       .filter((e) => OrderItemTypeEnum.FINISHED_PRODUCT === e.type)
-      .map((e) => parseFloat(e.replenishAmount))
+      .map((e) => (e.replenishAmount ? parseFloat(e.replenishAmount) : 0))
       .reduce((sum, current) => sum + current, 0);
+    console.log('replenishAmount', replenishAmount);
     orderMain.replenishAmount = String(replenishAmount);
 
     const auxiliarySalesAmount = orderItemList
       .filter((e) => OrderItemTypeEnum.FINISHED_PRODUCT === e.type)
-      .map((e) => parseFloat(e.auxiliarySalesAmount))
+      .map((e) =>
+        e.auxiliarySalesAmount ? parseFloat(e.auxiliarySalesAmount) : 0,
+      )
       .reduce((sum, current) => sum + current, 0);
-    orderMain.auxiliarySalesAmount = String(auxiliarySalesAmount);
+    console.log('auxiliarySalesAmount', auxiliarySalesAmount);
+    orderMain.auxiliarySalesAmount = String(auxiliarySalesAmount) || '0';
 
     const usedReplenishAmount = orderItemList
       .filter((e) => OrderItemTypeEnum.REPLENISH_PRODUCT === e.type)
-      .map((e) => parseFloat(e.amount))
+      .map((e) => (e.amount ? parseFloat(e.amount) : 0))
       .reduce((sum, current) => sum + current, 0);
-    orderMain.usedReplenishAmount = String(usedReplenishAmount);
+    console.log('usedReplenishAmount', usedReplenishAmount);
+    orderMain.usedReplenishAmount = String(usedReplenishAmount) || '0';
 
     const usedAuxiliarySalesAmount = orderItemList
       .filter((e) => OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT === e.type)
       .map((e) => parseFloat(e.amount))
       .reduce((sum, current) => sum + current, 0);
-    orderMain.usedAuxiliarySalesAmount = String(usedAuxiliarySalesAmount);
+    orderMain.usedAuxiliarySalesAmount =
+      String(usedAuxiliarySalesAmount) || '0';
 
     orderMain.usedAuxiliarySalesRatio = (
       usedAuxiliarySalesAmount / creditAmount
