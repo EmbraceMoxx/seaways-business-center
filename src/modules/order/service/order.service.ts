@@ -14,20 +14,18 @@ import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { TimeFormatterUtil } from '@utils/time-formatter.util';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import {
-  BooleanStatusEnum,
-  GlobalStatusEnum,
-} from '@src/enums/global-status.enum';
+import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import { OrderMainEntity } from '../entities/order.main.entity';
 import { OrderItemEntity } from '../entities/order.item.entity';
 import { CommodityInfoEntity } from '@modules/commodity/entities/commodity-info.entity';
-import { parseString } from 'xml2js';
 import { CommodityService } from '@modules/commodity/services/commodity.service';
 import { CustomerService } from '@modules/customer/services/customer.service';
 import { IdUtil } from '@src/utils';
 import { OrderItemTypeEnum } from '@src/enums/order-item-type.enum';
 import * as dayjs from 'dayjs';
+import { OrderStatusEnum } from '@src/enums/order-status.enum';
+import { OrderConvertHelper } from '@modules/order/helper/order.convert.helper';
 
 @Injectable()
 export class OrderService {
@@ -319,22 +317,23 @@ export class OrderService {
     response.customerId = customerInfo.id;
     // 计算订单金额 = 商品数量 * 出厂价相加
     const orderAmount = await this.calculateAmountWithQuery(req.finishGoods);
+    console.log('orderAmount:', orderAmount);
     // 订单金额
-    response.orderAmount = parseString(orderAmount);
+    response.orderAmount = String(orderAmount);
 
     // 额度计算订单总额
     const subsidyAmount = await this.calculateAmountWithQuery(
       req.finishGoods,
       true,
     );
-    response.orderSubsidyAmount = parseString(subsidyAmount);
+    response.orderSubsidyAmount = String(subsidyAmount);
 
     // 计算使用货补金额及比例
     if (req.replenishGoods != null && req.replenishGoods.length > 0) {
       const replenishAmount = await this.calculateAmountWithQuery(
         req.replenishGoods,
       );
-      response.replenishAmount = parseString(replenishAmount);
+      response.replenishAmount = String(replenishAmount);
       response.replenishRatio = (replenishAmount / subsidyAmount).toFixed(4);
     }
     // 3. 计算辅销商品金额及比例；
@@ -342,7 +341,7 @@ export class OrderService {
       const auxiliaryAmount = await this.calculateAmountWithQuery(
         req.auxiliaryGoods,
       );
-      response.auxiliarySalesAmount = parseString(auxiliaryAmount);
+      response.auxiliarySalesAmount = String(auxiliaryAmount);
       response.auxiliarySalesRatio = (auxiliaryAmount / subsidyAmount).toFixed(
         4,
       );
@@ -353,17 +352,26 @@ export class OrderService {
       response.replenishRatio &&
       parseFloat(response.replenishRatio) >= 0.05
     ) {
-      messages.push('当前货补使用比例为：' + response.replenishRatio);
+      messages.push(
+        '当前货补使用比例为：' +
+          (parseFloat(response.replenishRatio) * 100).toFixed(2) +
+          '%',
+      );
     }
     if (
       response.auxiliarySalesRatio &&
       parseFloat(response.auxiliarySalesRatio) >= 0.003
     ) {
-      messages.push('当前辅销使用比例为：' + response.auxiliarySalesRatio);
+      messages.push(
+        '当前辅销使用比例为：' +
+          (parseFloat(response.auxiliarySalesRatio) * 100).toFixed(2) +
+          '%',
+      );
     }
     if (messages.length > 0) {
       response.message = messages.join('，') + '即将进入审批流程';
     }
+    console.log('response', JSON.stringify(response));
     return response;
   }
 
@@ -373,6 +381,9 @@ export class OrderService {
   ): Promise<string> {
     // 订单ID生成
     const orderId = IdUtil.generateId();
+    // 订单编码
+    const orderCode = IdUtil.generateOrderCode();
+    const lastOperateProgram = 'OrderService.add';
     // 包装客户基本信息
     const customerInfo = await this.customerService.getCustomerInfoById(
       req.customerId,
@@ -382,6 +393,9 @@ export class OrderService {
     }
     const orderMain = new OrderMainEntity();
     orderMain.id = orderId;
+    orderMain.orderCode = orderCode;
+    // todo
+    orderMain.orderStatus = String(OrderStatusEnum.PENDING_PAYMENT.valueOf());
     orderMain.customerId = customerInfo.id;
     orderMain.customerName = customerInfo.customerName;
     orderMain.customerJstId = customerInfo.customerJstId;
@@ -400,6 +414,10 @@ export class OrderService {
     orderMain.receiverAddress = receiverAddress.receiverAddress;
     orderMain.reviserName = receiverAddress.receiverName;
     orderMain.receiverPhone = receiverAddress.receiverPhone;
+    orderMain.creatorId = user.userId;
+    orderMain.creatorName = user.username;
+    orderMain.createdTime = dayjs().toDate();
+    orderMain.lastOperateProgram = lastOperateProgram;
     const orderItemList: OrderItemEntity[] = [];
     const commodityIds: string[] = [];
     commodityIds.push(...req.finishGoods.map((finish) => finish.commodityId));
@@ -411,6 +429,7 @@ export class OrderService {
     );
     const commodityInfos =
       await this.commodityService.getCommodityListByCommodityIds(commodityIds);
+
     const commodityPriceMap = new Map<string, CommodityInfoEntity>();
     commodityInfos.forEach((good) => {
       commodityPriceMap.set(good.id, good);
@@ -421,89 +440,113 @@ export class OrderService {
     }
     const finishGoodList = req.finishGoods;
     finishGoodList.forEach((finish) => {
-      const { orderItem, commodityInfo } = this.buildOrderItem(
+      const { orderItem, commodityInfo } = OrderConvertHelper.buildOrderItem(
         orderId,
         finish,
         commodityPriceMap,
         user,
       );
+      orderItem.type = OrderItemTypeEnum.FINISHED_PRODUCT;
       const amount = orderItem.amount;
-      orderItem.isQuotaInvolved = commodityInfo.isQuotaInvolved;
       orderItem.replenishAmount = commodityInfo.isQuotaInvolved
         ? (parseFloat(amount) * 0.1).toFixed(2)
         : null;
       orderItem.auxiliarySalesAmount = commodityInfo.isQuotaInvolved
         ? (parseFloat(amount) * 0.03).toFixed(2)
         : null;
+      orderItem.lastOperateProgram = lastOperateProgram;
       orderItemList.push(orderItem);
     });
     // 货补商品信息
     if (req.replenishGoods) {
       req.replenishGoods.forEach((item) => {
-        const { orderItem, commodityInfo } = this.buildOrderItem(
+        const { orderItem, commodityInfo } = OrderConvertHelper.buildOrderItem(
           orderId,
           item,
           commodityPriceMap,
           user,
         );
-        orderItem.isQuotaInvolved = commodityInfo.isQuotaInvolved;
+        orderItem.type = OrderItemTypeEnum.REPLENISH_PRODUCT;
         orderItem.replenishAmount = orderItem.amount;
+        orderItem.lastOperateProgram = lastOperateProgram;
         orderItemList.push(orderItem);
       });
     }
     // 辅销商品信息
     if (req.auxiliaryGoods) {
       req.auxiliaryGoods.forEach((item) => {
-        const { orderItem, commodityInfo } = this.buildOrderItem(
+        const { orderItem, commodityInfo } = OrderConvertHelper.buildOrderItem(
           orderId,
           item,
           commodityPriceMap,
           user,
         );
+        orderItem.type = OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT;
         orderItem.isQuotaInvolved = commodityInfo.isQuotaInvolved;
         orderItem.auxiliarySalesAmount = orderItem.amount;
+        orderItem.lastOperateProgram = lastOperateProgram;
         orderItemList.push(orderItem);
       });
     }
+    // 统计完商品后计算金额信息
+    const orderAmount = OrderConvertHelper.calculateTotalAmount(
+      req.finishGoods,
+      commodityInfos,
+    );
+    orderMain.amount = String(orderAmount);
+
+    const creditAmount = OrderConvertHelper.calculateTotalAmount(
+      req.finishGoods,
+      commodityInfos,
+      true,
+    );
+    orderMain.creditAmount = String(creditAmount);
+
+    const replenishAmount = orderItemList
+      .filter((e) => OrderItemTypeEnum.FINISHED_PRODUCT === e.type)
+      .map((e) => parseFloat(e.replenishAmount))
+      .reduce((sum, current) => sum + current, 0);
+    orderMain.replenishAmount = String(replenishAmount);
+
+    const auxiliarySalesAmount = orderItemList
+      .filter((e) => OrderItemTypeEnum.FINISHED_PRODUCT === e.type)
+      .map((e) => parseFloat(e.auxiliarySalesAmount))
+      .reduce((sum, current) => sum + current, 0);
+    orderMain.auxiliarySalesAmount = String(auxiliarySalesAmount);
+
+    const usedReplenishAmount = orderItemList
+      .filter((e) => OrderItemTypeEnum.REPLENISH_PRODUCT === e.type)
+      .map((e) => parseFloat(e.amount))
+      .reduce((sum, current) => sum + current, 0);
+    orderMain.usedReplenishAmount = String(usedReplenishAmount);
+
+    const usedAuxiliarySalesAmount = orderItemList
+      .filter((e) => OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT === e.type)
+      .map((e) => parseFloat(e.amount))
+      .reduce((sum, current) => sum + current, 0);
+    orderMain.usedAuxiliarySalesAmount = String(usedAuxiliarySalesAmount);
+
+    orderMain.usedAuxiliarySalesRatio = (
+      usedAuxiliarySalesAmount / creditAmount
+    ).toFixed(4);
+    orderMain.usedReplenishRatio = (usedReplenishAmount / creditAmount).toFixed(
+      4,
+    );
+    // 汇总商品信息
+    orderMain.finishedProductBoxCount = req.finishGoods
+      .map((good) => good.boxQty)
+      .reduce((sum, current) => sum + current, 0);
+    orderMain.replenishProductBoxCount = req.replenishGoods
+      .map((good) => good.boxQty)
+      .reduce((sum, current) => sum + current, 0);
+    orderMain.auxiliarySalesProductBoxCount = req.auxiliaryGoods
+      .map((good) => good.qty)
+      .reduce((sum, current) => sum + current, 0);
+
     this.orderRepository.save(orderMain);
     this.orderItemRepository.save(orderItemList);
-    // 写入操作日志
+    // todo 写入操作日志
     return orderId;
-  }
-
-  private buildOrderItem(
-    orderId: string,
-    finish: OrderItem,
-    commodityPriceMap: Map<string, CommodityInfoEntity>,
-    user: JwtUserPayload,
-  ) {
-    const orderItem = new OrderItemEntity();
-    orderItem.id = IdUtil.generateId();
-    orderItem.orderId = orderId;
-    orderItem.type = OrderItemTypeEnum.FINISHED_PRODUCT;
-    orderItem.commodityId = finish.commodityId;
-    const commodityInfo = commodityPriceMap.get(finish.commodityId);
-    orderItem.name = commodityInfo.commodityName;
-    orderItem.aliasName = commodityInfo.commodityAliaName;
-    orderItem.internalCode = commodityInfo.commodityInternalCode;
-    orderItem.specInfo = commodityInfo.itemSpecInfo;
-    orderItem.boxSpecPiece = commodityInfo.boxSpecPiece;
-    orderItem.boxSpecInfo = commodityInfo.boxSpecInfo;
-    orderItem.exFactoryPrice = commodityInfo.itemExFactoryPrice;
-    orderItem.exFactoryBoxPrice = commodityInfo.boxExFactoryPrice;
-
-    orderItem.boxQty = finish.boxQty;
-    orderItem.qty = finish.qty;
-    const amount = finish.qty * parseFloat(commodityInfo.itemExFactoryPrice);
-    orderItem.amount = amount.toFixed(2);
-    orderItem.deleted = GlobalStatusEnum.NO;
-    orderItem.creatorId = user.userId;
-    orderItem.creatorName = user.username;
-    orderItem.createdTime = dayjs().toDate();
-    orderItem.reviserId = user.userId;
-    orderItem.reviserName = user.username;
-    orderItem.revisedTime = dayjs().toDate();
-    return { orderItem, commodityInfo };
   }
 
   async update(
@@ -629,47 +672,10 @@ export class OrderService {
     const commodityIds = goods.map((item) => item.commodityId);
     const commodityInfos =
       await this.commodityService.getCommodityListByCommodityIds(commodityIds);
-    return this.calculateTotalAmount(
+    return OrderConvertHelper.calculateTotalAmount(
       goods,
       commodityInfos,
       onlySubsidyInvolved,
     );
-  }
-
-  /**
-   * 根据商品列表计算总金额
-   * @param goods 商品列表
-   * @param commodityInfos 商品信息列表
-   * @param onlySubsidyInvolved
-   * @returns 计算后的总金额
-   */
-  private calculateTotalAmount(
-    goods: OrderItem[],
-    commodityInfos: CommodityInfoEntity[],
-    onlySubsidyInvolved = false,
-  ): number {
-    // 创建商品ID到出厂价的映射
-    const commodityPriceMap = new Map<string, number>();
-    let filteredCommodities = commodityInfos;
-    if (onlySubsidyInvolved) {
-      filteredCommodities = commodityInfos.filter(
-        (commodity) =>
-          commodity.isSupplySubsidyInvolved == BooleanStatusEnum.TRUE,
-      );
-    }
-    filteredCommodities.forEach((commodity) => {
-      commodityPriceMap.set(
-        commodity.id,
-        parseFloat(commodity.itemExFactoryPrice),
-      );
-    });
-
-    // 计算总金额
-    return goods
-      .map((item) => {
-        const price = commodityPriceMap.get(item.commodityId) || 0;
-        return item.qty * price;
-      })
-      .reduce((sum, current) => sum + current, 0);
   }
 }

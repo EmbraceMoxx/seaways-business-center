@@ -38,7 +38,7 @@ export class OrderController {
   async add(
     @Body() req: AddOfflineOrderRequest,
     @CurrentUser() user: JwtUserPayload,
-  ) {
+  ): Promise<SuccessResponseDto<string>> {
     const orderId = await this.orderService.add(req, user);
     return new SuccessResponseDto(orderId, '订单新增成功！');
   }

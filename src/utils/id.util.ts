@@ -1,4 +1,5 @@
 import { SnowFlake } from './SnowFlake';
+import * as dayjs from 'dayjs';
 
 /**
  * ID生成工具类
@@ -61,6 +62,19 @@ export class IdUtil {
   static generateIdWithSuffix(suffix: string): string {
     return `${this.generateId()}_${suffix}`;
   }
+  /**
+   * 生成订单编码
+   * @returns 返回生成的订单编码字符串
+   */
+  static generateOrderCode() :string{
+    const now = dayjs().toDate();
+    const yyyy = now.getFullYear();
+    const MM = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const random6 = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');
+    return `XX${yyyy}${MM}${dd}${random6}`;
+  }
+
 }
 
 /**
@@ -92,3 +106,4 @@ export const generateIdWithPrefix = (prefix: string): string =>
  */
 export const generateIdWithSuffix = (suffix: string): string =>
   IdUtil.generateIdWithSuffix(suffix);
+
