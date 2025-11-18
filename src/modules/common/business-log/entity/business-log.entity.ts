@@ -1,9 +1,11 @@
+import { generateId } from '@src/utils';
 import {
   Entity,
   Column,
   Index,
   CreateDateColumn,
   PrimaryColumn,
+  BeforeInsert,
 } from 'typeorm';
 
 @Entity({
@@ -17,7 +19,7 @@ import {
 @Index('idx_business_type', ['businessType'])
 @Index('idx_created_time', ['createdTime'])
 @Index('idx_business_type_id', ['businessType', 'businessId'])
-export class BusinessLog {
+export class BusinessLogEntity {
   @PrimaryColumn({ type: 'bigint', name: 'id' })
   id: string;
 
@@ -55,4 +57,11 @@ export class BusinessLog {
 
   @Column({ type: 'varchar', length: 128, name: 'operate_program' })
   operateProgram: string;
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = generateId();
+    }
+  }
 }

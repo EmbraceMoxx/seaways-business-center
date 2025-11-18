@@ -10,6 +10,7 @@ import { CommodityModule } from '@modules/commodity/commodity.module';
 import { SharedModule } from '@modules/shared/shared.module';
 import { CustomerModule } from '@modules/customer/customer.module';
 import { OrderModule } from '@modules/order/order.module';
+import { BusinessLogModule } from './modules/common/business-log/business-log.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { OrderModule } from '@modules/order/order.module';
     SharedModule,
     CustomerModule,
     OrderModule,
+    BusinessLogModule,
   ],
   providers: [
     {
