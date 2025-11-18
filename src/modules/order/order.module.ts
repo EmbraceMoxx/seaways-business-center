@@ -9,6 +9,7 @@ import { CommodityInfoEntity } from '@modules/commodity/entities/commodity-info.
 import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
 import { CustomerModule } from '@modules/customer/customer.module';
 import { CommodityModule } from '@modules/commodity/commodity.module';
+import { JstHttpModule } from '../erp/jushuitan/jst-http.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { CommodityModule } from '@modules/commodity/commodity.module';
     ]),
     CustomerModule,
     CommodityModule,
+    JstHttpModule,
   ],
   providers: [OrderService, CommodityService],
   controllers: [OrderController],
