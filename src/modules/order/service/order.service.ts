@@ -573,8 +573,6 @@ export class OrderService {
       throw new BusinessException('订单不存在或已被删除');
     }
 
-    this.logger.debug(`Order main found: ${JSON.stringify(orderMain)}`);
-
     // 查询订单明细项信息
     const orderItems = await this.orderItemRepository.find({
       where: { orderId: orderId, deleted: GlobalStatusEnum.NO },
@@ -601,12 +599,14 @@ export class OrderService {
       provincialHeadName: orderMain.provincialHeadName,
       contact: orderMain.contact,
       contactPhone: orderMain.contactPhone,
-      receiverProvince: orderMain.receiverProvince,
-      receiverCity: orderMain.receiverCity,
-      receiverDistrict: orderMain.receiverDistrict,
-      receiverAddress: orderMain.receiverAddress,
-      receiverName: orderMain.receiverName,
-      receiverPhone: orderMain.receiverPhone,
+      receiverAddress: {
+        receiverProvince: orderMain.receiverProvince,
+        receiverCity: orderMain.receiverCity,
+        receiverDistrict: orderMain.receiverDistrict,
+        receiverAddress: orderMain.receiverAddress,
+        receiverName: orderMain.receiverName,
+        receiverPhone: orderMain.receiverPhone,
+      },
       remark: orderMain.remark,
       amount: orderMain.amount ?? '0',
       replenishAmount: orderMain.replenishAmount ?? '0',
@@ -642,13 +642,13 @@ export class OrderService {
       };
 
       switch (item.type) {
-        case 'FINISH_GOODS':
+        case OrderItemTypeEnum.FINISHED_PRODUCT:
           orderDetail.finishGoods.push(goodsItem);
           break;
-        case 'REPLENISH_GOODS':
+        case OrderItemTypeEnum.REPLENISH_PRODUCT:
           orderDetail.replenishGoods.push(goodsItem);
           break;
-        case 'AUXILIARY_GOODS':
+        case OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT:
           orderDetail.auxiliaryGoods.push(goodsItem);
           break;
         default:

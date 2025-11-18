@@ -357,23 +357,8 @@ export class OrderDetailResponseDto {
   @ApiProperty({ description: '下单联系人电话' })
   contactPhone: string;
 
-  @ApiProperty({ description: '收货省份' })
-  receiverProvince: string;
-
-  @ApiProperty({ description: '收货城市' })
-  receiverCity: string;
-
-  @ApiProperty({ description: '收货区/街道' })
-  receiverDistrict: string;
-
-  @ApiProperty({ description: '收货人详细地址' })
-  receiverAddress: string;
-
-  @ApiProperty({ description: '收货人姓名' })
-  receiverName: string;
-
-  @ApiProperty({ description: '收货人电话' })
-  receiverPhone: string;
+  @ApiProperty({ description: '收货地址信息' })
+  receiverAddress: ReceiverAddress;
 
   @ApiProperty({ description: '备注' })
   remark: string;

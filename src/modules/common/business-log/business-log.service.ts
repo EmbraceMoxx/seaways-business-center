@@ -3,8 +3,10 @@ import { BusinessLogEntity } from './entity/business-log.entity';
 import { Repository } from 'typeorm';
 import { BusinessLogInput } from './interface/business-log.interface';
 import * as dayjs from 'dayjs';
+import { Logger } from '@nestjs/common';
 
 export class BusinessLogService {
+  private readonly logger = new Logger(BusinessLogService.name);
   constructor(
     @InjectRepository(BusinessLogEntity)
     private readonly logRepo: Repository<BusinessLogEntity>,
@@ -31,8 +33,12 @@ export class BusinessLogService {
       const insertResult = await this.logRepo.insert(newLog);
       newLog.id = insertResult.identifiers[0].id;
       return newLog;
-    } catch (error) {
+    } catch (err) {
       // 记录日志失败时，返回null
+      this.logger.error(
+        `Failed to write business log: ${err.message}} `,
+        err.stack,
+      );
       return null;
     }
   }
