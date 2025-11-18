@@ -13,7 +13,7 @@ import {
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { TimeFormatterUtil } from '@utils/time-formatter.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import { OrderMainEntity } from '../entities/order.main.entity';
@@ -38,6 +38,7 @@ export class OrderService {
     private orderItemRepository: Repository<OrderItemEntity>,
     private commodityService: CommodityService,
     private customerService: CustomerService,
+    private dataSource: DataSource, // 添加数据源注入
   ) {}
 
   /**
@@ -317,7 +318,6 @@ export class OrderService {
     response.customerId = customerInfo.id;
     // 计算订单金额 = 商品数量 * 出厂价相加
     const orderAmount = await this.calculateAmountWithQuery(req.finishGoods);
-    console.log('orderAmount:', orderAmount);
     // 订单金额
     response.orderAmount = String(orderAmount);
 
@@ -371,7 +371,6 @@ export class OrderService {
     if (messages.length > 0) {
       response.message = messages.join('，') + '即将进入审批流程';
     }
-    console.log('response', JSON.stringify(response));
     return response;
   }
 
@@ -385,109 +384,65 @@ export class OrderService {
     const orderCode = IdUtil.generateOrderCode();
     const lastOperateProgram = 'OrderService.add';
     // 包装客户基本信息
-    const customerInfo = await this.customerService.getCustomerInfoById(
+    const customerInfo = await this.customerService.getCustomerBaseInfoById(
       req.customerId,
     );
     if (!customerInfo) {
       throw new BusinessException('客户信息不存在！');
     }
-    const orderMain = new OrderMainEntity();
-    orderMain.id = orderId;
-    orderMain.orderCode = orderCode;
-    // todo
-    orderMain.orderStatus = String(OrderStatusEnum.PENDING_PAYMENT.valueOf());
-    orderMain.customerId = customerInfo.id;
-    orderMain.customerName = customerInfo.customerName;
-    orderMain.customerJstId = customerInfo.customerJstId;
-    orderMain.regionalHeadId = customerInfo.regionalHeadId;
-    orderMain.regionalHeadName = customerInfo.regionalHead;
-    orderMain.provincialHeadId = customerInfo.provincialHeadId;
-    orderMain.provincialHeadName = customerInfo.provincialHead;
-    // 下单人联系人基本信息
-    orderMain.contact = req.contact;
-    orderMain.contactPhone = req.contactPhone;
-    // 收货人联系信息
-    const receiverAddress = req.receiverAddress;
-    orderMain.receiverProvince = receiverAddress.receiverProvince;
-    orderMain.receiverCity = receiverAddress.receiverCity;
-    orderMain.receiverDistrict = receiverAddress.receiverDistrict;
-    orderMain.receiverAddress = receiverAddress.receiverAddress;
-    orderMain.reviserName = receiverAddress.receiverName;
-    orderMain.receiverPhone = receiverAddress.receiverPhone;
-    orderMain.creatorId = user.userId;
-    orderMain.creatorName = user.username;
-    orderMain.createdTime = dayjs().toDate();
-    orderMain.lastOperateProgram = lastOperateProgram;
-    const orderItemList: OrderItemEntity[] = [];
-    const commodityIds: string[] = [];
-    commodityIds.push(...req.finishGoods.map((finish) => finish.commodityId));
-    commodityIds.push(
-      ...req.replenishGoods.map((replenish) => replenish.commodityId),
-    );
-    commodityIds.push(
-      ...req.auxiliaryGoods.map((auxiliary) => auxiliary.commodityId),
-    );
-    const commodityInfos =
-      await this.commodityService.getCommodityListByCommodityIds(commodityIds);
-
-    const commodityPriceMap = new Map<string, CommodityInfoEntity>();
-    commodityInfos.forEach((good) => {
-      commodityPriceMap.set(good.id, good);
-    });
     // 成品商品信息
     if (!req.finishGoods || req.finishGoods.length === 0) {
       throw new BusinessException('下单必须选择成品商品！');
     }
-    const finishGoodList = req.finishGoods;
-    finishGoodList.forEach((finish) => {
-      const { orderItem, commodityInfo } = OrderConvertHelper.buildOrderItem(
+    const orderMain = new OrderMainEntity();
+    orderMain.id = orderId;
+    orderMain.orderCode = orderCode;
+    OrderConvertHelper.convertCustomerInfo(orderMain, customerInfo);
+    // 下单人联系人基本信息
+    orderMain.contact = req.contact;
+    orderMain.contactPhone = req.contactPhone;
+    // 收货人联系信息
+    OrderConvertHelper.convertReceiverAddressInfo(
+      orderMain,
+      req.receiverAddress,
+    );
+    orderMain.creatorId = user.userId;
+    orderMain.creatorName = user.username;
+    orderMain.createdTime = dayjs().toDate();
+    orderMain.lastOperateProgram = lastOperateProgram;
+    const finishGoodsList = req.finishGoods;
+    const replenishGoodsList = req.replenishGoods;
+    const auxiliaryGoodsList = req.auxiliaryGoods;
+
+    const { commodityInfos, commodityPriceMap } =
+      await this.getCommodityMapByOrderItems(
+        finishGoodsList,
+        replenishGoodsList,
+        auxiliaryGoodsList,
+      );
+    const finalOrderItemList: OrderItemEntity[] = [
+      ...this.buildOrderItems(
         orderId,
-        finish,
+        finishGoodsList,
         commodityPriceMap,
         user,
-      );
-      orderItem.type = OrderItemTypeEnum.FINISHED_PRODUCT;
-      const amount = orderItem.amount;
-      orderItem.replenishAmount = commodityInfo.isQuotaInvolved
-        ? (parseFloat(amount) * 0.1).toFixed(2)
-        : null;
-      orderItem.auxiliarySalesAmount = commodityInfo.isQuotaInvolved
-        ? (parseFloat(amount) * 0.03).toFixed(2)
-        : null;
-      orderItem.lastOperateProgram = lastOperateProgram;
-      orderItemList.push(orderItem);
-    });
-    // 货补商品信息
-    if (req.replenishGoods) {
-      req.replenishGoods.forEach((item) => {
-        const { orderItem, commodityInfo } = OrderConvertHelper.buildOrderItem(
-          orderId,
-          item,
-          commodityPriceMap,
-          user,
-        );
-        orderItem.type = OrderItemTypeEnum.REPLENISH_PRODUCT;
-        orderItem.replenishAmount = orderItem.amount;
-        orderItem.lastOperateProgram = lastOperateProgram;
-        orderItemList.push(orderItem);
-      });
-    }
-    // 辅销商品信息
-    if (req.auxiliaryGoods) {
-      req.auxiliaryGoods.forEach((item) => {
-        const { orderItem, commodityInfo } = OrderConvertHelper.buildOrderItem(
-          orderId,
-          item,
-          commodityPriceMap,
-          user,
-        );
-        orderItem.type = OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT;
-        orderItem.isQuotaInvolved = commodityInfo.isQuotaInvolved;
-        orderItem.auxiliarySalesAmount = orderItem.amount;
-        orderItem.lastOperateProgram = lastOperateProgram;
-        orderItemList.push(orderItem);
-      });
-    }
+        OrderItemTypeEnum.FINISHED_PRODUCT,
+      ),
+      ...this.buildOrderItems(
+        orderId,
+        replenishGoodsList || [],
+        commodityPriceMap,
+        user,
+        OrderItemTypeEnum.REPLENISH_PRODUCT,
+      ),
+      ...this.buildOrderItems(
+        orderId,
+        auxiliaryGoodsList || [],
+        commodityPriceMap,
+        user,
+        OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT,
+      ),
+    ];
     // 统计完商品后计算金额信息
     const orderAmount = OrderConvertHelper.calculateTotalAmount(
       req.finishGoods,
@@ -502,58 +457,140 @@ export class OrderService {
     );
     orderMain.creditAmount = String(creditAmount);
 
-    const replenishAmount = orderItemList
-      .filter((e) => OrderItemTypeEnum.FINISHED_PRODUCT === e.type)
-      .map((e) => parseFloat(e.replenishAmount))
-      .reduce((sum, current) => sum + current, 0);
-    orderMain.replenishAmount = String(replenishAmount);
-
-    const auxiliarySalesAmount = orderItemList
-      .filter((e) => OrderItemTypeEnum.FINISHED_PRODUCT === e.type)
-      .map((e) => parseFloat(e.auxiliarySalesAmount))
-      .reduce((sum, current) => sum + current, 0);
-    orderMain.auxiliarySalesAmount = String(auxiliarySalesAmount);
-
-    const usedReplenishAmount = orderItemList
-      .filter((e) => OrderItemTypeEnum.REPLENISH_PRODUCT === e.type)
-      .map((e) => parseFloat(e.amount))
-      .reduce((sum, current) => sum + current, 0);
-    orderMain.usedReplenishAmount = String(usedReplenishAmount);
-
-    const usedAuxiliarySalesAmount = orderItemList
-      .filter((e) => OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT === e.type)
-      .map((e) => parseFloat(e.amount))
-      .reduce((sum, current) => sum + current, 0);
-    orderMain.usedAuxiliarySalesAmount = String(usedAuxiliarySalesAmount);
-
-    orderMain.usedAuxiliarySalesRatio = (
-      usedAuxiliarySalesAmount / creditAmount
-    ).toFixed(4);
-    orderMain.usedReplenishRatio = (usedReplenishAmount / creditAmount).toFixed(
-      4,
+    OrderConvertHelper.convertOrderAmount(
+      finalOrderItemList,
+      orderMain,
+      creditAmount,
+      finishGoodsList,
+      replenishGoodsList,
+      auxiliaryGoodsList,
     );
-    // 汇总商品信息
-    orderMain.finishedProductBoxCount = req.finishGoods
-      .map((good) => good.boxQty)
-      .reduce((sum, current) => sum + current, 0);
-    orderMain.replenishProductBoxCount = req.replenishGoods
-      .map((good) => good.boxQty)
-      .reduce((sum, current) => sum + current, 0);
-    orderMain.auxiliarySalesProductCount = req.auxiliaryGoods
-      .map((good) => good.qty)
-      .reduce((sum, current) => sum + current, 0);
 
-    this.orderRepository.save(orderMain);
-    this.orderItemRepository.save(orderItemList);
+    // todo 计算额度使用情况后，结合客户信息计算订单初始状态
+    orderMain.orderStatus = String(OrderStatusEnum.PENDING_PAYMENT.valueOf());
+    await this.dataSource.transaction(async (manage) => {
+      manage.save(orderMain);
+      manage.save(finalOrderItemList);
+    });
     // todo 写入操作日志
     return orderId;
+  }
+
+  private async getCommodityMapByOrderItems(
+    finishGoods: OrderItem[],
+    replenishGoods: OrderItem[],
+    auxiliaryGoods: OrderItem[],
+  ) {
+    const commodityIds: string[] = [];
+    commodityIds.push(...finishGoods.map((finish) => finish.commodityId));
+    commodityIds.push(
+      ...replenishGoods.map((replenish) => replenish.commodityId),
+    );
+    commodityIds.push(
+      ...auxiliaryGoods.map((auxiliary) => auxiliary.commodityId),
+    );
+    const commodityInfos =
+      await this.commodityService.getCommodityListByCommodityIds(commodityIds);
+
+    const commodityPriceMap = new Map<string, CommodityInfoEntity>();
+    commodityInfos.forEach((good) => {
+      commodityPriceMap.set(good.id, good);
+    });
+    return { commodityInfos, commodityPriceMap };
   }
 
   async update(
     req: UpdateOfflineOrderRequest,
     user: JwtUserPayload,
   ): Promise<string> {
-    return 'orderId';
+    const lastOperateProgram = 'OrderService.update';
+    const orderId = req.orderId;
+    // 判断是否存在订单
+    const orderMain = await this.orderRepository.findOne({
+      where: { id: req.orderId, deleted: GlobalStatusEnum.NO },
+    });
+    if (!orderMain) {
+      throw new BusinessException('订单不存在或已被删除');
+    }
+    // 仅允许非客户部份的信息
+    // 1. 订单下单联系人
+    orderMain.contact = req.contact;
+    orderMain.contactPhone = req.contactPhone;
+    // 2. 收货人信息
+    OrderConvertHelper.convertReceiverAddressInfo(
+      orderMain,
+      req.receiverAddress,
+    );
+    orderMain.remark = req.remark.trim();
+    // 3. 订单商品信息
+    const finishGoodsList = req.finishGoods;
+    const replenishGoodsList = req.replenishGoods;
+    const auxiliaryGoodsList = req.auxiliaryGoods;
+    // 过滤出没有itemId的商品信息
+    const { commodityInfos, commodityPriceMap } =
+      await this.getCommodityMapByOrderItems(
+        finishGoodsList,
+        replenishGoodsList,
+        auxiliaryGoodsList,
+      );
+    const finalOrderItemList: OrderItemEntity[] = [
+      ...this.buildOrderItems(
+        orderId,
+        finishGoodsList,
+        commodityPriceMap,
+        user,
+        OrderItemTypeEnum.FINISHED_PRODUCT,
+      ),
+      ...this.buildOrderItems(
+        orderId,
+        replenishGoodsList || [],
+        commodityPriceMap,
+        user,
+        OrderItemTypeEnum.REPLENISH_PRODUCT,
+      ),
+      ...this.buildOrderItems(
+        orderId,
+        auxiliaryGoodsList || [],
+        commodityPriceMap,
+        user,
+        OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT,
+      ),
+    ];
+
+    // 开始计算订单金额
+
+    // 统计完商品后计算金额信息
+    const orderAmount = OrderConvertHelper.calculateTotalAmount(
+      finishGoodsList,
+      commodityInfos,
+    );
+    orderMain.amount = String(orderAmount);
+
+    const creditAmount = OrderConvertHelper.calculateTotalAmount(
+      req.finishGoods,
+      commodityInfos,
+      true,
+    );
+    orderMain.creditAmount = String(creditAmount);
+    OrderConvertHelper.convertOrderAmount(
+      finalOrderItemList,
+      orderMain,
+      creditAmount,
+      finishGoodsList,
+      replenishGoodsList,
+      auxiliaryGoodsList,
+    );
+
+    await this.dataSource.transaction(async (manage) => {
+      // 修改订单
+      await this.orderRepository.save(orderMain);
+      // 修改商品
+      await this.orderItemRepository.save(finalOrderItemList);
+    });
+    // todo 添加日志
+    // todo 确认审批流程
+
+    return orderMain.id;
   }
 
   async cancel(req: CancelOrderRequest, user: JwtUserPayload): Promise<string> {
@@ -624,7 +661,6 @@ export class OrderService {
     for (const item of orderItems) {
       const goodsItem = {
         id: item.id,
-        commodityId: item.commodityId,
         type: item.type,
         name: item.name,
         alias: item.aliasName,
@@ -679,5 +715,55 @@ export class OrderService {
       commodityInfos,
       onlySubsidyInvolved,
     );
+  }
+  private buildOrderItems(
+    orderId: string,
+    goodsList: OrderItem[],
+    commodityPriceMap: Map<string, CommodityInfoEntity>,
+    user: JwtUserPayload,
+    itemType: OrderItemTypeEnum,
+  ): OrderItemEntity[] {
+    return goodsList.map((item) => {
+      const { orderItem, commodityInfo } = OrderConvertHelper.buildOrderItem(
+        orderId,
+        item,
+        commodityPriceMap,
+        user,
+      );
+
+      // 按商品级别判断：有 itemId → 更新，没有 → 新增
+      if (item.itemId) {
+        orderItem.id = item.itemId;
+        orderItem.reviserId = user.userId;
+        orderItem.reviserName = user.username;
+        orderItem.revisedTime = dayjs().toDate();
+      } else {
+        orderItem.id = IdUtil.generateId();
+      }
+
+      orderItem.type = itemType;
+      orderItem.lastOperateProgram = 'OrderService.buildOrderItems';
+
+      const amount = parseFloat(orderItem.amount);
+
+      switch (itemType) {
+        case OrderItemTypeEnum.FINISHED_PRODUCT:
+          orderItem.replenishAmount = commodityInfo.isQuotaInvolved
+            ? (amount * 0.1).toFixed(2)
+            : null;
+          orderItem.auxiliarySalesAmount = commodityInfo.isQuotaInvolved
+            ? (amount * 0.03).toFixed(2)
+            : null;
+          break;
+        case OrderItemTypeEnum.REPLENISH_PRODUCT:
+          orderItem.replenishAmount = orderItem.amount;
+          break;
+        case OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT:
+          orderItem.auxiliarySalesAmount = orderItem.amount;
+          break;
+      }
+
+      return orderItem;
+    });
   }
 }

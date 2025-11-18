@@ -1,26 +1,51 @@
-import { OrderItem } from '@src/dto';
+import { OrderItem, ReceiverAddress } from '@src/dto';
 import { CommodityInfoEntity } from '@modules/commodity/entities/commodity-info.entity';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { OrderItemEntity } from '@modules/order/entities/order.item.entity';
-import { IdUtil } from '@src/utils';
 import {
   BooleanStatusEnum,
   GlobalStatusEnum,
 } from '@src/enums/global-status.enum';
 import * as dayjs from 'dayjs';
+import { OrderMainEntity } from '@modules/order/entities/order.main.entity';
+import { OrderItemTypeEnum } from '@src/enums/order-item-type.enum';
+import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
 
 export class OrderConvertHelper {
+  static convertCustomerInfo(
+    orderMain: OrderMainEntity,
+    customerInfo: CustomerInfoEntity,
+  ) {
+    orderMain.customerId = customerInfo.id;
+    orderMain.customerName = customerInfo.customerName;
+    orderMain.customerJstId = customerInfo.customerJstId;
+    orderMain.region = customerInfo.region;
+    orderMain.regionalHeadId = customerInfo.regionalHeadId;
+    orderMain.regionalHeadName = customerInfo.regionalHead;
+    orderMain.provincialHeadId = customerInfo.provincialHeadId;
+    orderMain.provincialHeadName = customerInfo.provincialHead;
+  }
+  static convertReceiverAddressInfo(
+    orderMain: OrderMainEntity,
+    receiverAddress: ReceiverAddress,
+  ) {
+    orderMain.receiverProvince = receiverAddress.receiverProvince;
+    orderMain.receiverCity = receiverAddress.receiverCity;
+    orderMain.receiverDistrict = receiverAddress.receiverDistrict;
+    orderMain.receiverAddress = receiverAddress.receiverAddress;
+    orderMain.reviserName = receiverAddress.receiverName;
+    orderMain.receiverPhone = receiverAddress.receiverPhone;
+  }
   static buildOrderItem(
     orderId: string,
-    finish: OrderItem,
+    item: OrderItem,
     commodityPriceMap: Map<string, CommodityInfoEntity>,
     user: JwtUserPayload,
   ) {
     const orderItem = new OrderItemEntity();
-    orderItem.id = IdUtil.generateId();
     orderItem.orderId = orderId;
-    orderItem.commodityId = finish.commodityId;
-    const commodityInfo = commodityPriceMap.get(finish.commodityId);
+    orderItem.commodityId = item.commodityId;
+    const commodityInfo = commodityPriceMap.get(item.commodityId);
     orderItem.name = commodityInfo.commodityName;
     orderItem.aliasName = commodityInfo.commodityAliaName;
     orderItem.internalCode = commodityInfo.commodityInternalCode;
@@ -30,17 +55,14 @@ export class OrderConvertHelper {
     orderItem.exFactoryPrice = commodityInfo.itemExFactoryPrice;
     orderItem.exFactoryBoxPrice = commodityInfo.boxExFactoryPrice;
     orderItem.isQuotaInvolved = commodityInfo.isQuotaInvolved;
-    orderItem.boxQty = finish.boxQty ?? 0;
-    orderItem.qty = finish.qty ?? 0;
-    const amount = finish.qty * parseFloat(commodityInfo.itemExFactoryPrice);
+    orderItem.boxQty = item.boxQty ?? 0;
+    orderItem.qty = item.qty ?? 0;
+    const amount = item.qty * parseFloat(commodityInfo.itemExFactoryPrice);
     orderItem.amount = amount.toFixed(2);
     orderItem.deleted = GlobalStatusEnum.NO;
     orderItem.creatorId = user.userId;
     orderItem.creatorName = user.username;
     orderItem.createdTime = dayjs().toDate();
-    orderItem.reviserId = user.userId;
-    orderItem.reviserName = user.username;
-    orderItem.revisedTime = dayjs().toDate();
     return { orderItem, commodityInfo };
   }
 
@@ -77,6 +99,56 @@ export class OrderConvertHelper {
         const price = commodityPriceMap.get(item.commodityId) || 0;
         return item.qty * price;
       })
+      .reduce((sum, current) => sum + current, 0);
+  }
+
+  static convertOrderAmount(
+    orderItemList: OrderItemEntity[],
+    orderMain: OrderMainEntity,
+    creditAmount: number,
+    finishGoods: OrderItem[],
+    replenishGoods: OrderItem[],
+    auxiliaryGoods: OrderItem[],
+  ) {
+    const replenishAmount = orderItemList
+      .filter((e) => OrderItemTypeEnum.FINISHED_PRODUCT === e.type)
+      .map((e) => parseFloat(e.replenishAmount))
+      .reduce((sum, current) => sum + current, 0);
+    orderMain.replenishAmount = String(replenishAmount);
+
+    const auxiliarySalesAmount = orderItemList
+      .filter((e) => OrderItemTypeEnum.FINISHED_PRODUCT === e.type)
+      .map((e) => parseFloat(e.auxiliarySalesAmount))
+      .reduce((sum, current) => sum + current, 0);
+    orderMain.auxiliarySalesAmount = String(auxiliarySalesAmount);
+
+    const usedReplenishAmount = orderItemList
+      .filter((e) => OrderItemTypeEnum.REPLENISH_PRODUCT === e.type)
+      .map((e) => parseFloat(e.amount))
+      .reduce((sum, current) => sum + current, 0);
+    orderMain.usedReplenishAmount = String(usedReplenishAmount);
+
+    const usedAuxiliarySalesAmount = orderItemList
+      .filter((e) => OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT === e.type)
+      .map((e) => parseFloat(e.amount))
+      .reduce((sum, current) => sum + current, 0);
+    orderMain.usedAuxiliarySalesAmount = String(usedAuxiliarySalesAmount);
+
+    orderMain.usedAuxiliarySalesRatio = (
+      usedAuxiliarySalesAmount / creditAmount
+    ).toFixed(4);
+    orderMain.usedReplenishRatio = (usedReplenishAmount / creditAmount).toFixed(
+      4,
+    );
+    // 汇总商品信息
+    orderMain.finishedProductBoxCount = finishGoods
+      .map((good) => good.boxQty)
+      .reduce((sum, current) => sum + current, 0);
+    orderMain.replenishProductBoxCount = replenishGoods
+      .map((good) => good.boxQty)
+      .reduce((sum, current) => sum + current, 0);
+    orderMain.auxiliarySalesProductCount = auxiliaryGoods
+      .map((good) => good.qty)
       .reduce((sum, current) => sum + current, 0);
   }
 }

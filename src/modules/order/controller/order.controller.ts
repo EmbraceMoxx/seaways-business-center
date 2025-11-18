@@ -50,7 +50,7 @@ export class OrderController {
     @CurrentUser() user: JwtUserPayload,
   ) {
     const orderId = await this.orderService.update(req, user);
-    return new SuccessResponseDto(orderId, '订单新增成功！');
+    return new SuccessResponseDto(orderId, '订单修改成功！');
   }
 
   @Post('cancel')

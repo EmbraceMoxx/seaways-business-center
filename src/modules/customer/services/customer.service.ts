@@ -168,7 +168,9 @@ export class CustomerService {
     }
   }
 
-  public async getCustomerBaseInfoById(id: string) {
+  public async getCustomerBaseInfoById(
+    id: string,
+  ): Promise<CustomerInfoEntity> {
     return await this.customerRepository.findOne({
       where: {
         id,
