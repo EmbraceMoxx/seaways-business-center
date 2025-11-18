@@ -17,7 +17,7 @@ async function bootstrap() {
   });
 
   // 信任代理
-  // httpApp.getHttpAdapter().getInstance().set('trust proxy', true);
+  httpApp.getHttpAdapter().getInstance().set('trust proxy', true);
 
   httpApp.useGlobalFilters(new AllExceptionFilter(), new HttpExceptionFilter());
   httpApp.useGlobalPipes(new ValidationPipe({ transform: true }));
