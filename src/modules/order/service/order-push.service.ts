@@ -9,6 +9,7 @@ import {
   ERP_JST_CODE,
 } from '@src/modules/erp/jushuitan/jst-http.constant';
 import { OrderEventService } from './order-event.service';
+import { JwtUserPayload } from '@src/modules/auth/jwt.strategy';
 
 @Injectable()
 export class OrderPushService {
@@ -99,23 +100,44 @@ export class OrderPushService {
     return {};
   }
 
-  async pushOrderToErp(orderId: string): Promise<any> {
+  async _uploadOrderAndUpdate(
+    orderId: string,
+    postData: any,
+    user: JwtUserPayload,
+  ): Promise<string | null> {
+    // todo: implement order upload and update logic
+    const response = await this._uploadOrderToJst([postData]);
+
+    return null;
+  }
+
+  async pushOrderToErp(
+    orderId: string,
+    user: JwtUserPayload,
+  ): Promise<string | null> {
     const thisContext = `${this.constructor.name}.pushOrderToErp`;
 
     // 创建推送订单事件，保存到事件表中，状态为未处理
-    await this._orderEventService.createOrderPushEvent(orderId);
-
+    await this._orderEventService.createOrderPushEvent(orderId, user);
+    let innerOrderCode: string | null = null;
     try {
       const orderData = await this._assembleOrderData(orderId);
-      const response = await this._uploadOrderToJst(orderData);
+      innerOrderCode = await this._uploadOrderAndUpdate(
+        orderId,
+        orderData,
+        user,
+      );
+
       this._logger.log(
         `Successfully pushed order ${orderId} to ERP.`,
         thisContext,
       );
 
       // todo: handle response appropriately
+      return innerOrderCode;
     } catch (err) {
       // todo: handle error appropriately
+      return null;
     }
   }
 }

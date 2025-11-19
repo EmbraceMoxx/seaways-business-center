@@ -16,11 +16,16 @@ import {
 import { OrderService } from '@modules/order/service/order.service';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
+import { OrderPushDto } from '@src/dto/order/order-push.dto';
+import { OrderPushService } from '../service/order-push.service';
 
 @ApiTags('订单管理')
 @Controller('order')
 export class OrderController {
-  constructor(private orderService: OrderService) {}
+  constructor(
+    private orderService: OrderService,
+    private orderPushService: OrderPushService,
+  ) {}
 
   @Post('checkAmount')
   @ApiOperation({ summary: '校验订单金额信息' })
@@ -103,5 +108,17 @@ export class OrderController {
   > {
     const list = await this.orderService.getUnReviewOrderList(body);
     return new SuccessResponseDto(list, '获取待审核订单列表成功');
+  }
+
+  @ApiOperation({ summary: '推送订单到ERP系统' })
+  @Post('push')
+  async pushOrderToErp(
+    @Body() body: OrderPushDto,
+    @CurrentUser() user: JwtUserPayload,
+  ): Promise<SuccessResponseDto<string>> {
+    return new SuccessResponseDto(
+      await this.orderPushService.pushOrderToErp(body.orderId, user),
+      '订单推送成功',
+    );
   }
 }

@@ -13,7 +13,7 @@ import {
   name: 'order_event',
   engine: 'InnoDB',
   comment: '事件表',
-  database: 'seaways-base-business-center',
+  database: 'seaways_base_business_center',
   synchronize: false,
 })
 @Index(

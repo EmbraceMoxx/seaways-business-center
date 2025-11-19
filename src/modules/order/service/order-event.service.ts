@@ -10,18 +10,28 @@ import { OrderMainEntity } from '../entities/order.main.entity';
 import { generateId } from '@src/utils';
 import * as dayjs from 'dayjs';
 import { OrderStatusEnum } from '@src/enums/order-status.enum';
+import { JwtUserPayload } from '@src/modules/auth/jwt.strategy';
+import { OrderLogHelper } from '../helper/order.log.helper';
+import { OrderOperateTemplateEnum } from '@src/enums/order-operate-template.enum';
+import { BusinessLogService } from '@src/modules/common/business-log/business-log.service';
 
 @Injectable()
 export class OrderEventService {
   private readonly _logger = new Logger(OrderEventService.name);
 
-  constructor(private readonly _dataSource: DataSource) {}
+  constructor(
+    private readonly _dataSource: DataSource,
+    private readonly _businessLogService: BusinessLogService,
+  ) {}
 
   /**
    * 创建订单推送事件
    * @param orderId 订单ID
    */
-  async createOrderPushEvent(orderId: string): Promise<OrderEventEntity> {
+  async createOrderPushEvent(
+    orderId: string,
+    user: JwtUserPayload,
+  ): Promise<OrderEventEntity> {
     const thisContext = `${this.constructor.name}.createOrderPushEvent`;
 
     const queryRunner = this._dataSource.createQueryRunner();
@@ -55,15 +65,21 @@ export class OrderEventService {
           where: { id: orderId },
         });
 
-        // 检查订单状态是否允许创建推送事件
-        if (orderMain.orderStatus != String(OrderStatusEnum.PENDING_PUSH)) {
-          throw new BusinessException(
-            `订单状态不允许推送，orderId=${orderId}, status=${orderMain.orderStatus}`,
+        if (!orderMain) {
+          this._logger.warn(
+            `Order not found when creating push event, orderId=${orderId}`,
+            thisContext,
           );
+          throw new BusinessException(`未找到订单`);
         }
 
-        if (!orderMain) {
-          throw new BusinessException(`登记推单但未找到订单 id=${orderId}`);
+        // 检查订单状态是否允许创建推送事件
+        if (orderMain.orderStatus != String(OrderStatusEnum.PENDING_PUSH)) {
+          this._logger.warn(
+            `Order status not valid for push event, orderId=${orderId}, status=${orderMain.orderStatus}`,
+            thisContext,
+          );
+          throw new BusinessException(`订单状态不允许推送`);
         }
 
         const title = `线上订单号：${orderMain.onlineOrderCode}，客户：${orderMain.customerName}`;
@@ -83,11 +99,22 @@ export class OrderEventService {
         await orderEventRepo.insert(newEvent);
 
         // 更新订单状态为“推送中”
-        // todo:: 补充其它字段更新
         await orderMainRepo.update(orderId, {
           orderStatus: String(OrderStatusEnum.PUSHING),
+          reviserId: user.userId,
+          reviserName: user.username,
           lastOperateProgram: thisContext,
         });
+
+        // 记录操作日志
+        const logInput = OrderLogHelper.getOrderOperate(
+          user,
+          OrderOperateTemplateEnum.PUSH_ORDER_PAYMENT,
+          thisContext,
+          orderId,
+        );
+        logInput.params = { orderId: orderId };
+        this._businessLogService.writeLog(logInput);
 
         this._logger.log(
           `Created new order push event for orderId=${orderId}, eventId=${newEvent.id}`,
@@ -116,11 +143,17 @@ export class OrderEventService {
       await queryRunner.rollbackTransaction();
 
       this._logger.error(
-        `Failed to create order push event for orderId=${orderId}: ${err.message}`,
+        `Failed to create order push event for orderId=${orderId}: ${
+          err.message
+        }, ${JSON.stringify(err)}`,
         thisContext,
       );
 
-      throw new BusinessException('未能创建订单推送事件');
+      if (err instanceof BusinessException) {
+        throw err;
+      } else {
+        throw new BusinessException('未能创建订单推送事件');
+      }
     } finally {
       await queryRunner.release();
     }

@@ -14,6 +14,7 @@ import { OrderEventService } from './service/order-event.service';
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
 import { BusinessLogModule } from '@modules/common/business-log/business-log.module';
 import { BusinessLogEntity } from '@modules/common/business-log/entity/business-log.entity';
+import { OrderPushService } from './service/order-push.service';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { BusinessLogEntity } from '@modules/common/business-log/entity/business-
     OrderService,
     CommodityService,
     OrderEventService,
+    OrderPushService,
     BusinessLogService,
   ],
   controllers: [OrderController],
