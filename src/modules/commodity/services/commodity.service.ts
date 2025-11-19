@@ -183,6 +183,7 @@ export class CommodityService {
 
       queryBuilder = queryBuilder
         .orderBy('commodity.created_time', 'DESC')
+        .orderBy('commodity.id', 'DESC')
         .limit(pageSize)
         .offset((page - 1) * pageSize);
 

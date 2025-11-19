@@ -10,4 +10,7 @@ export class UserEndpoints {
 
   /** 用户角色列表 */
   static USER_ROLES = (userId: string) => `/auth/user/${userId}/roles`;
+
+  /** 用户下级列表 */
+  static USER_SUB_LEVEL = (userId: string) => `/auth/user/${userId}/hierarchy`;
 }

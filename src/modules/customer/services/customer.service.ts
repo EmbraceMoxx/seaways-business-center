@@ -15,6 +15,8 @@ import { CustomerInfoEntity } from '../entities/customer.entity';
 import { CustomerCreditLimitService } from '../services/customer-credit-limit.service';
 import { CustomerLogHelper } from '../helper/customer.log.helper';
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
+import { HttpProxyService } from '@shared/http-proxy.service';
+import { UserEndpoints } from '@src/constants/index';
 
 @Injectable()
 export class CustomerService {
@@ -23,6 +25,7 @@ export class CustomerService {
     private customerRepository: Repository<CustomerInfoEntity>,
     private customerCreditLimitService: CustomerCreditLimitService,
     private businessLogService: BusinessLogService,
+    private httpProxyServices: HttpProxyService,
   ) {}
 
   /**
@@ -38,7 +41,6 @@ export class CustomerService {
         regionalHead,
         region,
         customerType,
-        principalUserId,
         page,
         pageSize,
       } = params;
@@ -54,8 +56,8 @@ export class CustomerService {
           'customer.provincial_head_id as provincialHeadId',
           'customer.regional_head as regionalHead',
           'customer.regional_head_id as regionalHeadId',
-          'customer.province as province',
           'customer.principal_user_id as principalUserId',
+          'customer.province as province',
           'customer.city as city',
           'customer.distributor_type as distributorType',
           'customer.is_contract as isContract',
@@ -103,15 +105,6 @@ export class CustomerService {
         );
       }
 
-      // 客户负责人-销售ID
-      if (principalUserId) {
-        queryBuilder = queryBuilder.andWhere(
-          'customer.principal_user_id LIKE :principalUserId',
-          {
-            principalUserId: `%${principalUserId}%`,
-          },
-        );
-      }
       // 客户所属区域
       if (region) {
         queryBuilder = queryBuilder.andWhere('customer.region = :region', {
@@ -135,6 +128,7 @@ export class CustomerService {
 
       queryBuilder = queryBuilder
         .orderBy('customer.created_time', 'DESC')
+        .orderBy('customer.id', 'DESC')
         .limit(pageSize)
         .offset((page - 1) * pageSize);
 
@@ -147,9 +141,145 @@ export class CustomerService {
   }
 
   /**
+   * 获取选择客户列表
+   */
+  async getSelectCustomerList(
+    params: QueryCustomerDto,
+    user: JwtUserPayload,
+    token: string,
+  ): Promise<{ items: CustomerInfoResponseDto[]; total: number }> {
+    try {
+      // 1、查询用户下的子级用户
+      const userSubLevel = await this.httpProxyServices.get(
+        UserEndpoints.USER_SUB_LEVEL(user.userId),
+        token,
+      );
+
+      // 2、查询用户下的子级用户ID
+      const userIds = userSubLevel?.map((item) => item.id) || [];
+
+      const {
+        customerName,
+        provincialHead,
+        regionalHead,
+        region,
+        customerType,
+        page,
+        pageSize,
+      } = params;
+
+      let queryBuilder = this.customerRepository
+        .createQueryBuilder('customer')
+        .select([
+          'customer.id as id',
+          'customer.customer_name as customerName',
+          'customer.customer_type as customerType',
+          'customer.region as region',
+          'customer.provincial_head as provincialHead',
+          'customer.provincial_head_id as provincialHeadId',
+          'customer.regional_head as regionalHead',
+          'customer.regional_head_id as regionalHeadId',
+          'customer.principal_user_id as principalUserId',
+          'customer.province as province',
+          'customer.city as city',
+          'customer.created_time as createdTime',
+          'customer.creator_name as creatorName',
+        ])
+        .where('customer.deleted = :deleted', {
+          deleted: GlobalStatusEnum.NO,
+        })
+        .andWhere('customer.enabled = :enabled', {
+          enabled: GlobalStatusEnum.YES,
+        })
+        .andWhere('customer.is_contract = :isContract', {
+          isContract: 1,
+        });
+
+      // 3、筛选用户以及子级用户的数据
+      if (userIds.length > 0) {
+        queryBuilder = queryBuilder.andWhere(
+          'customer.provincialHead IN (:...userIds)',
+          {
+            userIds,
+          },
+        );
+      } else {
+        queryBuilder = queryBuilder.andWhere(
+          'customer.provincialHead = :provincialHead',
+          {
+            provincialHead: user.userId,
+          },
+        );
+      }
+
+      // 客户名称
+      if (customerName) {
+        queryBuilder = queryBuilder.andWhere(
+          'customer.customer_name LIKE :customerName',
+          {
+            customerName: `%${customerName}%`,
+          },
+        );
+      }
+
+      // 大区负责人
+      if (regionalHead) {
+        queryBuilder = queryBuilder.andWhere(
+          'customer.regional_head LIKE :regionalHead',
+          {
+            regionalHead: `%${regionalHead}%`,
+          },
+        );
+      }
+
+      // 省区负责人
+      if (provincialHead) {
+        queryBuilder = queryBuilder.andWhere(
+          'customer.provincial_head LIKE :provincialHead',
+          {
+            provincialHead: `%${provincialHead}%`,
+          },
+        );
+      }
+
+      // 客户所属区域
+      if (region) {
+        queryBuilder = queryBuilder.andWhere('customer.region = :region', {
+          region,
+        });
+      }
+
+      // 类型
+      if (customerType) {
+        queryBuilder = queryBuilder.andWhere(
+          'customer.customer_type = :customerType',
+          {
+            customerType,
+          },
+        );
+      }
+
+      // 执行计数查询
+      const countQueryBuilder = queryBuilder.clone();
+      const total = await countQueryBuilder.getCount();
+
+      queryBuilder = queryBuilder
+        .orderBy('customer.created_time', 'DESC')
+        .orderBy('customer.id', 'DESC')
+        .limit(pageSize)
+        .offset((page - 1) * pageSize);
+
+      const items = await queryBuilder.getRawMany();
+
+      return { items, total };
+    } catch (error) {
+      throw new BusinessException('获取客户列表失败' + error.message);
+    }
+  }
+  /**
    * 获取客户额详情
    */
-  async getCustomerInfoById(id: string): Promise<
+  async getCustomerInfoCreditById(id: string): Promise<
     CustomerInfoResponseDto & {
       creditInfo: CustomerInfoCreditResponseDto;
     }
@@ -192,7 +322,7 @@ export class CustomerService {
   ) {
     try {
       // 1、获判断客户是否存在
-      const customerInfo = await this.getCustomerInfoById(customerId);
+      const customerInfo = await this.getCustomerInfoCreditById(customerId);
       if (!customerInfo) {
         throw new BusinessException('客户不存在');
       }

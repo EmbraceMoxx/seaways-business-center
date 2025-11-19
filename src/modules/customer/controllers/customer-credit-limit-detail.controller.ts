@@ -37,7 +37,7 @@ export class CustomerCreditLimitDetailController {
     @Body() body: CreditLimitDetailRequestDto,
     @CurrentUser() user: JwtUserPayload,
   ) {
-    await this.creditLimitDetailService.addCreditDetail(body, user);
+    await this.creditLimitDetailService.addCustomerOrderCredit(body, user);
     return new SuccessResponseDto(null, '新增成功');
   }
 

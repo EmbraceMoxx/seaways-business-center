@@ -30,6 +30,8 @@ import { async } from 'rxjs';
 import { OrderOperateTemplateEnum } from '@src/enums/order-operate-template.enum';
 import { OrderLogHelper } from '@modules/order/helper/order.log.helper';
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
+import { CustomerCreditLimitDetailService } from '@modules/customer/services/customer-credit-limit-detail.service';
+import { CreditLimitDetailRequestDto } from '@src/dto';
 
 @Injectable()
 export class OrderService {
@@ -43,6 +45,7 @@ export class OrderService {
     private commodityService: CommodityService,
     private customerService: CustomerService,
     private businessLogService: BusinessLogService,
+    private creditLimitDetailService: CustomerCreditLimitDetailService,
     private dataSource: DataSource, // 添加数据源注入
   ) {}
 
@@ -174,6 +177,7 @@ export class OrderService {
 
       queryBuilder = queryBuilder
         .orderBy('order.created_time', 'DESC')
+        .orderBy('order.id', 'DESC')
         .limit(pageSize)
         .offset((page - 1) * pageSize);
 
@@ -293,6 +297,7 @@ export class OrderService {
 
       queryBuilder = queryBuilder
         .orderBy('order.created_time', 'DESC')
+        .orderBy('order.id', 'DESC')
         .limit(pageSize)
         .offset((page - 1) * pageSize);
 
@@ -496,7 +501,22 @@ export class OrderService {
         orderId,
       );
       logInput.params = req;
-      this.businessLogService.writeLog(logInput);
+      await this.businessLogService.writeLog(logInput);
+      // 锁定额度
+      const creditDetail = new CreditLimitDetailRequestDto();
+      creditDetail.orderId = orderId;
+      creditDetail.customerId = customerInfo.id;
+      creditDetail.shippedAmount = orderMain.amount;
+      creditDetail.auxiliarySaleGoodsAmount = orderMain.auxiliarySalesAmount;
+      creditDetail.replenishingGoodsAmount = orderMain.replenishAmount;
+      creditDetail.usedAuxiliarySaleGoodsAmount =
+        orderMain.usedAuxiliarySalesAmount;
+      creditDetail.usedReplenishingGoodsAmount = orderMain.usedReplenishAmount;
+      // todo 验证完成后再解开注释
+      // await this.creditLimitDetailService.addCustomerOrderCredit(
+      //   creditDetail,
+      //   user,
+      // );
       return orderId;
     } catch (error) {
       this.logger.warn(error);
