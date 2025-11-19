@@ -74,6 +74,18 @@ export class IdUtil {
     const random6 = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');
     return `XX${yyyy}${MM}${dd}${random6}`;
   }
+  /**
+   * 生成流水编码
+   * @returns 返回生成的订单编码字符串
+   */
+  static generateFlowCode() :string{
+    const now = dayjs().toDate();
+    const yyyy = now.getFullYear();
+    const MM = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const random6 = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0');
+    return `CREDIT_${yyyy}${MM}${dd}${random6}`;
+  }
 
 }
 

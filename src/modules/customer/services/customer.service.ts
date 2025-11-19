@@ -149,7 +149,7 @@ export class CustomerService {
   /**
    * 获取客户额详情
    */
-  async getCustomerInfoById(id: string): Promise<
+  async getCustomerInfoCreditById(id: string): Promise<
     CustomerInfoResponseDto & {
       creditInfo: CustomerInfoCreditResponseDto;
     }
@@ -192,7 +192,7 @@ export class CustomerService {
   ) {
     try {
       // 1、获判断客户是否存在
-      const customerInfo = await this.getCustomerInfoById(customerId);
+      const customerInfo = await this.getCustomerInfoCreditById(customerId);
       if (!customerInfo) {
         throw new BusinessException('客户不存在');
       }

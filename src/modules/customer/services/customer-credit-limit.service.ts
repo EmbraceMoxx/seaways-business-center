@@ -10,9 +10,14 @@ import {
   CustomerInfoCreditResponseDto,
   CreditLimitDetailResponseDto,
   CreditLimitResponseDto,
+  CreditLimitDetailRequestDto,
 } from '@src/dto';
 import { CustomerCreditAmountInfoEntity } from '../entities/customer-credit-limit.entity';
 import { CustomerMonthlyCreditLimitEntity } from '../entities/customer-monthly-credit-limit.entity';
+import { IdUtil } from '@src/utils';
+import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
+import { JwtUserPayload } from '@modules/auth/jwt.strategy';
+import dayjs from 'dayjs';
 
 @Injectable()
 export class CustomerCreditLimitService {
@@ -22,6 +27,81 @@ export class CustomerCreditLimitService {
     @InjectRepository(CustomerMonthlyCreditLimitEntity)
     private monthlyCreditRepository: Repository<CustomerMonthlyCreditLimitEntity>,
   ) {}
+
+  async initCustomerCredit(
+    customerInfo: CustomerInfoEntity,
+    user: JwtUserPayload,
+  ): Promise<CustomerCreditAmountInfoEntity> {
+    const creditAmountInfo = new CustomerCreditAmountInfoEntity();
+    creditAmountInfo.id = IdUtil.generateId();
+    creditAmountInfo.customerName = customerInfo.customerName;
+    creditAmountInfo.region = customerInfo.region;
+    // creditAmountInfo.shippedAmount = '0';
+    // creditAmountInfo.repaymentAmount = '0';
+    // creditAmountInfo.auxiliarySaleGoodsAmount = '0';
+    // creditAmountInfo.replenishingGoodsAmount = '0';
+    // creditAmountInfo.usedAuxiliarySaleGoodsAmount = '0';
+    // creditAmountInfo.frozenSaleGoodsAmount = '0';
+    // creditAmountInfo.frozenUsedSaleGoodsAmount = '0';
+    // creditAmountInfo.remainAuxiliarySaleGoodsAmount = '0';
+    // creditAmountInfo.usedReplenishingGoodsAmount = '0';
+    // creditAmountInfo.frozenReplenishingGoodsAmount = '0';
+    // creditAmountInfo.frozenUsedReplenishingGoodsAmount = '0';
+    // creditAmountInfo.remainReplenishingGoodsAmount = '0';
+    creditAmountInfo.deleted = GlobalStatusEnum.NO;
+    creditAmountInfo.creatorId = user.userId;
+    creditAmountInfo.creatorName = user.username;
+    creditAmountInfo.createdTime = dayjs().toDate();
+    creditAmountInfo.reviserId = user.userId;
+    creditAmountInfo.reviserName = user.username;
+    creditAmountInfo.revisedTime = dayjs().toDate();
+    await this.creditRepository.save(creditAmountInfo);
+    return creditAmountInfo;
+  }
+
+  /**
+   * 根据客户信息冻结信用额度
+   * @param creditParam 信用额度详情请求参数，包含客户ID、发货金额、辅销商品金额等信息
+   * @param customerInfo 客户信息实体
+   * @param user JWT用户负载信息，包含当前操作用户的信息
+   */
+  async frozenCreditByCustomer(
+    creditParam: CreditLimitDetailRequestDto,
+    customerInfo: CustomerInfoEntity,
+    user: JwtUserPayload,
+  ) {
+    let creditInfo = new CustomerCreditAmountInfoEntity();
+    // 获取客户额度信息
+    creditInfo = await this.getCreditInfoByCustomerId(creditParam?.customerId);
+    if (!creditInfo) {
+      // 若客户首次合作下单，则可能不存在额度记录，则初始化记录
+      creditInfo = await this.initCustomerCredit(customerInfo, user);
+    }
+    // 锁定客户额度
+    creditInfo.shippedAmount = String(
+      parseFloat(creditInfo.shippedAmount ?? '0') +
+        parseFloat(creditParam.shippedAmount ?? '0'),
+    );
+    // 辅销金额
+    creditInfo.frozenSaleGoodsAmount = String(
+      parseFloat(creditInfo.frozenSaleGoodsAmount ?? '0') +
+        parseFloat(creditParam.auxiliarySaleGoodsAmount ?? '0'),
+    );
+    creditInfo.frozenUsedSaleGoodsAmount = String(
+      parseFloat(creditInfo.frozenUsedSaleGoodsAmount ?? '0') +
+        parseFloat(creditParam.usedAuxiliarySaleGoodsAmount ?? '0'),
+    );
+    // 货补金额
+    creditInfo.frozenReplenishingGoodsAmount = String(
+      parseFloat(creditInfo.frozenReplenishingGoodsAmount ?? '0') +
+        parseFloat(creditParam.replenishingGoodsAmount ?? '0'),
+    );
+    creditInfo.frozenUsedReplenishingGoodsAmount = String(
+      parseFloat(creditInfo.frozenUsedReplenishingGoodsAmount ?? '0') +
+        parseFloat(creditParam.usedReplenishingGoodsAmount ?? '0'),
+    );
+    await this.creditRepository.update({ id: creditInfo.id }, creditInfo);
+  }
 
   /**
    * 获取客户额度列表

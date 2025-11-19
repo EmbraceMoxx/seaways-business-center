@@ -120,7 +120,7 @@ export class CustomerAddressService {
   ) {
     try {
       // 1、获取客户信息
-      const customer = await this.customerService.getCustomerInfoById(
+      const customer = await this.customerService.getCustomerInfoCreditById(
         customerAddressParam?.customerId,
       );
       if (!customer) {
@@ -290,7 +290,7 @@ export class CustomerAddressService {
       }
 
       // 2、获取客户信息
-      const customer = await this.customerService.getCustomerInfoById(
+      const customer = await this.customerService.getCustomerInfoCreditById(
         customerAddress?.customerId,
       );
       return { ...customerAddress, customerName: customer?.customerName };

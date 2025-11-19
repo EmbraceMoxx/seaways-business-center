@@ -14,6 +14,8 @@ import { TimeFormatterUtil } from '@utils/time-formatter.util';
 import { CustomerCreditLimitDetailEntity } from '../entities/customer-credit-limit-detail.entity';
 import { CustomerCreditLimitService } from '../services/customer-credit-limit.service';
 import { CustomerService } from '../services/customer.service';
+import { IdUtil } from '@src/utils';
+import { CreditStatusEnum } from '@src/enums/credit-status.enum';
 
 @Injectable()
 export class CustomerCreditLimitDetailService {
@@ -127,6 +129,28 @@ export class CustomerCreditLimitDetailService {
     }
   }
 
+  async addCustomerOrderCredit(
+    creditParam: CreditLimitDetailRequestDto,
+    userPayload: JwtUserPayload,
+  ) {
+    // 添加流水记录
+    // 1、获取客户信息
+    const customer = await this.customerService.getCustomerBaseInfoById(
+      creditParam?.customerId,
+    );
+    if (!customer) {
+      throw new BusinessException('客户不存在');
+    }
+
+    await this.addCreditDetail(creditParam, userPayload);
+    // 锁定客户流水
+    await this.customerCreditLimitService.frozenCreditByCustomer(
+      creditParam,
+      customer,
+      userPayload,
+    );
+  }
+
   /**
    * 新增客户额度流水（后续逻辑预测：把产生货补金额、使用货补金额、产生辅销金额、使用辅销金额加到客户额度中的冻结金额里面）
    */
@@ -135,19 +159,11 @@ export class CustomerCreditLimitDetailService {
     userPayload: JwtUserPayload,
   ) {
     try {
-      // 1、获取客户信息
-      const customer = await this.customerService.getCustomerInfoById(
-        creditParam?.customerId,
-      );
-      if (!customer) {
-        throw new BusinessException('客户不存在');
-      }
-
       // 创建新的额度流水实体
       const creditDetail = new CustomerCreditLimitDetailEntity();
       creditDetail.customerId = creditParam.customerId;
       creditDetail.customerName = creditParam.customerName;
-      creditDetail.flowCode = creditParam.flowCode;
+      creditDetail.flowCode = IdUtil.generateFlowCode();
       creditDetail.orderId = creditParam.orderId;
       creditDetail.onlineOrderId = creditParam.onlineOrderId;
       creditDetail.shippedAmount = creditParam.shippedAmount;
@@ -166,7 +182,7 @@ export class CustomerCreditLimitDetailService {
       creditDetail.payableVoucher = creditParam.payableVoucher;
       // 默认
       creditDetail.deleted = GlobalStatusEnum.NO;
-      creditDetail.status = -1;
+      creditDetail.status = CreditStatusEnum.FROZEN;
 
       // 设置创建时间
       creditDetail.creatorId = userPayload.userId;
@@ -193,7 +209,8 @@ export class CustomerCreditLimitDetailService {
   async onReceipt(flag: boolean, customerId: string, user: JwtUserPayload) {
     try {
       // 1、判断该客户是否存在
-      const customer = this.customerService.getCustomerInfoById(customerId);
+      const customer =
+        this.customerService.getCustomerInfoCreditById(customerId);
       if (!customer) {
         throw new BusinessException('客户不存在');
       }

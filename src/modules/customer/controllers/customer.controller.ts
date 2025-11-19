@@ -32,7 +32,7 @@ export class CustomerController {
   async getCustomerInfo(
     @Param('id') id: string,
   ): Promise<SuccessResponseDto<CustomerInfoResponseDto>> {
-    const commodity = await this.customerService.getCustomerInfoById(id);
+    const commodity = await this.customerService.getCustomerInfoCreditById(id);
     return new SuccessResponseDto(commodity);
   }
 
