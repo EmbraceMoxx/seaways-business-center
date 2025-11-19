@@ -13,6 +13,8 @@ import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
 import { CustomerInfoEntity } from '../entities/customer.entity';
 import { CustomerCreditLimitService } from '../services/customer-credit-limit.service';
+import { CustomerLogHelper } from '../helper/customer.log.helper';
+import { BusinessLogService } from '@modules/common/business-log/business-log.service';
 
 @Injectable()
 export class CustomerService {
@@ -20,6 +22,7 @@ export class CustomerService {
     @InjectRepository(CustomerInfoEntity)
     private customerRepository: Repository<CustomerInfoEntity>,
     private customerCreditLimitService: CustomerCreditLimitService,
+    private businessLogService: BusinessLogService,
   ) {}
 
   /**
@@ -215,6 +218,16 @@ export class CustomerService {
 
       // 4、执行更新
       await this.customerRepository.update(customerId, customer);
+
+      // 5、写入操作日志
+      const logInput = CustomerLogHelper.getCustomerOperate(
+        user,
+        'CustomerService.updateCustomerInfo',
+        customerId,
+        customerInfo.customerName,
+      );
+      logInput.params = customer;
+      this.businessLogService.writeLog(logInput);
     } catch (error) {
       throw new BusinessException(error.message);
     }
