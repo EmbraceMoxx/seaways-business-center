@@ -10,6 +10,7 @@ import * as dayjs from 'dayjs';
 import { OrderMainEntity } from '@modules/order/entities/order.main.entity';
 import { OrderItemTypeEnum } from '@src/enums/order-item-type.enum';
 import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
+import { IdUtil } from '@src/utils';
 
 export class OrderConvertHelper {
   static convertCustomerInfo(
@@ -33,14 +34,65 @@ export class OrderConvertHelper {
     orderMain.receiverCity = receiverAddress.receiverCity;
     orderMain.receiverDistrict = receiverAddress.receiverDistrict;
     orderMain.receiverAddress = receiverAddress.receiverAddress;
-    orderMain.reviserName = receiverAddress.receiverName;
+    orderMain.receiverName = receiverAddress.receiverName;
     orderMain.receiverPhone = receiverAddress.receiverPhone;
+  }
+
+  static buildOrderItems(
+    orderId: string,
+    goodsList: OrderItem[],
+    commodityPriceMap: Map<string, CommodityInfoEntity>,
+    user: JwtUserPayload,
+    itemType: OrderItemTypeEnum,
+    lastOperateProgram: string,
+  ): OrderItemEntity[] {
+    return goodsList.map((item) => {
+      const { orderItem, commodityInfo } = OrderConvertHelper.buildOrderItem(
+        orderId,
+        item,
+        commodityPriceMap,
+      );
+      // 按商品级别判断：有 itemId → 更新，没有 → 新增
+      if (item.itemId) {
+        orderItem.id = item.itemId;
+      } else {
+        orderItem.id = IdUtil.generateId();
+        orderItem.creatorId = user.userId;
+        orderItem.creatorName = user.username;
+        orderItem.createdTime = dayjs().toDate();
+      }
+
+      orderItem.type = itemType;
+      orderItem.lastOperateProgram = lastOperateProgram;
+
+      const amount = parseFloat(orderItem.amount);
+
+      switch (itemType) {
+        case OrderItemTypeEnum.FINISHED_PRODUCT:
+          orderItem.replenishAmount = commodityInfo.isQuotaInvolved
+            ? (amount * 0.1).toFixed(2)
+            : '0';
+          orderItem.auxiliarySalesAmount = commodityInfo.isQuotaInvolved
+            ? (amount * 0.03).toFixed(2)
+            : '0';
+          break;
+        case OrderItemTypeEnum.REPLENISH_PRODUCT:
+          orderItem.replenishAmount = orderItem.amount ?? '0';
+          break;
+        case OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT:
+          orderItem.auxiliarySalesAmount = orderItem.amount ?? '0';
+          break;
+      }
+      orderItem.reviserId = user.userId;
+      orderItem.reviserName = user.username;
+      orderItem.revisedTime = dayjs().toDate();
+      return orderItem;
+    });
   }
   static buildOrderItem(
     orderId: string,
     item: OrderItem,
     commodityPriceMap: Map<string, CommodityInfoEntity>,
-    user: JwtUserPayload,
   ) {
     const orderItem = new OrderItemEntity();
     orderItem.orderId = orderId;
@@ -60,9 +112,6 @@ export class OrderConvertHelper {
     const amount = item.qty * parseFloat(commodityInfo.itemExFactoryPrice);
     orderItem.amount = amount.toFixed(2);
     orderItem.deleted = GlobalStatusEnum.NO;
-    orderItem.creatorId = user.userId;
-    orderItem.creatorName = user.username;
-    orderItem.createdTime = dayjs().toDate();
     return { orderItem, commodityInfo };
   }
 
@@ -110,7 +159,6 @@ export class OrderConvertHelper {
     replenishGoods: OrderItem[],
     auxiliaryGoods: OrderItem[],
   ) {
-    console.log(JSON.stringify(orderItemList));
     const replenishAmount = orderItemList
       .filter((e) => OrderItemTypeEnum.FINISHED_PRODUCT === e.type)
       .map((e) => (e.replenishAmount ? parseFloat(e.replenishAmount) : 0))

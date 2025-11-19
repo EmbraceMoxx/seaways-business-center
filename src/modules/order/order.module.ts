@@ -10,6 +10,9 @@ import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
 import { CustomerModule } from '@modules/customer/customer.module';
 import { CommodityModule } from '@modules/commodity/commodity.module';
 import { JstHttpModule } from '../erp/jushuitan/jst-http.module';
+import { BusinessLogService } from '@modules/common/business-log/business-log.service';
+import { BusinessLogModule } from '@modules/common/business-log/business-log.module';
+import { BusinessLogEntity } from '@modules/common/business-log/entity/business-log.entity';
 
 @Module({
   imports: [
@@ -18,12 +21,14 @@ import { JstHttpModule } from '../erp/jushuitan/jst-http.module';
       OrderMainEntity,
       CommodityInfoEntity,
       CustomerInfoEntity,
+      BusinessLogEntity,
     ]),
     CustomerModule,
     CommodityModule,
+    BusinessLogModule,
     JstHttpModule,
   ],
-  providers: [OrderService, CommodityService],
+  providers: [OrderService, CommodityService, BusinessLogService],
   controllers: [OrderController],
 })
 export class OrderModule {}
