@@ -177,6 +177,7 @@ export class OrderService {
 
       queryBuilder = queryBuilder
         .orderBy('order.created_time', 'DESC')
+        .orderBy('order.id', 'DESC')
         .limit(pageSize)
         .offset((page - 1) * pageSize);
 
@@ -296,6 +297,7 @@ export class OrderService {
 
       queryBuilder = queryBuilder
         .orderBy('order.created_time', 'DESC')
+        .orderBy('order.id', 'DESC')
         .limit(pageSize)
         .offset((page - 1) * pageSize);
 

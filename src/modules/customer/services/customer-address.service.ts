@@ -98,6 +98,7 @@ export class CustomerAddressService {
 
       queryBuilder = queryBuilder
         .orderBy('customerAddress.created_time', 'DESC')
+        .orderBy('customerAddress.id', 'DESC')
         .limit(pageSize)
         .offset((page - 1) * pageSize);
 
