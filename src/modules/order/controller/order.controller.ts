@@ -11,6 +11,7 @@ import {
   AddOfflineOrderRequest,
   GetOrderDetailDto,
   OrderDetailResponseDto,
+  ErrorResponseDto,
 } from '@src/dto';
 import { OrderService } from '@modules/order/service/order.service';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
@@ -39,8 +40,13 @@ export class OrderController {
     @Body() req: AddOfflineOrderRequest,
     @CurrentUser() user: JwtUserPayload,
   ): Promise<SuccessResponseDto<string>> {
-    const orderId = await this.orderService.add(req, user);
-    return new SuccessResponseDto(orderId, '订单新增成功！');
+    try {
+      const result = await this.orderService.add(req, user);
+      return new SuccessResponseDto(result, '订单新增成功！');
+    } catch (error) {
+      // 确保这里能捕获到 BusinessException
+      return new ErrorResponseDto('订单新增失败！');
+    }
   }
 
   @Post('update')
@@ -49,8 +55,13 @@ export class OrderController {
     @Body() req: UpdateOfflineOrderRequest,
     @CurrentUser() user: JwtUserPayload,
   ) {
-    const orderId = await this.orderService.update(req, user);
-    return new SuccessResponseDto(orderId, '订单修改成功！');
+    try {
+      const result = await this.orderService.update(req, user);
+      return new SuccessResponseDto(result, '订单修改成功！');
+    } catch (error) {
+      // 确保这里能捕获到 BusinessException
+      return new ErrorResponseDto('订单修改失败！');
+    }
   }
 
   @Post('cancel')

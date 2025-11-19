@@ -24,6 +24,10 @@ import { CustomerCreditLimitDetailEntity } from './entities/customer-credit-limi
 import { CustomerCreditLimitDetailController } from './controllers/customer-credit-limit-detail.controller';
 import { CustomerCreditLimitDetailService } from './services/customer-credit-limit-detail.service';
 
+// 系统日志
+import { BusinessLogService } from '@modules/common/business-log/business-log.service';
+import { BusinessLogEntity } from '@modules/common/business-log/entity/business-log.entity';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -32,6 +36,7 @@ import { CustomerCreditLimitDetailService } from './services/customer-credit-lim
       CustomerMonthlyCreditLimitEntity,
       CustomerAddressEntity,
       CustomerCreditLimitDetailEntity,
+      BusinessLogEntity,
     ]),
   ],
   providers: [
@@ -39,6 +44,7 @@ import { CustomerCreditLimitDetailService } from './services/customer-credit-lim
     CustomerCreditLimitService,
     CustomerAddressService,
     CustomerCreditLimitDetailService,
+    BusinessLogService,
   ],
   controllers: [
     CustomerController,

@@ -13,7 +13,7 @@ import {
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { TimeFormatterUtil } from '@utils/time-formatter.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import { OrderMainEntity } from '../entities/order.main.entity';
@@ -26,6 +26,10 @@ import { OrderItemTypeEnum } from '@src/enums/order-item-type.enum';
 import * as dayjs from 'dayjs';
 import { OrderStatusEnum } from '@src/enums/order-status.enum';
 import { OrderConvertHelper } from '@modules/order/helper/order.convert.helper';
+import { async } from 'rxjs';
+import { OrderOperateTemplateEnum } from '@src/enums/order-operate-template.enum';
+import { OrderLogHelper } from '@modules/order/helper/order.log.helper';
+import { BusinessLogService } from '@modules/common/business-log/business-log.service';
 
 @Injectable()
 export class OrderService {
@@ -38,6 +42,7 @@ export class OrderService {
     private orderItemRepository: Repository<OrderItemEntity>,
     private commodityService: CommodityService,
     private customerService: CustomerService,
+    private businessLogService: BusinessLogService,
     private dataSource: DataSource, // 添加数据源注入
   ) {}
 
@@ -406,10 +411,7 @@ export class OrderService {
       orderMain,
       req.receiverAddress,
     );
-    orderMain.creatorId = user.userId;
-    orderMain.creatorName = user.username;
-    orderMain.createdTime = dayjs().toDate();
-    orderMain.lastOperateProgram = lastOperateProgram;
+
     const finishGoodsList = req.finishGoods;
     const replenishGoodsList = req.replenishGoods;
     const auxiliaryGoodsList = req.auxiliaryGoods;
@@ -421,26 +423,29 @@ export class OrderService {
         auxiliaryGoodsList,
       );
     const finalOrderItemList: OrderItemEntity[] = [
-      ...this.buildOrderItems(
+      ...OrderConvertHelper.buildOrderItems(
         orderId,
         finishGoodsList,
         commodityPriceMap,
         user,
         OrderItemTypeEnum.FINISHED_PRODUCT,
+        lastOperateProgram,
       ),
-      ...this.buildOrderItems(
+      ...OrderConvertHelper.buildOrderItems(
         orderId,
         replenishGoodsList || [],
         commodityPriceMap,
         user,
         OrderItemTypeEnum.REPLENISH_PRODUCT,
+        lastOperateProgram,
       ),
-      ...this.buildOrderItems(
+      ...OrderConvertHelper.buildOrderItems(
         orderId,
         auxiliaryGoodsList || [],
         commodityPriceMap,
         user,
         OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT,
+        lastOperateProgram,
       ),
     ];
     // 统计完商品后计算金额信息
@@ -465,15 +470,38 @@ export class OrderService {
       replenishGoodsList,
       auxiliaryGoodsList,
     );
+    // 订单基础信息
+    orderMain.creatorId = user.userId;
+    orderMain.creatorName = user.username;
+    orderMain.createdTime = dayjs().toDate();
+    orderMain.reviserId = user.userId;
+    orderMain.reviserName = user.username;
+    orderMain.revisedTime = dayjs().toDate();
+    orderMain.lastOperateProgram = lastOperateProgram;
 
     // todo 计算额度使用情况后，结合客户信息计算订单初始状态
     orderMain.orderStatus = String(OrderStatusEnum.PENDING_PAYMENT.valueOf());
-    await this.dataSource.transaction(async (manage) => {
-      manage.save(orderMain);
-      manage.save(finalOrderItemList);
-    });
-    // todo 写入操作日志
-    return orderId;
+    try {
+      await this.dataSource.transaction(async (manager) => {
+        await Promise.all([
+          manager.save(orderMain),
+          manager.save(finalOrderItemList),
+        ]);
+      });
+      // 写入操作日志
+      const logInput = OrderLogHelper.getOrderOperate(
+        user,
+        OrderOperateTemplateEnum.CREATE_ORDER,
+        lastOperateProgram,
+        orderId,
+      );
+      logInput.params = req;
+      this.businessLogService.writeLog(logInput);
+      return orderId;
+    } catch (error) {
+      this.logger.warn(error);
+      throw new BusinessException('创建失败，请查看日志！');
+    }
   }
 
   private async getCommodityMapByOrderItems(
@@ -526,7 +554,6 @@ export class OrderService {
     const finishGoodsList = req.finishGoods;
     const replenishGoodsList = req.replenishGoods;
     const auxiliaryGoodsList = req.auxiliaryGoods;
-    // 过滤出没有itemId的商品信息
     const { commodityInfos, commodityPriceMap } =
       await this.getCommodityMapByOrderItems(
         finishGoodsList,
@@ -534,26 +561,29 @@ export class OrderService {
         auxiliaryGoodsList,
       );
     const finalOrderItemList: OrderItemEntity[] = [
-      ...this.buildOrderItems(
+      ...OrderConvertHelper.buildOrderItems(
         orderId,
         finishGoodsList,
         commodityPriceMap,
         user,
         OrderItemTypeEnum.FINISHED_PRODUCT,
+        lastOperateProgram,
       ),
-      ...this.buildOrderItems(
+      ...OrderConvertHelper.buildOrderItems(
         orderId,
         replenishGoodsList || [],
         commodityPriceMap,
         user,
         OrderItemTypeEnum.REPLENISH_PRODUCT,
+        lastOperateProgram,
       ),
-      ...this.buildOrderItems(
+      ...OrderConvertHelper.buildOrderItems(
         orderId,
         auxiliaryGoodsList || [],
         commodityPriceMap,
         user,
         OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT,
+        lastOperateProgram,
       ),
     ];
 
@@ -583,19 +613,65 @@ export class OrderService {
 
     await this.dataSource.transaction(async (manage) => {
       // 修改订单
-
       await manage.save(orderMain);
-      // 修改商品
-      console.log(JSON.stringify(finalOrderItemList));
+      // 保存最新数据
       await manage.save(finalOrderItemList);
+      // 2. 取出库中旧明细（事务内读，避免幻读）
+      const oldItems = await manage.findBy(OrderItemEntity, {
+        orderId,
+        deleted: GlobalStatusEnum.NO,
+      });
+
+      // 3. 计算被删的 ID
+      const deletedIds = this.getDeletedOrderItems(
+        oldItems,
+        finalOrderItemList,
+      );
+
+      // 4. 软删除（批量）
+      if (deletedIds.length) {
+        await manage.update(
+          OrderItemEntity,
+          { id: In(deletedIds) },
+          { deleted: GlobalStatusEnum.YES },
+        );
+      }
     });
-    // todo 添加日志
+    // 写入操作日志
+    const logInput = OrderLogHelper.getOrderOperate(
+      user,
+      OrderOperateTemplateEnum.UPDATE_ORDER,
+      lastOperateProgram,
+      orderId,
+    );
+    logInput.params(JSON.stringify(req));
+    this.businessLogService.writeLog(logInput);
     // todo 确认审批流程
 
     return orderMain.id;
   }
 
   async cancel(req: CancelOrderRequest, user: JwtUserPayload): Promise<string> {
+    const lastOperateProgram = 'OrderService.cancel';
+    const orderMain = await this.orderRepository.findOne({
+      where: { id: req.orderId, deleted: GlobalStatusEnum.NO },
+    });
+    if (!orderMain) {
+      throw new BusinessException('订单不存在或已被删除');
+    }
+    const updateOrder = new OrderMainEntity();
+    updateOrder.id = req.orderId;
+    updateOrder.cancelledMessage = req.cancelReason;
+    updateOrder.orderStatus = String(OrderStatusEnum.CLOSED);
+    await this.orderRepository.update({ id: orderMain.id }, updateOrder);
+    const result = OrderLogHelper.getOrderOperate(
+      user,
+      OrderOperateTemplateEnum.CANCEL_ORDER,
+      lastOperateProgram,
+      req.orderId,
+    );
+    result.action = result.action + ';取消原因为:' + req.cancelReason;
+    this.businessLogService.writeLog(result);
     return req.orderId;
   }
 
@@ -718,54 +794,17 @@ export class OrderService {
       onlySubsidyInvolved,
     );
   }
-  private buildOrderItems(
-    orderId: string,
-    goodsList: OrderItem[],
-    commodityPriceMap: Map<string, CommodityInfoEntity>,
-    user: JwtUserPayload,
-    itemType: OrderItemTypeEnum,
-  ): OrderItemEntity[] {
-    return goodsList.map((item) => {
-      const { orderItem, commodityInfo } = OrderConvertHelper.buildOrderItem(
-        orderId,
-        item,
-        commodityPriceMap,
-        user,
-      );
-
-      // 按商品级别判断：有 itemId → 更新，没有 → 新增
-      if (item.itemId) {
-        orderItem.id = item.itemId;
-        orderItem.reviserId = user.userId;
-        orderItem.reviserName = user.username;
-        orderItem.revisedTime = dayjs().toDate();
-      } else {
-        orderItem.id = IdUtil.generateId();
-      }
-
-      orderItem.type = itemType;
-      orderItem.lastOperateProgram = 'OrderService.buildOrderItems';
-
-      const amount = parseFloat(orderItem.amount);
-
-      switch (itemType) {
-        case OrderItemTypeEnum.FINISHED_PRODUCT:
-          orderItem.replenishAmount = commodityInfo.isQuotaInvolved
-            ? (amount * 0.1).toFixed(2)
-            : '0';
-          orderItem.auxiliarySalesAmount = commodityInfo.isQuotaInvolved
-            ? (amount * 0.03).toFixed(2)
-            : '0';
-          break;
-        case OrderItemTypeEnum.REPLENISH_PRODUCT:
-          orderItem.replenishAmount = orderItem.amount ?? '0';
-          break;
-        case OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT:
-          orderItem.auxiliarySalesAmount = orderItem.amount ?? '0';
-          break;
-      }
-
-      return orderItem;
-    });
+  /**
+   * 检查订单项列表中的商品是否已被删除
+   * @returns 被删除的订单项列表
+   * @param oldItems
+   * @param newItems
+   */
+  private getDeletedOrderItems(
+    oldItems: OrderItemEntity[],
+    newItems: OrderItemEntity[],
+  ): string[] {
+    const newIds = new Set(newItems.map((i) => i.id));
+    return oldItems.filter((i) => i.id && !newIds.has(i.id)).map((i) => i.id);
   }
 }

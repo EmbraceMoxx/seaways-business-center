@@ -110,6 +110,9 @@ importers:
       ioredis:
         specifier: ^5.4.1
         version: 5.4.1
+      jexl:
+        specifier: ^2.3.0
+        version: 2.3.0
       js-yaml:
         specifier: ^4.1.0
         version: 4.1.0
@@ -567,6 +570,10 @@ packages:
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': ^7.0.0-0
+
+  '@babel/runtime@7.28.4':
+    resolution: {integrity: sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ==}
+    engines: {node: '>=6.9.0'}
 
   '@babel/template@7.24.0':
     resolution: {integrity: sha512-Bkf2q8lMB0AFpX0NFEqSbx1OkTHf0f+0j82mkw+ZpzBnkk7e9Ql0891vlfgi+kHwOk8tQjiQHpqh4LaSa0fKEA==}
@@ -2724,6 +2731,9 @@ packages:
       node-notifier:
         optional: true
 
+  jexl@2.3.0:
+    resolution: {integrity: sha512-ecqln4kTWNkMwbFvTukOMDq1jy1GcPzvshhMp/s4pxU86xdLDq7HbDRa87DfMfbSAOS8V6EwvCdfs0S+w/iycA==}
+
   js-md4@0.3.2:
     resolution: {integrity: sha512-/GDnfQYsltsjRswQhN9fhv3EMw2sCpUdrdxyWDOUK7eyD++r3gRhzgiQgc/x4MAv2i1iuQ4lxO5mvqM3vj4bwA==}
 
@@ -4743,6 +4753,8 @@ snapshots:
     dependencies:
       '@babel/core': 7.24.5
       '@babel/helper-plugin-utils': 7.24.5
+
+  '@babel/runtime@7.28.4': {}
 
   '@babel/template@7.24.0':
     dependencies:
@@ -7577,6 +7589,10 @@ snapshots:
       - babel-plugin-macros
       - supports-color
       - ts-node
+
+  jexl@2.3.0:
+    dependencies:
+      '@babel/runtime': 7.28.4
 
   js-md4@0.3.2: {}
 

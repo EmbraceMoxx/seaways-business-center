@@ -11,6 +11,9 @@ import { CustomerModule } from '@modules/customer/customer.module';
 import { CommodityModule } from '@modules/commodity/commodity.module';
 import { JstHttpModule } from '../erp/jushuitan/jst-http.module';
 import { OrderEventService } from './service/order-event.service';
+import { BusinessLogService } from '@modules/common/business-log/business-log.service';
+import { BusinessLogModule } from '@modules/common/business-log/business-log.module';
+import { BusinessLogEntity } from '@modules/common/business-log/entity/business-log.entity';
 
 @Module({
   imports: [
@@ -19,12 +22,19 @@ import { OrderEventService } from './service/order-event.service';
       OrderMainEntity,
       CommodityInfoEntity,
       CustomerInfoEntity,
+      BusinessLogEntity,
     ]),
     CustomerModule,
     CommodityModule,
+    BusinessLogModule,
     JstHttpModule,
   ],
-  providers: [OrderService, CommodityService, OrderEventService],
+  providers: [
+    OrderService,
+    CommodityService,
+    OrderEventService,
+    BusinessLogService,
+  ],
   controllers: [OrderController],
 })
 export class OrderModule {}

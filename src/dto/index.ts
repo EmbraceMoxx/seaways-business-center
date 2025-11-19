@@ -21,3 +21,6 @@ export * from './customer/customer-address.dto';
 
 // 订单相关DTO
 export * from './order/order.common.dto';
+
+// 审批相关DTO
+export * from './approval/approval.dto';
