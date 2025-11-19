@@ -2,9 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Jexl } from 'jexl';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ApprovalProcessNodeEntity } from '../entities/approval_process_node.entity';
-import { ApprovalProcessRouterEntity } from '../entities/approval_process_router.entity';
+import { ApprovalProcessNodeEntity } from '../entities/approval-process-node.entity';
+import { ApprovalProcessRouterEntity } from '../entities/approval-process-router.entity';
 import { ApprovalContext } from '../interfaces/approval-context.interface';
+import { GlobalStatusEnum } from '@src/enums/global-status.enum';
+import { ApprovalNodeType } from '@src/enums/approval.enum';
 
 @Injectable()
 export class RuleEngineService {
@@ -18,28 +20,6 @@ export class RuleEngineService {
     private routerRepository: Repository<ApprovalProcessRouterEntity>,
   ) {
     this.jexl = new Jexl();
-
-    // 添加自定义函数
-    this.addCustomFunctions();
-  }
-
-  // Todo: 封装具体用法
-  private addCustomFunctions(): void {
-    // 添加金额范围判断函数
-    this.jexl.addFunction('amountBetween', (amount, min, max) => {
-      return amount >= min && amount <= max;
-    });
-
-    // 添加角色检查函数
-    this.jexl.addFunction('hasRole', (user, role) => {
-      const userRoles = this.getUserRoles(user);
-      return userRoles.includes(role);
-    });
-
-    // 添加额度检查函数
-    this.jexl.addFunction('quotaExceeds', (quota, threshold) => {
-      return quota > threshold;
-    });
   }
 
   /**
@@ -70,7 +50,12 @@ export class RuleEngineService {
   ): Promise<string | null> {
     // 查询当前节点的所有出向路由
     const routers = await this.routerRepository.find({
-      where: { processId, sourceNodeId: currentNodeId },
+      where: {
+        processId,
+        sourceNodeId: currentNodeId,
+        deleted: GlobalStatusEnum.NO,
+        enabled: GlobalStatusEnum.YES,
+      },
     });
 
     // 按优先级排序
@@ -92,32 +77,40 @@ export class RuleEngineService {
   }
 
   /**
-   * 预计算完整的审批路径
+   * 预计算审批路径
    */
+  // Todo: 审批路径，加上下一步的审批原因？原因用不用动态的？ 审批原因返回出去
   async calculateApprovalPath(
     processId: string,
     context: ApprovalContext,
   ): Promise<ApprovalProcessNodeEntity[]> {
     const nodePath: ApprovalProcessNodeEntity[] = [];
 
-    // 获取开始节点
-    const startNode = await this.nodeRepository.findOne({
-      where: { processId },
-      order: { nodeOrder: 'ASC' },
+    // 开始节点
+    const startNode = await this.nodeRepository.findOneBy({
+      processId,
+      nodeType: ApprovalNodeType.START,
+      deleted: GlobalStatusEnum.NO,
+      enabled: GlobalStatusEnum.YES,
     });
+
+    if (!startNode) throw new Error(`未找到流程 ${processId} 的开始节点`);
 
     let currentNode = startNode;
 
     while (currentNode) {
-      nodePath.push(currentNode);
-
       // 获取当前节点的出向路由
       const routers = await this.routerRepository.find({
-        where: { processId, sourceNodeId: currentNode.id },
+        where: {
+          processId,
+          sourceNodeId: currentNode.id,
+          deleted: GlobalStatusEnum.NO,
+          enabled: GlobalStatusEnum.YES,
+        },
       });
 
       let nextNode: ApprovalProcessNodeEntity;
-      // routers按优先级排序
+      // 路由按优先级排序
       const sortedRouters = [...routers].sort(
         (a, b) => a.priority - b.priority,
       );
@@ -130,6 +123,9 @@ export class RuleEngineService {
         if (conditionMet) {
           nextNode = await this.nodeRepository.findOneBy({
             id: router.targetNodeId,
+            nodeType: ApprovalNodeType.APPROVAL,
+            deleted: GlobalStatusEnum.NO,
+            enabled: GlobalStatusEnum.YES,
           });
           break;
         }
@@ -137,13 +133,9 @@ export class RuleEngineService {
 
       if (!nextNode) break;
       currentNode = nextNode;
+      nodePath.push(currentNode);
     }
 
     return nodePath;
-  }
-
-  private getUserRoles(userId: string): string[] {
-    // Todo: 从数据库中查
-    return ['user']; // 默认角色
   }
 }

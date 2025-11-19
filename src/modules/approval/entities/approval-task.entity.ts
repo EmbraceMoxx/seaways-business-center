@@ -9,8 +9,15 @@ export class ApprovalTaskEntity extends AuditEntity {
   @Column('bigint', { name: 'node_id' })
   nodeId: string;
 
-  @Column('bigint', { name: 'approver_user_id', comment: '审批人用户ID' })
-  approverUserId: string;
+  @Column('int', { name: 'task_step', comment: '审批步骤' })
+  taskStep: number | null;
+
+  @Column('bigint', {
+    name: 'approver_user_id',
+    nullable: true,
+    comment: '审批人用户ID',
+  })
+  approverUserId: string | null;
 
   @Column('varchar', {
     name: 'status',
