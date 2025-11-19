@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { BusinessLogInput } from './interface/business-log.interface';
 import * as dayjs from 'dayjs';
 import { Logger } from '@nestjs/common';
+import { generateId } from '@src/utils';
 
 export class BusinessLogService {
   private readonly logger = new Logger(BusinessLogService.name);
@@ -18,6 +19,7 @@ export class BusinessLogService {
   async writeLog(input: BusinessLogInput): Promise<BusinessLogEntity | null> {
     try {
       const newLog = this.logRepo.create({
+        id: generateId(),
         businessType: input.businessType,
         businessId: input.businessId,
         action: input.action,

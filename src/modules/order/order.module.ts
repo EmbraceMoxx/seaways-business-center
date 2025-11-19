@@ -10,6 +10,7 @@ import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
 import { CustomerModule } from '@modules/customer/customer.module';
 import { CommodityModule } from '@modules/commodity/commodity.module';
 import { JstHttpModule } from '../erp/jushuitan/jst-http.module';
+import { OrderEventService } from './service/order-event.service';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { JstHttpModule } from '../erp/jushuitan/jst-http.module';
     CommodityModule,
     JstHttpModule,
   ],
-  providers: [OrderService, CommodityService],
+  providers: [OrderService, CommodityService, OrderEventService],
   controllers: [OrderController],
 })
 export class OrderModule {}

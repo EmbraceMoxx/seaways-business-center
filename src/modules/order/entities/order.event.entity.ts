@@ -1,3 +1,4 @@
+import { generateId } from '@src/utils';
 import {
   Entity,
   PrimaryColumn,
@@ -5,6 +6,7 @@ import {
   Index,
   CreateDateColumn,
   UpdateDateColumn,
+  BeforeInsert,
 } from 'typeorm';
 
 @Entity({
@@ -14,11 +16,15 @@ import {
   database: 'seaways-base-business-center',
   synchronize: false,
 })
+@Index(
+  'uniq_business_event_status',
+  ['businessId', 'eventType', 'eventStatus'],
+  { unique: true },
+)
 @Index('idx_business_id', ['businessId'])
 @Index('idx_event_type', ['eventType'])
 @Index('idx_created_time_event_status', ['createdTime', 'eventStatus'])
-@Index('idx_event_status', ['eventStatus'])
-export class OrderEvent {
+export class OrderEventEntity {
   @PrimaryColumn({ type: 'bigint', comment: '事件ID 雪花算法生成' })
   id: string;
 
@@ -88,7 +94,7 @@ export class OrderEvent {
     default: () => 'JSON_OBJECT()',
     comment: '业务实例详情信息',
   })
-  details: object;
+  details: Record<string, any>;
 
   @Column({
     name: 'business_status',
@@ -158,4 +164,11 @@ export class OrderEvent {
     comment: '最后操作的程序',
   })
   lastOperateProgram: string;
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = generateId();
+    }
+  }
 }
