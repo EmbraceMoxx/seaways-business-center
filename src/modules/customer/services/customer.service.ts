@@ -15,7 +15,7 @@ import { CustomerInfoEntity } from '../entities/customer.entity';
 import { CustomerCreditLimitService } from '../services/customer-credit-limit.service';
 import { CustomerLogHelper } from '../helper/customer.log.helper';
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
-import { HttpProxyService } from '@modules/shared/http-proxy.service';
+import { OrderCheckService } from '@src/modules/order/service/order-check.service';
 
 @Injectable()
 export class CustomerService {
@@ -24,7 +24,7 @@ export class CustomerService {
     private customerRepository: Repository<CustomerInfoEntity>,
     private customerCreditLimitService: CustomerCreditLimitService,
     private businessLogService: BusinessLogService,
-    private httpProxyServices: HttpProxyService,
+    private orderCheckService: OrderCheckService,
   ) {}
 
   /**
@@ -148,15 +148,6 @@ export class CustomerService {
     token: string,
   ): Promise<{ items: CustomerInfoResponseDto[]; total: number }> {
     try {
-      // // 1、查询用户下的子级用户
-      // const userSubLevel = await this.httpProxyServices.get(
-      //   UserEndpoints.USER_SUB_LEVEL(user.userId),
-      //   token,
-      // );
-
-      // // 2、查询用户下的子级用户ID
-      // const userIds = userSubLevel?.map((item) => item.id) || [];
-
       const {
         customerName,
         provincialHead,
@@ -196,9 +187,27 @@ export class CustomerService {
         .andWhere('customer.co_status = :coStatus', {
           coStatus: '0',
         });
-      // .andWhere('customer.principalUserId IN (:...userIds)', {
-      //   userIds,
-      // });
+
+      // 获取权限
+      const checkResult = await this.orderCheckService.getRangeOfOrderQueryUser(
+        token,
+        user.userId,
+      );
+
+      if (checkResult) {
+        if (checkResult.isQueryAll == false) {
+          if (checkResult?.principalUserIds?.length > 0) {
+            queryBuilder = queryBuilder.andWhere(
+              'customer.creator_id IN (:userIds)',
+              {
+                userIds: checkResult.principalUserIds,
+              },
+            );
+          } else {
+            return { items: [], total: 0 };
+          }
+        }
+      }
 
       // 客户名称
       if (customerName) {
