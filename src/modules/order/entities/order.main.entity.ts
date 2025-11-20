@@ -241,9 +241,9 @@ export class OrderMainEntity {
   @Column('decimal', {
     name: 'used_replenish_ratio',
     comment: '使用货补金额比例， 小数形式，如 0.10， 表示 10%',
-    precision: 6,
-    scale: 3,
-    default: () => "'0.000'",
+    precision: 8,
+    scale: 4,
+    default: () => "'0.0000'",
   })
   usedReplenishRatio: string;
 
@@ -259,9 +259,9 @@ export class OrderMainEntity {
   @Column('decimal', {
     name: 'used_auxiliary_sales_ratio',
     comment: '使用辅助销售金额比例， 同上',
-    precision: 6,
-    scale: 3,
-    default: () => "'0.000'",
+    precision: 8,
+    scale: 4,
+    default: () => "'0.0000'",
   })
   usedAuxiliarySalesRatio: string;
 

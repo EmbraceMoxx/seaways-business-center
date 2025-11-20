@@ -11,3 +11,7 @@ export enum OrderEventStatusEnum {
   /** 错误 */
   ERROR = 2,
 }
+
+export const JST_ORDER_STATUS = {
+  WAIT_SELLER_SEND_GOODS: 'WAIT_SELLER_SEND_GOODS',
+};

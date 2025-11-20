@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OrderEventEntity } from '../entities/order.event.entity';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager, UpdateEvent } from 'typeorm';
 import {
   OrderEventStatusEnum,
   OrderEventTypeEnum,
@@ -14,6 +14,9 @@ import { JwtUserPayload } from '@src/modules/auth/jwt.strategy';
 import { OrderLogHelper } from '../helper/order.log.helper';
 import { OrderOperateTemplateEnum } from '@src/enums/order-operate-template.enum';
 import { BusinessLogService } from '@src/modules/common/business-log/business-log.service';
+import { GlobalStatusEnum } from '@src/enums/global-status.enum';
+import { UpdateEventStatusDto } from '../interface/order-event.interface';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
 @Injectable()
 export class OrderEventService {
@@ -46,6 +49,7 @@ export class OrderEventService {
           businessId: orderId,
           eventType: OrderEventTypeEnum.ORDER_PUSH,
           eventStatus: OrderEventStatusEnum.PENDING,
+          deleted: GlobalStatusEnum.NO,
         },
       });
 
@@ -62,7 +66,7 @@ export class OrderEventService {
         const orderMainRepo =
           queryRunner.manager.getRepository(OrderMainEntity);
         const orderMain = await orderMainRepo.findOne({
-          where: { id: orderId },
+          where: { id: orderId, deleted: GlobalStatusEnum.NO },
         });
 
         if (!orderMain) {
@@ -73,8 +77,11 @@ export class OrderEventService {
           throw new BusinessException(`未找到订单`);
         }
 
-        // 检查订单状态是否允许创建推送事件
-        if (orderMain.orderStatus != String(OrderStatusEnum.PENDING_PUSH)) {
+        // 检查订单状态，待推送或推送中(推送出错重新创建)才允许创建推送事件
+        if (
+          orderMain.orderStatus !== String(OrderStatusEnum.PENDING_PUSH) &&
+          orderMain.orderStatus !== String(OrderStatusEnum.PUSHING)
+        ) {
           this._logger.warn(
             `Order status not valid for push event, orderId=${orderId}, status=${orderMain.orderStatus}`,
             thisContext,
@@ -114,7 +121,7 @@ export class OrderEventService {
           orderId,
         );
         logInput.params = { orderId: orderId };
-        this._businessLogService.writeLog(logInput);
+        await this._businessLogService.writeLog(logInput, queryRunner.manager);
 
         this._logger.log(
           `Created new order push event for orderId=${orderId}, eventId=${newEvent.id}`,
@@ -134,18 +141,31 @@ export class OrderEventService {
             businessId: orderId,
             eventType: OrderEventTypeEnum.ORDER_PUSH,
             eventStatus: OrderEventStatusEnum.PENDING,
+            deleted: GlobalStatusEnum.NO,
           },
         });
+
         await queryRunner.commitTransaction();
-        return existingEvent;
+
+        if (existingEvent) {
+          this._logger.warn(
+            `Order push event already exists for orderId=${orderId}`,
+            thisContext,
+          );
+          return existingEvent;
+        }
+
+        this._logger.error(
+          `Duplicate entry error occurred but no existing event found for orderId=${orderId}`,
+          thisContext,
+        );
+        throw new BusinessException('存在未处理订单推送事件');
       }
 
       await queryRunner.rollbackTransaction();
 
       this._logger.error(
-        `Failed to create order push event for orderId=${orderId}: ${
-          err.message
-        }, ${JSON.stringify(err)}`,
+        `Failed to create order push event for orderId=${orderId}: ${err.message}`,
         thisContext,
       );
 
@@ -157,5 +177,38 @@ export class OrderEventService {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  /**
+   * 更新订单事件状态
+   */
+  async updateEventStatus(updateDto: UpdateEventStatusDto): Promise<number> {
+    const {
+      eventId,
+      status,
+      message,
+      lastOperateProgram,
+      businessStatus,
+      businessMessage,
+      manager,
+    } = updateDto;
+
+    const repo = manager
+      ? manager.getRepository(OrderEventEntity)
+      : this._dataSource.getRepository(OrderEventEntity);
+
+    const updateData: QueryDeepPartialEntity<OrderEventEntity> = {
+      eventStatus: status,
+      eventMessage: message,
+      lastOperateProgram,
+    };
+
+    if (businessStatus !== undefined)
+      updateData.businessStatus = businessStatus;
+    if (businessMessage !== undefined)
+      updateData.businessMessage = businessMessage;
+
+    const result = await repo.update({ id: eventId }, updateData);
+    return result.affected || 0;
   }
 }

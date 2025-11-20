@@ -760,6 +760,7 @@ export class OrderService {
       const goodsItem = {
         id: item.id,
         type: item.type,
+        commodityId: item.commodityId, // 商品ID
         name: item.name,
         alias: item.aliasName,
         internalCode: item.internalCode,

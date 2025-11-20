@@ -1,6 +1,6 @@
 import { InjectRepository } from '@nestjs/typeorm';
 import { BusinessLogEntity } from './entity/business-log.entity';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { BusinessLogInput } from './interface/business-log.interface';
 import * as dayjs from 'dayjs';
 import { Logger } from '@nestjs/common';
@@ -15,10 +15,18 @@ export class BusinessLogService {
 
   /**
    * 统一写日志
+   * @param input 日志输入参数
+   * @param manager 可选的 EntityManager，用于事务操作
    */
-  async writeLog(input: BusinessLogInput): Promise<BusinessLogEntity | null> {
+  async writeLog(
+    input: BusinessLogInput,
+    manager?: EntityManager,
+  ): Promise<BusinessLogEntity | null> {
     try {
-      const newLog = this.logRepo.create({
+      const repo = manager
+        ? manager.getRepository(BusinessLogEntity)
+        : this.logRepo;
+      const newLog = repo.create({
         id: generateId(),
         businessType: input.businessType,
         businessId: input.businessId,
@@ -32,13 +40,13 @@ export class BusinessLogService {
         operateProgram: input.operateProgram,
       });
 
-      const insertResult = await this.logRepo.insert(newLog);
+      const insertResult = await repo.insert(newLog);
       newLog.id = insertResult.identifiers[0].id;
       return newLog;
     } catch (err) {
       // 记录日志失败时，返回null
       this.logger.error(
-        `Failed to write business log: ${err.message}} `,
+        `Failed to write business log: ${err.message}`,
         err.stack,
       );
       return null;
