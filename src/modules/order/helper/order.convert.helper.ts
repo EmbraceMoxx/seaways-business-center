@@ -46,6 +46,10 @@ export class OrderConvertHelper {
     itemType: OrderItemTypeEnum,
     lastOperateProgram: string,
   ): OrderItemEntity[] {
+    if (!goodsList){
+      console.log('当前类型不存在需要处理的商品信息！');
+      return ;
+    }
     return goodsList.map((item) => {
       const { orderItem, commodityInfo } = OrderConvertHelper.buildOrderItem(
         orderId,
@@ -199,11 +203,17 @@ export class OrderConvertHelper {
     orderMain.finishedProductBoxCount = finishGoods
       .map((good) => good.boxQty)
       .reduce((sum, current) => sum + current, 0);
-    orderMain.replenishProductBoxCount = replenishGoods
-      .map((good) => good.boxQty)
-      .reduce((sum, current) => sum + current, 0);
-    orderMain.auxiliarySalesProductCount = auxiliaryGoods
-      .map((good) => good.qty)
-      .reduce((sum, current) => sum + current, 0);
+    if (replenishGoods&&replenishGoods.length>0){
+      orderMain.replenishProductBoxCount = replenishGoods
+        .map((good) => good.boxQty)
+        .reduce((sum, current) => sum + current, 0);
+    }
+    if (auxiliaryGoods&&auxiliaryGoods.length>0){
+      orderMain.auxiliarySalesProductCount = auxiliaryGoods
+        .map((good) => good.qty)
+        .reduce((sum, current) => sum + current, 0);
+    }
+
+
   }
 }

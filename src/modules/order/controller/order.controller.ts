@@ -1,5 +1,5 @@
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import {
   SuccessResponseDto,
   QueryOrderDto,
@@ -49,6 +49,7 @@ export class OrderController {
       const result = await this.orderService.add(req, user);
       return new SuccessResponseDto(result, '订单新增成功！');
     } catch (error) {
+      console.log(error);
       // 确保这里能捕获到 BusinessException
       return new ErrorResponseDto('订单新增失败！');
     }
@@ -75,8 +76,25 @@ export class OrderController {
     @Body() req: CancelOrderRequest,
     @CurrentUser() user: JwtUserPayload,
   ) {
-    await this.orderService.cancel(req, user);
-    return new SuccessResponseDto('id', '订单已取消！');
+    try {
+      await this.orderService.cancel(req, user);
+      return new SuccessResponseDto('id', '订单已取消！');
+    }catch (error) {
+      return new ErrorResponseDto('订单确认支付失败！');
+    }
+  }
+  @Post('confirm-payment/:orderId')
+  @ApiOperation({ summary: '确认回款' })
+  async confirmPayment(
+    @Param('orderId') orderId:string,
+    @CurrentUser() user: JwtUserPayload,
+  ) {
+    try {
+      await this.orderService.confirmPayment(orderId, user);
+      return new SuccessResponseDto('id', '订单已确认支付！');
+    }catch (error) {
+      return new ErrorResponseDto('订单确认支付失败！');
+    }
   }
 
   @ApiOperation({ summary: '获取订单列表' })
