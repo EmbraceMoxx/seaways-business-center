@@ -110,8 +110,10 @@ export class CategoryResponseDto {
   @ApiProperty({
     description: '子分类列表',
     type: [CategoryResponseDto],
+    required: false,
   })
-  children: CategoryResponseDto[];
+  @IsOptional()
+  children?: CategoryResponseDto[];
 }
 
 /**

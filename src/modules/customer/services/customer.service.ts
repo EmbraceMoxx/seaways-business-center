@@ -15,7 +15,7 @@ import { CustomerInfoEntity } from '../entities/customer.entity';
 import { CustomerCreditLimitService } from '../services/customer-credit-limit.service';
 import { CustomerLogHelper } from '../helper/customer.log.helper';
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
-import { HttpProxyService } from '@shared/http-proxy.service';
+import { HttpProxyService } from '@modules/shared/http-proxy.service';
 import { UserEndpoints } from '@src/constants/index';
 
 @Injectable()
@@ -193,24 +193,13 @@ export class CustomerService {
         })
         .andWhere('customer.is_contract = :isContract', {
           isContract: 1,
+        })
+        .andWhere('customer.co_status = :coStatus', {
+          coStatus: '0',
+        })
+        .andWhere('customer.principalUserId IN (:...userIds)', {
+          userIds,
         });
-
-      // 3、筛选用户以及子级用户的数据
-      if (userIds.length > 0) {
-        queryBuilder = queryBuilder.andWhere(
-          'customer.provincialHead IN (:...userIds)',
-          {
-            userIds,
-          },
-        );
-      } else {
-        queryBuilder = queryBuilder.andWhere(
-          'customer.provincialHead = :provincialHead',
-          {
-            provincialHead: user.userId,
-          },
-        );
-      }
 
       // 客户名称
       if (customerName) {

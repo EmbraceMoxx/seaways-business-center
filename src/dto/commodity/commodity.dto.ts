@@ -85,6 +85,14 @@ export class QueryCommodityDto extends PageRequestDto {
   @IsOptional()
   @IsIn(['YES', 'NO'], { message: '是否启用必须是YES-启用，NO-禁用' })
   enabled?: string;
+
+  @ApiProperty({
+    description: '商品分类',
+    required: false,
+  })
+  @IsOptional()
+  @IsIn(['1', '2', '3'], { message: '是否启用必须是1-成品、2-辅销、3-货补' })
+  commodityClassify?: string;
 }
 
 /**

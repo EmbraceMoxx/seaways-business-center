@@ -16,5 +16,6 @@ import { CommodityCategoryService } from './services/commodity-category.service'
   ],
   providers: [CommodityService, CommodityCategoryService],
   controllers: [CommodityController, CommodityCategoryController],
+  exports: [CommodityService, CommodityCategoryService],
 })
 export class CommodityModule {}
