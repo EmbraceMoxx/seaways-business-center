@@ -16,7 +16,6 @@ import { CustomerCreditLimitService } from '../services/customer-credit-limit.se
 import { CustomerLogHelper } from '../helper/customer.log.helper';
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
 import { HttpProxyService } from '@modules/shared/http-proxy.service';
-import { UserEndpoints } from '@src/constants/index';
 
 @Injectable()
 export class CustomerService {

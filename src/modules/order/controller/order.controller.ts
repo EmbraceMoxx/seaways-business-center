@@ -18,12 +18,15 @@ import { CurrentUser } from '@src/decorators/current-user.decorator';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { OrderPushDto } from '@src/dto/order/order-push.dto';
 import { OrderPushService } from '../service/order-push.service';
+import { CurrentToken } from '@src/decorators/current-token.decorator';
+import { OrderCheckService } from '@modules/order/service/order-check.service';
 
 @ApiTags('订单管理')
 @Controller('order')
 export class OrderController {
   constructor(
     private orderService: OrderService,
+    private orderCheckService: OrderCheckService,
     private orderPushService: OrderPushService,
   ) {}
 
@@ -101,10 +104,12 @@ export class OrderController {
   @Post('list')
   async getOrderList(
     @Body() body: QueryOrderDto,
+    @CurrentUser() user:JwtUserPayload,
+    @CurrentToken() token:string
   ): Promise<
     SuccessResponseDto<{ items: OrderInfoResponseDto[]; total: number }>
   > {
-    const list = await this.orderService.getOrderList(body);
+    const list = await this.orderService.getOrderList(body,user,token);
     return new SuccessResponseDto(list, '获取订单列表成功');
   }
 
@@ -138,5 +143,12 @@ export class OrderController {
       await this.orderPushService.pushOrderToErp(body.orderId, user),
       '订单推送成功',
     );
+  }
+
+  @Post('test')
+  async testCheckService(@CurrentUser() user: JwtUserPayload,@CurrentToken() token:string){
+    const result = await this.orderCheckService.getRangeOfOrderQueryUser(token,user.userId);
+    console.log('result:',JSON.stringify(result));
+
   }
 }

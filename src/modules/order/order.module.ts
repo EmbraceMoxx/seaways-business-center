@@ -19,6 +19,7 @@ import { CustomerCreditAmountInfoEntity } from '@modules/customer/entities/custo
 import { CustomerMonthlyCreditLimitEntity } from '@modules/customer/entities/customer-monthly-credit-limit.entity';
 import { CustomerService } from '@modules/customer/services/customer.service';
 import { CommodityModule } from '../commodity/commodity.module';
+import { OrderCheckService } from '@modules/order/service/order-check.service';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { CommodityModule } from '../commodity/commodity.module';
     CustomerCreditLimitDetailService,
     CustomerCreditLimitService,
     CustomerService,
+    OrderCheckService,
   ],
 
   controllers: [OrderController],

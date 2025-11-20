@@ -31,6 +31,7 @@ import { OrderLogHelper } from '@modules/order/helper/order.log.helper';
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
 import { CustomerCreditLimitDetailService } from '@modules/customer/services/customer-credit-limit-detail.service';
 import { CreditLimitDetailRequestDto } from '@src/dto';
+import { OrderCheckService } from '@src/modules/order/service/order-check.service';
 
 @Injectable()
 export class OrderService {
@@ -44,7 +45,7 @@ export class OrderService {
     private commodityService: CommodityService,
     private customerService: CustomerService,
     private businessLogService: BusinessLogService,
-    private creditLimitDetailService: CustomerCreditLimitDetailService,
+    private orderCheckService: OrderCheckService,
     private dataSource: DataSource, // 添加数据源注入
   ) {}
 
@@ -53,6 +54,8 @@ export class OrderService {
    */
   async getOrderList(
     params: QueryOrderDto,
+    user: JwtUserPayload,
+    token: string,
   ): Promise<{ items: OrderInfoResponseDto[]; total: number }> {
     try {
       const {
@@ -170,6 +173,20 @@ export class OrderService {
         }
       }
 
+      const checkResult = await this.orderCheckService.getRangeOfOrderQueryUser(
+        token,
+        user.userId,
+      );
+      if (checkResult) {
+        if (checkResult.isQueryAll == false) {
+          queryBuilder = queryBuilder.andWhere(
+            'order.creator_id IN (:userIds)',
+            {
+              userIds: checkResult.principalUserIds,
+            },
+          );
+        }
+      }
       // 执行计数查询
       const countQueryBuilder = queryBuilder.clone();
       const total = await countQueryBuilder.getCount();
