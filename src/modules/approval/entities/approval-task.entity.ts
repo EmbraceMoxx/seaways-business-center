@@ -29,6 +29,15 @@ export class ApprovalTaskEntity extends AuditEntity {
   status: string;
 
   @Column('varchar', {
+    name: 'auto_approved',
+    nullable: true,
+    comment: '自动审批标记，YES-自动，NO-手动',
+    length: 10,
+    default: () => "'NO'",
+  })
+  autoApproved: string | null;
+
+  @Column('varchar', {
     name: 'remark',
     nullable: true,
     comment: '审批意见',
