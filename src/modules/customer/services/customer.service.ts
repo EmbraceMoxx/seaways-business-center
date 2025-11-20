@@ -149,14 +149,14 @@ export class CustomerService {
     token: string,
   ): Promise<{ items: CustomerInfoResponseDto[]; total: number }> {
     try {
-      // 1、查询用户下的子级用户
-      const userSubLevel = await this.httpProxyServices.get(
-        UserEndpoints.USER_SUB_LEVEL(user.userId),
-        token,
-      );
+      // // 1、查询用户下的子级用户
+      // const userSubLevel = await this.httpProxyServices.get(
+      //   UserEndpoints.USER_SUB_LEVEL(user.userId),
+      //   token,
+      // );
 
-      // 2、查询用户下的子级用户ID
-      const userIds = userSubLevel?.map((item) => item.id) || [];
+      // // 2、查询用户下的子级用户ID
+      // const userIds = userSubLevel?.map((item) => item.id) || [];
 
       const {
         customerName,
@@ -196,10 +196,10 @@ export class CustomerService {
         })
         .andWhere('customer.co_status = :coStatus', {
           coStatus: '0',
-        })
-        .andWhere('customer.principalUserId IN (:...userIds)', {
-          userIds,
         });
+      // .andWhere('customer.principalUserId IN (:...userIds)', {
+      //   userIds,
+      // });
 
       // 客户名称
       if (customerName) {

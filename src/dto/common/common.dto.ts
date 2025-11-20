@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import * as dayjs from 'dayjs';
-import { Max } from 'class-validator';
+import { Max, Min } from 'class-validator';
 /**
  * 抽象API响应DTO
  */
@@ -80,6 +80,7 @@ export class PageResponseDto {
  */
 export class PageRequestDto {
   @ApiProperty({ description: '页码', example: 1, required: false })
+  @Min(1, { message: '页码最小值为1' })
   page?: number = 1;
 
   @ApiProperty({ description: '每页数量', example: 10, required: false })
