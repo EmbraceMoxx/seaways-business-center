@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan, EntityManager } from 'typeorm';
+import { Repository, MoreThan, EntityManager, In } from 'typeorm';
 import { ApprovalInstanceEntity } from '../entities/approval-instance.entity';
 import { ApprovalProcessDefinitionEntity } from '../entities/approval-process-definition.entity';
 import { ApprovalProcessNodeEntity } from '../entities/approval-process-node.entity';
@@ -17,6 +17,9 @@ import {
 import { BusinessException } from '@src/dto/common/common.dto';
 import { generateId } from '@src/utils';
 import * as _ from 'lodash';
+import { GlobalStatusEnum } from '@src/enums/global-status.enum';
+import { OrderMainEntity } from '@modules/order/entities/order.main.entity';
+import { isResubmitAllowed, getResubmitMessage } from './order-status.config';
 
 @Injectable()
 export class ApprovalEngineService implements OnModuleInit {
@@ -34,8 +37,6 @@ export class ApprovalEngineService implements OnModuleInit {
     private entityManager: EntityManager,
   ) {}
   async onModuleInit() {
-    // Todo: 判断订单有没有审批任务了
-    // Todo: 如果有步骤有人审批过，就不允许重建，如果没有，允许重建立，因为订单可能修改
     // this.startApprovalProcess({
     //   order: {
     //     id: '645870245705289728',
@@ -62,12 +63,60 @@ export class ApprovalEngineService implements OnModuleInit {
     const { operator, order } = context;
 
     // 检查是否已存在审批实例
-    // Todo: 什么状态下可以重启启动？
-    // Todo: 自动审批，是加个标记，还是改为跳过`
     const existingInstance = await this.instanceRepository.findOneBy({
       orderId: order.id,
     });
-    if (existingInstance) throw new BusinessException('该订单已存在审批流程');
+
+    if (existingInstance) {
+      // 检查是否可以重新提交
+      await this.validateResubmission(existingInstance, operator);
+    }
+
+    // 创建新的审批流程
+    return await this.createNewApprovalProcess(context, existingInstance);
+  }
+
+  /**
+   * 验证是否可以重新提交
+   */
+  private async validateResubmission(
+    instance: ApprovalInstanceEntity,
+    operator: any,
+  ): Promise<void> {
+    // 检查订单状态
+    const currentOrder = await this.entityManager.findOneBy(OrderMainEntity, {
+      id: instance.orderId,
+    });
+    if (!currentOrder) throw new BusinessException('未找到关联的订单');
+
+    if (!isResubmitAllowed(currentOrder.orderStatus)) {
+      const errorMessage = getResubmitMessage(currentOrder.orderStatus);
+      throw new BusinessException(errorMessage);
+    }
+
+    // 检查任务审批状态
+    const task = await this.taskRepository.findOneBy({
+      instanceId: instance.id,
+      status: ApprovalTaskStatusEnum.APPROVED,
+      autoApproved: GlobalStatusEnum.NO, // 非自动审批
+    });
+    if (task) {
+      throw new BusinessException('流程已被审批过，无法重新提交');
+    }
+
+    this.logger.log(
+      `允许重新提交: 实例 ${instance.id}, 操作人 ${operator.name}`,
+    );
+  }
+
+  /**
+   * 启动审批流程
+   */
+  async createNewApprovalProcess(
+    context: ApprovalContext,
+    existingInstance: ApprovalInstanceEntity,
+  ): Promise<ApprovalInstanceEntity> {
+    const { operator, order } = context;
 
     // 获取流程定义
     const process = await this.processRepository.findOneBy({
@@ -97,10 +146,19 @@ export class ApprovalEngineService implements OnModuleInit {
     );
 
     return await this.entityManager.transaction(async (manager) => {
+      if (existingInstance) {
+        await Promise.all([
+          manager.delete(ApprovalTaskEntity, {
+            instanceId: existingInstance.id,
+          }),
+          manager.delete(ApprovalInstanceEntity, existingInstance.id),
+        ]);
+        this.logger.log(`删除现有审批流程: 实例 ${existingInstance.id}`);
+      }
       const instance = await manager.save(ApprovalInstanceEntity, {
         id: instanceId,
         processId: process.id,
-        orderId: context.order.id,
+        orderId: order.id,
         ...(currentTask && {
           currentNodeId: currentTask.nodeId,
           currentStep: currentTask.taskStep,
@@ -115,7 +173,7 @@ export class ApprovalEngineService implements OnModuleInit {
       });
       await manager.save(ApprovalTaskEntity, tasks);
       this.logger.log(
-        `审批流程启动成功: 实例 ${instance.id}, 任务数 ${tasks.length}`,
+        `审批启动成功: 实例 ${instance.id}, 任务数 ${tasks.length}`,
       );
       return instance;
     });
@@ -151,58 +209,86 @@ export class ApprovalEngineService implements OnModuleInit {
 
     switch (action) {
       case ApprovalActionEnum.AGREE:
-        // 更新任务状态
-        // Todo: 如果是ROLE，要更新多个task
-        task.status = ApprovalTaskStatusEnum.APPROVED;
-        task.remark = remark;
-
-        // 查找下一个待处理任务
-        const nextTask = await this.taskRepository.findOne({
-          where: {
-            instanceId: task.instanceId,
-            taskStep: MoreThan(task.taskStep),
-            status: ApprovalTaskStatusEnum.PENDING,
-          },
-          order: { taskStep: 'ASC' },
-        });
-
-        if (nextTask) {
-          // 推进到下一个任务
-          instance.currentNodeId = nextTask.nodeId;
-          instance.currentStep = nextTask.taskStep;
-
-          // Todo: 通知
-          this.logger.log(
-            `推进到下一步: 任务 ${nextTask.id}, 审批人 ${nextTask.approverUserId}`,
-          );
-        } else {
-          // 没有下一个节点，流程完成
-          this.logger.log(`审批流程完成: 实例 ${instance.id}`);
-          instance.status = ApprovalInstanceStatusEnum.APPROVED;
-        }
-        await this.entityManager.transaction(async (manager) => {
-          await manager.save(ApprovalTaskEntity, task);
-          await manager.save(ApprovalInstanceEntity, instance);
-        });
-
-        return ApprovalTaskStatusEnum.APPROVED;
-
+        return await this.handleTaskApproval(instance, task, operator, remark);
       case ApprovalActionEnum.REFUSE:
-        // 更新任务状态
-        // Todo: 如果是ROLE，要更新多个task
-        task.status = ApprovalTaskStatusEnum.REJECTED;
-        task.remark = remark;
-        // 审批驳回，终止流程
-        instance.status = ApprovalInstanceStatusEnum.REJECTED;
-        await this.entityManager.transaction(async (manager) => {
-          await manager.save(ApprovalTaskEntity, task);
-          await manager.save(ApprovalInstanceEntity, instance);
-        });
-        return ApprovalInstanceStatusEnum.REJECTED;
-
+        return await this.handleTaskRejection(instance, task, operator, remark);
       default:
         throw new BusinessException(`不支持的审批操作: ${action}`);
     }
+  }
+
+  /**
+   * 处理审批通过
+   */
+  private async handleTaskApproval(
+    instance: ApprovalInstanceEntity,
+    task: ApprovalTaskEntity,
+    operator: any,
+    remark: string,
+  ): Promise<string> {
+    // 更新任务状态
+    task.status = ApprovalTaskStatusEnum.APPROVED;
+    task.remark = remark;
+    task.reviserId = operator.id;
+    task.reviserName = operator.name;
+
+    // 查找下一个任务
+    const nextTask = await this.taskRepository.findOne({
+      where: {
+        instanceId: task.instanceId,
+        taskStep: MoreThan(task.taskStep),
+        status: ApprovalTaskStatusEnum.PENDING,
+      },
+      order: { taskStep: 'ASC' },
+    });
+
+    if (nextTask) {
+      // 推进到下一个任务
+      instance.currentNodeId = nextTask.nodeId;
+      instance.currentStep = nextTask.taskStep;
+      instance.reviserId = operator.id;
+      instance.reviserName = operator.name;
+      // Todo: 通知
+      this.logger.log(
+        `推进到下一步: 任务 ${nextTask.id}, 审批人 ${nextTask.approverUserId}`,
+      );
+    } else {
+      // 流程完成
+      instance.status = ApprovalInstanceStatusEnum.APPROVED;
+      instance.reviserId = operator.id;
+      instance.reviserName = operator.name;
+      this.logger.log(`审批流程完成: 实例 ${instance.id}`);
+    }
+    await this.entityManager.transaction(async (manager) => {
+      await Promise.all([manager.save(task), manager.save(instance)]);
+    });
+
+    return ApprovalTaskStatusEnum.APPROVED;
+  }
+
+  /**
+   * 处理审批驳回
+   */
+  private async handleTaskRejection(
+    instance: ApprovalInstanceEntity,
+    task: ApprovalTaskEntity,
+    operator: any,
+    remark: string,
+  ): Promise<string> {
+    // 更新任务状态
+    // Todo: 如果是ROLE，要更新多个task
+    task.status = ApprovalTaskStatusEnum.REJECTED;
+    task.remark = remark;
+    task.reviserId = operator.id;
+    task.reviserName = operator.name;
+    // 审批驳回，终止流程
+    instance.status = ApprovalInstanceStatusEnum.REJECTED;
+    instance.reviserId = operator.id;
+    instance.reviserName = operator.name;
+    await this.entityManager.transaction(async (manager) => {
+      await Promise.all([manager.save(task), manager.save(instance)]);
+    });
+    return ApprovalInstanceStatusEnum.REJECTED;
   }
 
   /**
@@ -217,10 +303,8 @@ export class ApprovalEngineService implements OnModuleInit {
     const { operator } = context;
 
     // 计算审批人和状态
-    const { approverUserId, status, remark } = await this.calculateTaskDetails(
-      node,
-      context,
-    );
+    const { approverUserId, status, autoApproved, remark } =
+      await this.calculateTaskDetails(node, context);
 
     // Todo: 如果按ROLE或USER，要生成多个task
     const task = this.taskRepository.create({
@@ -229,6 +313,7 @@ export class ApprovalEngineService implements OnModuleInit {
       taskStep,
       approverUserId,
       status,
+      autoApproved,
       remark,
       creatorId: operator.id,
       creatorName: operator.name,
@@ -248,6 +333,7 @@ export class ApprovalEngineService implements OnModuleInit {
   ): Promise<{
     approverUserId: string | null;
     status: string;
+    autoApproved: string;
     remark: string;
   }> {
     switch (node.assigneeType) {
@@ -268,7 +354,12 @@ export class ApprovalEngineService implements OnModuleInit {
   private handleCustomerResponsible(
     node: ApprovalProcessNodeEntity,
     context: ApprovalContext,
-  ): { approverUserId: string | null; status: string; remark: string } {
+  ): {
+    approverUserId: string | null;
+    status: string;
+    autoApproved: string;
+    remark: string;
+  } {
     const { order } = context;
 
     // 省区审批
@@ -277,6 +368,7 @@ export class ApprovalEngineService implements OnModuleInit {
         return {
           approverUserId: null,
           status: ApprovalTaskStatusEnum.SKIPPED,
+          autoApproved: GlobalStatusEnum.YES,
           remark: '客户无省区负责人，跳过审批',
         };
       }
@@ -287,6 +379,9 @@ export class ApprovalEngineService implements OnModuleInit {
         status: isSelfApproval
           ? ApprovalTaskStatusEnum.APPROVED
           : ApprovalTaskStatusEnum.PENDING,
+        autoApproved: isSelfApproval
+          ? GlobalStatusEnum.YES
+          : GlobalStatusEnum.NO,
         remark: isSelfApproval ? '自动通过（自审批）' : '',
       };
     }
@@ -302,6 +397,9 @@ export class ApprovalEngineService implements OnModuleInit {
         status: isSelfApproval
           ? ApprovalTaskStatusEnum.APPROVED
           : ApprovalTaskStatusEnum.PENDING,
+        autoApproved: isSelfApproval
+          ? GlobalStatusEnum.YES
+          : GlobalStatusEnum.NO,
         remark: isSelfApproval ? '自动通过（自审批）' : '',
       };
     }
@@ -317,7 +415,12 @@ export class ApprovalEngineService implements OnModuleInit {
   private handleUserAssignment(
     node: ApprovalProcessNodeEntity,
     context: ApprovalContext,
-  ): { approverUserId: string | null; status: string; remark: string } {
+  ): {
+    approverUserId: string | null;
+    status: string;
+    autoApproved: string;
+    remark: string;
+  } {
     const { order } = context;
     const isSelfApproval = node.assigneeValue === order.creatorId;
     return {
@@ -325,6 +428,7 @@ export class ApprovalEngineService implements OnModuleInit {
       status: isSelfApproval
         ? ApprovalTaskStatusEnum.APPROVED
         : ApprovalTaskStatusEnum.PENDING,
+      autoApproved: isSelfApproval ? GlobalStatusEnum.YES : GlobalStatusEnum.NO,
       remark: isSelfApproval ? '自动通过（自审批）' : '',
     };
   }
