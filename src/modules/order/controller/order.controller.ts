@@ -20,13 +20,14 @@ import { OrderPushDto } from '@src/dto/order/order-push.dto';
 import { OrderPushService } from '../service/order-push.service';
 import { CurrentToken } from '@src/decorators/current-token.decorator';
 import { OrderCheckService } from '@modules/order/service/order-check.service';
+import { UserService } from '@modules/common/user/user.service';
 
 @ApiTags('订单管理')
 @Controller('order')
 export class OrderController {
   constructor(
     private orderService: OrderService,
-    private orderCheckService: OrderCheckService,
+    private userService: UserService,
     private orderPushService: OrderPushService,
   ) {}
 
@@ -147,7 +148,7 @@ export class OrderController {
 
   @Post('test')
   async testCheckService(@CurrentUser() user: JwtUserPayload,@CurrentToken() token:string){
-    const result = await this.orderCheckService.getRangeOfOrderQueryUser(token,user.userId);
+    const result = await this.userService.getRangeOfOrderQueryUser(token,user.userId);
     console.log('result:',JSON.stringify(result));
 
   }

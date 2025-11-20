@@ -15,7 +15,7 @@ import { CustomerInfoEntity } from '../entities/customer.entity';
 import { CustomerCreditLimitService } from '../services/customer-credit-limit.service';
 import { CustomerLogHelper } from '../helper/customer.log.helper';
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
-import { OrderCheckService } from '@src/modules/order/service/order-check.service';
+import { UserService } from '@modules/common/user/user.service';
 
 @Injectable()
 export class CustomerService {
@@ -24,7 +24,7 @@ export class CustomerService {
     private customerRepository: Repository<CustomerInfoEntity>,
     private customerCreditLimitService: CustomerCreditLimitService,
     private businessLogService: BusinessLogService,
-    private orderCheckService: OrderCheckService,
+    private userService: UserService,
   ) {}
 
   /**
@@ -189,7 +189,7 @@ export class CustomerService {
         });
 
       // 获取权限
-      const checkResult = await this.orderCheckService.getRangeOfOrderQueryUser(
+      const checkResult = await this.userService.getRangeOfOrderQueryUser(
         token,
         user.userId,
       );

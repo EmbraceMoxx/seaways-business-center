@@ -29,7 +29,7 @@ import { BusinessLogService } from '@modules/common/business-log/business-log.se
 import { BusinessLogEntity } from '@modules/common/business-log/entity/business-log.entity';
 
 // 订单管理
-import { OrderCheckService } from '@modules/order/service/order-check.service';
+import { UserService } from '@modules/common/user/user.service';
 
 @Module({
   imports: [
@@ -48,7 +48,7 @@ import { OrderCheckService } from '@modules/order/service/order-check.service';
     CustomerAddressService,
     CustomerCreditLimitDetailService,
     BusinessLogService,
-    OrderCheckService,
+    UserService,
   ],
   controllers: [
     CustomerController,

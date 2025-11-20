@@ -32,6 +32,7 @@ import { BusinessLogService } from '@modules/common/business-log/business-log.se
 import { CustomerCreditLimitDetailService } from '@modules/customer/services/customer-credit-limit-detail.service';
 import { CreditLimitDetailRequestDto } from '@src/dto';
 import { OrderCheckService } from '@src/modules/order/service/order-check.service';
+import { UserService } from '@modules/common/user/user.service';
 
 @Injectable()
 export class OrderService {
@@ -46,6 +47,7 @@ export class OrderService {
     private customerService: CustomerService,
     private businessLogService: BusinessLogService,
     private orderCheckService: OrderCheckService,
+    private userService: UserService,
     private creditLimitDetailService: CustomerCreditLimitDetailService,
     private dataSource: DataSource, // 添加数据源注入
   ) {}
@@ -174,7 +176,7 @@ export class OrderService {
         }
       }
 
-      const checkResult = await this.orderCheckService.getRangeOfOrderQueryUser(
+      const checkResult = await this.userService.getRangeOfOrderQueryUser(
         token,
         user.userId,
       );
@@ -767,7 +769,10 @@ export class OrderService {
     // 修改订单信息
     await this.orderRepository.update({ id: orderMain.id }, updateOrder);
     // 释放额度
-    await this.creditLimitDetailService.confirmCustomerOrderCredit(orderId,user);
+    await this.creditLimitDetailService.confirmCustomerOrderCredit(
+      orderId,
+      user,
+    );
     const result = OrderLogHelper.getOrderOperate(
       user,
       OrderOperateTemplateEnum.CONFIRM_ORDER_PAYMENT,
