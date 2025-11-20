@@ -46,8 +46,7 @@ export class OrderService {
     private businessLogService: BusinessLogService,
     private creditLimitDetailService: CustomerCreditLimitDetailService,
     private dataSource: DataSource, // 添加数据源注入
-  ) {
-  }
+  ) {}
 
   /**
    * 获取订单列表
@@ -364,8 +363,8 @@ export class OrderService {
     ) {
       messages.push(
         '当前货补使用比例为：' +
-        (parseFloat(response.replenishRatio) * 100).toFixed(2) +
-        '%',
+          (parseFloat(response.replenishRatio) * 100).toFixed(2) +
+          '%',
       );
     }
     if (
@@ -374,8 +373,8 @@ export class OrderService {
     ) {
       messages.push(
         '当前辅销使用比例为：' +
-        (parseFloat(response.auxiliarySalesRatio) * 100).toFixed(2) +
-        '%',
+          (parseFloat(response.auxiliarySalesRatio) * 100).toFixed(2) +
+          '%',
       );
     }
     if (messages.length > 0) {
@@ -393,7 +392,9 @@ export class OrderService {
     // 订单编码
     const orderCode = IdUtil.generateOrderCode();
     const lastOperateProgram = 'OrderService.add';
-    this.logger.log(`开始创建订单，orderId: ${orderId}, customerId: ${req.customerId}`);
+    this.logger.log(
+      `开始创建订单，orderId: ${orderId}, customerId: ${req.customerId}`,
+    );
     // 包装客户基本信息
     const customerInfo = await this.customerService.getCustomerBaseInfoById(
       req.customerId,
@@ -508,18 +509,20 @@ export class OrderService {
       // 锁定额度
       const creditDetail = this.buildCreditDetailParam(orderId, orderMain);
       // todo 验证完成后再解开注释
-      await this.creditLimitDetailService.addCustomerOrderCredit(
-        creditDetail,
-        user,
-      );
+      // await this.creditLimitDetailService.addCustomerOrderCredit(
+      //   creditDetail,
+      //   user,
+      // );
       return orderId;
     } catch (error) {
-      this.logger.error(`创建订单失败，orderId: ${orderId}, error: ${error.message}`, error.stack);
+      this.logger.error(
+        `创建订单失败，orderId: ${orderId}, error: ${error.message}`,
+        error.stack,
+      );
       this.logger.log(error);
       throw new BusinessException('创建失败，请查看日志！');
     }
   }
-
 
   private buildCreditDetailParam(orderId: string, orderMain: OrderMainEntity) {
     const creditDetail = new CreditLimitDetailRequestDto();
@@ -648,14 +651,16 @@ export class OrderService {
       }
     });
     // 若金额有变化则需要释放额度后冻结额度
-    if (orderMain.amount !== updateOrderMain.amount
-      || orderMain.creditAmount !== updateOrderMain.creditAmount
-      || orderMain.usedReplenishAmount !== updateOrderMain.usedReplenishAmount
-      || orderMain.usedAuxiliarySalesAmount !== updateOrderMain.usedAuxiliarySalesAmount
+    if (
+      orderMain.amount !== updateOrderMain.amount ||
+      orderMain.creditAmount !== updateOrderMain.creditAmount ||
+      orderMain.usedReplenishAmount !== updateOrderMain.usedReplenishAmount ||
+      orderMain.usedAuxiliarySalesAmount !==
+        updateOrderMain.usedAuxiliarySalesAmount
     ) {
-      await this.creditLimitDetailService.editCustomerOrderCredit(this.buildCreditDetailParam(orderId, updateOrderMain), user);
+      // todo 测试完再注释
+      // await this.creditLimitDetailService.editCustomerOrderCredit(this.buildCreditDetailParam(orderId, updateOrderMain), user);
     }
-
 
     // 写入操作日志
     const logInput = OrderLogHelper.getOrderOperate(
@@ -691,8 +696,8 @@ export class OrderService {
     updateOrder.orderStatus = String(OrderStatusEnum.CLOSED);
     // 关闭订单
     await this.orderRepository.update({ id: orderMain.id }, updateOrder);
-    // 关闭订单流水
-    await this.creditLimitDetailService.closeCustomerOrderCredit(orderMain.id,user);
+    // todo 关闭订单流水 测试完再打开
+    // await this.creditLimitDetailService.closeCustomerOrderCredit(orderMain.id,user);
     const result = OrderLogHelper.getOrderOperate(
       user,
       OrderOperateTemplateEnum.CANCEL_ORDER,
@@ -724,7 +729,7 @@ export class OrderService {
     // 修改订单信息
     await this.orderRepository.update({ id: orderMain.id }, updateOrder);
     // 释放额度
-    await this.creditLimitDetailService.confirmCustomerOrderCredit(orderId,user);
+    // await this.creditLimitDetailService.confirmCustomerOrderCredit(orderId,user);
     const result = OrderLogHelper.getOrderOperate(
       user,
       OrderOperateTemplateEnum.CONFIRM_ORDER_PAYMENT,
@@ -869,12 +874,12 @@ export class OrderService {
   ) {
     const commodityIds: string[] = [];
     commodityIds.push(...finishGoods.map((finish) => finish.commodityId));
-    if (replenishGoods && replenishGoods.length > 0){
+    if (replenishGoods && replenishGoods.length > 0) {
       commodityIds.push(
         ...replenishGoods.map((replenish) => replenish.commodityId),
       );
     }
-    if (auxiliaryGoods && auxiliaryGoods.length > 0){
+    if (auxiliaryGoods && auxiliaryGoods.length > 0) {
       commodityIds.push(
         ...auxiliaryGoods.map((auxiliary) => auxiliary.commodityId),
       );
