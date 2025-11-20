@@ -30,7 +30,7 @@ export class CustomerAddressService {
     params: QueryCustomerAddressDto,
   ): Promise<{ items: CustomerAddressResponseDto[]; total: number }> {
     try {
-      const { consigneeName, phone, searchKeyValue, page, pageSize } = params;
+      const { consigneeName, phone, searchKeyValue, customerId } = params;
 
       let queryBuilder = this.customerAddress
         .createQueryBuilder('customerAddress')
@@ -61,6 +61,16 @@ export class CustomerAddressService {
           'customer',
           'customer.id = customerAddress.customer_id',
         );
+
+      // 客户id
+      if (customerId) {
+        queryBuilder = queryBuilder.andWhere(
+          'customerAddress.customer_id = :customerId',
+          {
+            customerId,
+          },
+        );
+      }
 
       // 地址：省份(province)或城市(city)或区县(district)或详细地址(address)的模糊匹配
       if (searchKeyValue) {
@@ -98,9 +108,7 @@ export class CustomerAddressService {
 
       queryBuilder = queryBuilder
         .orderBy('customerAddress.created_time', 'DESC')
-        .orderBy('customerAddress.id', 'DESC')
-        .limit(pageSize)
-        .offset((page - 1) * pageSize);
+        .orderBy('customerAddress.id', 'DESC');
 
       const items = await queryBuilder.getRawMany();
 
