@@ -103,20 +103,22 @@ export class CustomerCreditLimitService {
         parseFloat(creditParam.usedReplenishingGoodsAmount ?? '0'),
     );
     // 剩余货补金额
-    creditInfo.remainReplenishingGoodsAmount = String(parseFloat(creditInfo.replenishingGoodsAmount )-
-      parseFloat(creditInfo.usedReplenishingGoodsAmount)-
-      parseFloat(creditInfo.frozenUsedReplenishingGoodsAmount)
+    creditInfo.remainReplenishingGoodsAmount = String(
+      parseFloat(creditInfo.replenishingGoodsAmount) -
+        parseFloat(creditInfo.usedReplenishingGoodsAmount) -
+        parseFloat(creditInfo.frozenUsedReplenishingGoodsAmount),
     );
     // 剩余辅销金额
-    creditInfo.remainAuxiliarySaleGoodsAmount = String(parseFloat(creditInfo.auxiliarySaleGoodsAmount )
-      - parseFloat(creditInfo.usedAuxiliarySaleGoodsAmount)
-      - parseFloat(creditInfo.frozenUsedSaleGoodsAmount)
+    creditInfo.remainAuxiliarySaleGoodsAmount = String(
+      parseFloat(creditInfo.auxiliarySaleGoodsAmount) -
+        parseFloat(creditInfo.usedAuxiliarySaleGoodsAmount) -
+        parseFloat(creditInfo.frozenUsedSaleGoodsAmount),
     );
 
     creditInfo.reviserId = user.userId;
     creditInfo.reviserName = user.username;
     creditInfo.revisedTime = dayjs().toDate();
-    console.log('frozen final creditInfo:',JSON.stringify(creditInfo));
+    console.log('frozen final creditInfo:', JSON.stringify(creditInfo));
 
     await this.creditRepository.update({ id: creditInfo.id }, creditInfo);
   }
@@ -130,68 +132,91 @@ export class CustomerCreditLimitService {
   async releaseCreditByCustomer(
     creditLimitDetail: CustomerCreditLimitDetailEntity,
     user: JwtUserPayload,
-    confirm:boolean = false
+    confirm = false,
   ) {
     let creditInfo = new CustomerCreditAmountInfoEntity();
     // 获取客户额度信息
-    creditInfo = await this.getCreditInfoByCustomerId(creditLimitDetail?.customerId);
+    creditInfo = await this.getCreditInfoByCustomerId(
+      creditLimitDetail?.customerId,
+    );
     if (!creditInfo) {
-      this.logger.warn('客户额度信息不存在不允许释放，请确认是否已初始化！')
+      this.logger.warn('客户额度信息不存在不允许释放，请确认是否已初始化！');
       return;
     }
     // 辅销金额
     creditInfo.frozenSaleGoodsAmount = String(
       parseFloat(creditInfo.frozenSaleGoodsAmount ?? '0') -
-      parseFloat(creditLimitDetail.auxiliarySaleGoodsAmount ?? '0'),
+        parseFloat(creditLimitDetail.auxiliarySaleGoodsAmount ?? '0'),
     );
     creditInfo.frozenUsedSaleGoodsAmount = String(
       parseFloat(creditInfo.frozenUsedSaleGoodsAmount ?? '0') -
-      parseFloat(creditLimitDetail.usedAuxiliarySaleGoodsAmount ?? '0'),
+        parseFloat(creditLimitDetail.usedAuxiliarySaleGoodsAmount ?? '0'),
     );
     // 货补金额
     creditInfo.frozenReplenishingGoodsAmount = String(
       parseFloat(creditInfo.frozenReplenishingGoodsAmount ?? '0') -
-      parseFloat(creditLimitDetail.replenishingGoodsAmount ?? '0'),
+        parseFloat(creditLimitDetail.replenishingGoodsAmount ?? '0'),
     );
     creditInfo.frozenUsedReplenishingGoodsAmount = String(
       parseFloat(creditInfo.frozenUsedReplenishingGoodsAmount ?? '0') -
-      parseFloat(creditLimitDetail.usedReplenishingGoodsAmount ?? '0'),
+        parseFloat(creditLimitDetail.usedReplenishingGoodsAmount ?? '0'),
     );
-    if (confirm){
+    if (confirm) {
       // 若确认收款，则将冻结金额分别加入指定金额
       // 确认收款发货金额应当累加
       creditInfo.shippedAmount = String(
         parseFloat(creditInfo.shippedAmount ?? '0') +
-        parseFloat(creditLimitDetail.shippedAmount ?? '0'),
+          parseFloat(creditLimitDetail.shippedAmount ?? '0'),
       );
       // 10%货补金额
-      creditInfo.replenishingGoodsAmount = String(parseFloat(creditInfo.replenishingGoodsAmount + creditLimitDetail.replenishingGoodsAmount));
+      creditInfo.replenishingGoodsAmount = String(
+        parseFloat(
+          creditInfo.replenishingGoodsAmount +
+            creditLimitDetail.replenishingGoodsAmount,
+        ),
+      );
       // 辅销品金额
-      creditInfo.auxiliarySaleGoodsAmount = String(parseFloat(creditInfo.auxiliarySaleGoodsAmount + creditLimitDetail.auxiliarySaleGoodsAmount));
+      creditInfo.auxiliarySaleGoodsAmount = String(
+        parseFloat(
+          creditInfo.auxiliarySaleGoodsAmount +
+            creditLimitDetail.auxiliarySaleGoodsAmount,
+        ),
+      );
       // 已提辅销金额
-      creditInfo.usedAuxiliarySaleGoodsAmount = String(parseFloat(creditInfo.usedAuxiliarySaleGoodsAmount + creditLimitDetail.usedAuxiliarySaleGoodsAmount));
+      creditInfo.usedAuxiliarySaleGoodsAmount = String(
+        parseFloat(
+          creditInfo.usedAuxiliarySaleGoodsAmount +
+            creditLimitDetail.usedAuxiliarySaleGoodsAmount,
+        ),
+      );
       // 已提货补金额
-      creditInfo.usedReplenishingGoodsAmount = String(parseFloat(creditInfo.usedReplenishingGoodsAmount + creditLimitDetail.usedReplenishingGoodsAmount));
+      creditInfo.usedReplenishingGoodsAmount = String(
+        parseFloat(
+          creditInfo.usedReplenishingGoodsAmount +
+            creditLimitDetail.usedReplenishingGoodsAmount,
+        ),
+      );
     }
 
     // 剩余货补金额
-    creditInfo.remainReplenishingGoodsAmount = String(parseFloat(creditInfo.replenishingGoodsAmount )-
-      parseFloat(creditInfo.usedReplenishingGoodsAmount)-
-      parseFloat(creditInfo.frozenUsedReplenishingGoodsAmount)
+    creditInfo.remainReplenishingGoodsAmount = String(
+      parseFloat(creditInfo.replenishingGoodsAmount) -
+        parseFloat(creditInfo.usedReplenishingGoodsAmount) -
+        parseFloat(creditInfo.frozenUsedReplenishingGoodsAmount),
     );
     // 剩余辅销金额
-    creditInfo.remainAuxiliarySaleGoodsAmount = String(parseFloat(creditInfo.auxiliarySaleGoodsAmount )
-      - parseFloat(creditInfo.usedAuxiliarySaleGoodsAmount)
-      - parseFloat(creditInfo.frozenUsedSaleGoodsAmount)
+    creditInfo.remainAuxiliarySaleGoodsAmount = String(
+      parseFloat(creditInfo.auxiliarySaleGoodsAmount) -
+        parseFloat(creditInfo.usedAuxiliarySaleGoodsAmount) -
+        parseFloat(creditInfo.frozenUsedSaleGoodsAmount),
     );
 
     creditInfo.reviserId = user.userId;
     creditInfo.reviserName = user.username;
     creditInfo.revisedTime = dayjs().toDate();
-    console.log('release final creditInfo:',JSON.stringify(creditInfo));
+    console.log('release final creditInfo:', JSON.stringify(creditInfo));
     await this.creditRepository.update({ id: creditInfo.id }, creditInfo);
   }
-
 
   /**
    * 获取客户额度列表

@@ -92,6 +92,7 @@ export class UpdateOfflineOrderRequest {
 }
 export class CancelOrderRequest {
   @ApiProperty({ description: '订单ID', example: 1 })
+  @IsNotEmpty({ message: '订单ID不能为空' })
   orderId: string;
   @ApiProperty({ description: '取消原因' })
   cancelReason: string;
