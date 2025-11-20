@@ -35,4 +35,22 @@ export class ApprovalProcessRouterEntity extends AuditEntity {
     length: 255,
   })
   remark: string | null;
+
+  @Column('varchar', {
+    name: 'enabled',
+    nullable: true,
+    comment: '是否启用，YES-启用，NO-禁用',
+    length: 10,
+    default: () => "'YES'",
+  })
+  enabled: string | null;
+
+  @Column('varchar', {
+    name: 'deleted',
+    nullable: true,
+    comment: '是否删除，YES-删除，NO-未删除',
+    length: 10,
+    default: () => "'NO'",
+  })
+  deleted: string | null;
 }

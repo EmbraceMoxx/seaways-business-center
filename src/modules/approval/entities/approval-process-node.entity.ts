@@ -6,10 +6,13 @@ export class ApprovalProcessNodeEntity extends AuditEntity {
   @Column('bigint', { name: 'process_id', comment: '所属流程定义ID' })
   processId: string;
 
+  @Column('varchar', { name: 'node_type', comment: '节点类型', length: 20 })
+  nodeType: string;
+
   @Column('varchar', { name: 'node_name', comment: '节点名称', length: 100 })
   nodeName: string;
 
-  @Column('tinyint', { name: 'node_order', comment: '节点顺序' })
+  @Column('int', { name: 'node_order', comment: '节点顺序' })
   nodeOrder: number;
 
   @Column('varchar', {
@@ -33,4 +36,22 @@ export class ApprovalProcessNodeEntity extends AuditEntity {
     length: 20,
   })
   approvalStrategy: string;
+
+  @Column('varchar', {
+    name: 'enabled',
+    nullable: true,
+    comment: '是否启用，YES-启用，NO-禁用',
+    length: 10,
+    default: () => "'YES'",
+  })
+  enabled: string | null;
+
+  @Column('varchar', {
+    name: 'deleted',
+    nullable: true,
+    comment: '是否删除，YES-删除，NO-未删除',
+    length: 10,
+    default: () => "'NO'",
+  })
+  deleted: string | null;
 }

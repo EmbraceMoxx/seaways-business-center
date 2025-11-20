@@ -18,6 +18,8 @@ import { CustomerCreditLimitService } from '@modules/customer/services/customer-
 import { CustomerCreditAmountInfoEntity } from '@modules/customer/entities/customer-credit-limit.entity';
 import { CustomerMonthlyCreditLimitEntity } from '@modules/customer/entities/customer-monthly-credit-limit.entity';
 import { CustomerService } from '@modules/customer/services/customer.service';
+import { CommodityModule } from '../commodity/commodity.module';
+import { OrderCheckService } from '@modules/order/service/order-check.service';
 
 @Module({
   imports: [
@@ -32,6 +34,7 @@ import { CustomerService } from '@modules/customer/services/customer.service';
       CustomerMonthlyCreditLimitEntity,
     ]),
     JstHttpModule,
+    CommodityModule,
   ],
   providers: [
     OrderService,
@@ -42,6 +45,7 @@ import { CustomerService } from '@modules/customer/services/customer.service';
     CustomerCreditLimitDetailService,
     CustomerCreditLimitService,
     CustomerService,
+    OrderCheckService,
   ],
 
   controllers: [OrderController],

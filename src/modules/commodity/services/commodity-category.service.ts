@@ -1,11 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, forwardRef, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
 import { BusinessException } from '@src/dto/common/common.dto';
-import { CategoryRequestDto } from '@src/dto';
+import { CategoryRequestDto, CategoryResponseDto } from '@src/dto';
 import { generateId } from '@src/utils';
 import { Not } from 'typeorm';
 import { CommodityCategoryEntity } from '../entities/commodity-category.entity';
@@ -16,6 +16,8 @@ export class CommodityCategoryService {
   constructor(
     @InjectRepository(CommodityCategoryEntity)
     private categoryRepository: Repository<CommodityCategoryEntity>,
+
+    @Inject(forwardRef(() => CommodityService))
     private commodityService: CommodityService,
   ) {}
 
@@ -81,6 +83,18 @@ export class CommodityCategoryService {
     return await this.categoryRepository.findOne({
       where: {
         id,
+        deleted: GlobalStatusEnum.NO,
+      },
+    });
+  }
+
+  /**
+   * 根据名称查询商品分类
+   */
+  async getCategoryByName(categoryName: string): Promise<CategoryResponseDto> {
+    return await this.categoryRepository.findOne({
+      where: {
+        categoryName,
         deleted: GlobalStatusEnum.NO,
       },
     });

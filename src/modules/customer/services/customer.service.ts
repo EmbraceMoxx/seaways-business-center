@@ -15,8 +15,7 @@ import { CustomerInfoEntity } from '../entities/customer.entity';
 import { CustomerCreditLimitService } from '../services/customer-credit-limit.service';
 import { CustomerLogHelper } from '../helper/customer.log.helper';
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
-import { HttpProxyService } from '@shared/http-proxy.service';
-import { UserEndpoints } from '@src/constants/index';
+import { OrderCheckService } from '@src/modules/order/service/order-check.service';
 
 @Injectable()
 export class CustomerService {
@@ -25,7 +24,7 @@ export class CustomerService {
     private customerRepository: Repository<CustomerInfoEntity>,
     private customerCreditLimitService: CustomerCreditLimitService,
     private businessLogService: BusinessLogService,
-    private httpProxyServices: HttpProxyService,
+    private orderCheckService: OrderCheckService,
   ) {}
 
   /**
@@ -149,15 +148,6 @@ export class CustomerService {
     token: string,
   ): Promise<{ items: CustomerInfoResponseDto[]; total: number }> {
     try {
-      // 1、查询用户下的子级用户
-      const userSubLevel = await this.httpProxyServices.get(
-        UserEndpoints.USER_SUB_LEVEL(user.userId),
-        token,
-      );
-
-      // 2、查询用户下的子级用户ID
-      const userIds = userSubLevel?.map((item) => item.id) || [];
-
       const {
         customerName,
         provincialHead,
@@ -193,23 +183,30 @@ export class CustomerService {
         })
         .andWhere('customer.is_contract = :isContract', {
           isContract: 1,
+        })
+        .andWhere('customer.co_status = :coStatus', {
+          coStatus: '0',
         });
 
-      // 3、筛选用户以及子级用户的数据
-      if (userIds.length > 0) {
-        queryBuilder = queryBuilder.andWhere(
-          'customer.provincialHead IN (:...userIds)',
-          {
-            userIds,
-          },
-        );
-      } else {
-        queryBuilder = queryBuilder.andWhere(
-          'customer.provincialHead = :provincialHead',
-          {
-            provincialHead: user.userId,
-          },
-        );
+      // 获取权限
+      const checkResult = await this.orderCheckService.getRangeOfOrderQueryUser(
+        token,
+        user.userId,
+      );
+
+      if (checkResult) {
+        if (checkResult.isQueryAll == false) {
+          if (checkResult?.principalUserIds?.length > 0) {
+            queryBuilder = queryBuilder.andWhere(
+              'customer.creator_id IN (:userIds)',
+              {
+                userIds: checkResult.principalUserIds,
+              },
+            );
+          } else {
+            return { items: [], total: 0 };
+          }
+        }
       }
 
       // 客户名称

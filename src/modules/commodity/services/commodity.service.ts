@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, forwardRef, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -14,12 +14,16 @@ import {
 import { CommodityInfoEntity } from '../entities/commodity-info.entity';
 import { CommodityBundledSkuInfoEntity } from '../entities/commodity-bundled-sku-info.entity';
 import { CommodityCategoryEntity } from '../entities/commodity-category.entity';
+import { CommodityCategoryService } from './commodity-category.service';
 
 @Injectable()
 export class CommodityService {
   constructor(
     @InjectRepository(CommodityInfoEntity)
     private commodityRepository: Repository<CommodityInfoEntity>,
+
+    @Inject(forwardRef(() => CommodityCategoryService))
+    private commodityCategoryService: CommodityCategoryService,
   ) {}
 
   /**
@@ -42,6 +46,7 @@ export class CommodityService {
         page,
         pageSize,
         commodityAliaName,
+        commodityClassify,
       } = params;
 
       let queryBuilder = this.commodityRepository
@@ -82,6 +87,34 @@ export class CommodityService {
         .where('commodity.deleted = :deleted', {
           deleted: GlobalStatusEnum.NO,
         });
+
+      // 商品类型,1-成品、2-辅销、3-货补
+      if (commodityClassify) {
+        if (commodityClassify === '1') {
+          const { id: fistCategoryId } =
+            await this.commodityCategoryService.getCategoryByName('成品商品');
+          queryBuilder = queryBuilder.andWhere(
+            'commodity.commodity_first_category = :fistCategoryId',
+            {
+              fistCategoryId,
+            },
+          );
+        } else if (commodityClassify === '2') {
+          queryBuilder = queryBuilder.andWhere(
+            'commodity.is_gift_eligible = :isGiftEligible',
+            {
+              isGiftEligible: BooleanStatusEnum.TRUE,
+            },
+          );
+        } else if (commodityClassify === '3') {
+          queryBuilder = queryBuilder.andWhere(
+            'commodity.is_supply_subsidy_involved = :isSupplySubsidyInvolved',
+            {
+              isSupplySubsidyInvolved: BooleanStatusEnum.TRUE,
+            },
+          );
+        }
+      }
 
       // 商品条码
       if (commodityBarcode) {

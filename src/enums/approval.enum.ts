@@ -58,3 +58,12 @@ export const enum CustomerResponsibleType {
   PROVINCIAL_HEAD = 'PROVINCIAL_HEAD', // 省区负责人
   REGIONAL_HEAD = 'REGIONAL_HEAD', // 大区负责人
 }
+
+/**
+ * 审批节点类型
+ */
+export const enum ApprovalNodeType {
+  START = 'START', // 起始节点
+  APPROVAL = 'APPROVAL', // 审批节点
+  END = 'END', // 结束节点
+}

@@ -30,7 +30,7 @@ export class CustomerAddressService {
     params: QueryCustomerAddressDto,
   ): Promise<{ items: CustomerAddressResponseDto[]; total: number }> {
     try {
-      const { consigneeName, phone, searchKeyValue, page, pageSize } = params;
+      const { consigneeName, phone, searchKeyValue, customerId } = params;
 
       let queryBuilder = this.customerAddress
         .createQueryBuilder('customerAddress')
@@ -61,6 +61,16 @@ export class CustomerAddressService {
           'customer',
           'customer.id = customerAddress.customer_id',
         );
+
+      // 客户id
+      if (customerId) {
+        queryBuilder = queryBuilder.andWhere(
+          'customerAddress.customer_id = :customerId',
+          {
+            customerId,
+          },
+        );
+      }
 
       // 地址：省份(province)或城市(city)或区县(district)或详细地址(address)的模糊匹配
       if (searchKeyValue) {
@@ -98,9 +108,7 @@ export class CustomerAddressService {
 
       queryBuilder = queryBuilder
         .orderBy('customerAddress.created_time', 'DESC')
-        .orderBy('customerAddress.id', 'DESC')
-        .limit(pageSize)
-        .offset((page - 1) * pageSize);
+        .orderBy('customerAddress.id', 'DESC');
 
       const items = await queryBuilder.getRawMany();
 
@@ -147,7 +155,7 @@ export class CustomerAddressService {
         customerAddressDetail.isDefault = customerAddressParam.isDefault;
       }
 
-      // 3、检查客户地址默认地址已存在，即同一个客户下的地址只有一个地址的is_default为1
+      // 3、检查客户地址默认地址已存在，把之前那条的默认地址设置为0
       const isSefaultExist = await this.customerAddress.findOne({
         where: {
           customerId: customerAddressParam.customerId,
@@ -156,7 +164,9 @@ export class CustomerAddressService {
         },
       });
       if (customerAddressParam.isDefault === 1 && isSefaultExist) {
-        throw new BusinessException('同一个客户下的地址只能有一个默认地址');
+        this.customerAddress.update(isSefaultExist.id, {
+          isDefault: 0,
+        });
       }
 
       customerAddressDetail.customerId = customerAddressParam.customerId;
@@ -210,7 +220,7 @@ export class CustomerAddressService {
         throw new BusinessException('客户地址Id不存在');
       }
 
-      // 2、检查客户地址默认地址已存在，即同一个客户下的地址只有一个地址的is_default为1
+      // 3、检查客户地址默认地址已存在，把之前那条的默认地址设置为0
       const isSefaultExist = await this.customerAddress.findOne({
         where: {
           customerId: customerAddressParam.customerId,
@@ -219,7 +229,9 @@ export class CustomerAddressService {
         },
       });
       if (customerAddressParam.isDefault === 1 && isSefaultExist) {
-        throw new BusinessException('同一个客户下的地址只能有一个默认地址');
+        this.customerAddress.update(isSefaultExist.id, {
+          isDefault: 0,
+        });
       }
 
       // 3、创建新的客户地址实体

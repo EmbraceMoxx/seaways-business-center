@@ -32,6 +32,7 @@ export class CustomerCreditLimitDetailEntity {
 
   @Column('varchar', {
     name: 'online_order_id',
+    nullable: true,
     comment: '聚水潭线上订单号',
     length: 128,
   })

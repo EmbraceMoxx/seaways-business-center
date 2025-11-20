@@ -1,5 +1,5 @@
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import {
   SuccessResponseDto,
   QueryOrderDto,
@@ -18,12 +18,15 @@ import { CurrentUser } from '@src/decorators/current-user.decorator';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { OrderPushDto } from '@src/dto/order/order-push.dto';
 import { OrderPushService } from '../service/order-push.service';
+import { CurrentToken } from '@src/decorators/current-token.decorator';
+import { OrderCheckService } from '@modules/order/service/order-check.service';
 
 @ApiTags('订单管理')
 @Controller('order')
 export class OrderController {
   constructor(
     private orderService: OrderService,
+    private orderCheckService: OrderCheckService,
     private orderPushService: OrderPushService,
   ) {}
 
@@ -49,6 +52,7 @@ export class OrderController {
       const result = await this.orderService.add(req, user);
       return new SuccessResponseDto(result, '订单新增成功！');
     } catch (error) {
+      console.log(error);
       // 确保这里能捕获到 BusinessException
       return new ErrorResponseDto('订单新增失败！');
     }
@@ -75,18 +79,37 @@ export class OrderController {
     @Body() req: CancelOrderRequest,
     @CurrentUser() user: JwtUserPayload,
   ) {
-    await this.orderService.cancel(req, user);
-    return new SuccessResponseDto('id', '订单已取消！');
+    try {
+      await this.orderService.cancel(req, user);
+      return new SuccessResponseDto('id', '订单已取消！');
+    }catch (error) {
+      return new ErrorResponseDto('订单确认支付失败！');
+    }
+  }
+  @Post('confirm-payment/:orderId')
+  @ApiOperation({ summary: '确认回款' })
+  async confirmPayment(
+    @Param('orderId') orderId:string,
+    @CurrentUser() user: JwtUserPayload,
+  ) {
+    try {
+      await this.orderService.confirmPayment(orderId, user);
+      return new SuccessResponseDto('id', '订单已确认支付！');
+    }catch (error) {
+      return new ErrorResponseDto('订单确认支付失败！');
+    }
   }
 
   @ApiOperation({ summary: '获取订单列表' })
   @Post('list')
   async getOrderList(
     @Body() body: QueryOrderDto,
+    @CurrentUser() user:JwtUserPayload,
+    @CurrentToken() token:string
   ): Promise<
     SuccessResponseDto<{ items: OrderInfoResponseDto[]; total: number }>
   > {
-    const list = await this.orderService.getOrderList(body);
+    const list = await this.orderService.getOrderList(body,user,token);
     return new SuccessResponseDto(list, '获取订单列表成功');
   }
 
@@ -120,5 +143,12 @@ export class OrderController {
       await this.orderPushService.pushOrderToErp(body.orderId, user),
       '订单推送成功',
     );
+  }
+
+  @Post('test')
+  async testCheckService(@CurrentUser() user: JwtUserPayload,@CurrentToken() token:string){
+    const result = await this.orderCheckService.getRangeOfOrderQueryUser(token,user.userId);
+    console.log('result:',JSON.stringify(result));
+
   }
 }

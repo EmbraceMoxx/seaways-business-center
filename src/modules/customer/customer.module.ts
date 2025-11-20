@@ -28,6 +28,9 @@ import { CustomerCreditLimitDetailService } from './services/customer-credit-lim
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
 import { BusinessLogEntity } from '@modules/common/business-log/entity/business-log.entity';
 
+// 订单管理
+import { OrderCheckService } from '@modules/order/service/order-check.service';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -45,6 +48,7 @@ import { BusinessLogEntity } from '@modules/common/business-log/entity/business-
     CustomerAddressService,
     CustomerCreditLimitDetailService,
     BusinessLogService,
+    OrderCheckService,
   ],
   controllers: [
     CustomerController,

@@ -1,11 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
-import { PageRequestDto } from '@src/dto/common/common.dto';
 
 /**
  * 客户地址管理列表查询参数DTO
  */
-export class QueryCustomerAddressDto extends PageRequestDto {
+export class QueryCustomerAddressDto {
   @ApiProperty({
     description:
       '地址：省份(province)或城市(city)或区县(district)或详细地址(address)',
@@ -30,6 +29,14 @@ export class QueryCustomerAddressDto extends PageRequestDto {
   @IsOptional()
   @IsString({ message: '联系电话必须是字符串' })
   phone?: string;
+
+  @ApiProperty({
+    description: '客户ID',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '客户ID必须是字符串' })
+  customerId?: string;
 }
 
 /**

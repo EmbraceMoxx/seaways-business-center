@@ -92,6 +92,7 @@ export class UpdateOfflineOrderRequest {
 }
 export class CancelOrderRequest {
   @ApiProperty({ description: '订单ID', example: 1 })
+  @IsNotEmpty({ message: '订单ID不能为空' })
   orderId: string;
   @ApiProperty({ description: '取消原因' })
   cancelReason: string;
@@ -392,4 +393,17 @@ export class OrderDetailResponseDto {
 
   @ApiProperty({ description: '辅销商品明细项列表' })
   auxiliaryGoods: OrderDetailItem[];
+}
+
+export class OrderUserQueryDto{
+  @ApiProperty({
+    description: '是否查询全部',
+    example: 'true',
+  })
+  isQueryAll:boolean;
+  @ApiProperty({
+    description: '负责人ID集合',
+    example: '[1,633192656222162944]',
+  })
+  principalUserIds:string[];
 }
