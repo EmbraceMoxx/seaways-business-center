@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import {
@@ -19,6 +19,7 @@ import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
 import { CustomerCreditLimitDetailEntity } from '@modules/customer/entities/customer-credit-limit-detail.entity';
+import { MoneyUtil } from '@utils/MoneyUtil';
 
 @Injectable()
 export class CustomerCreditLimitService {
@@ -79,6 +80,7 @@ export class CustomerCreditLimitService {
       // 若客户首次合作下单，则可能不存在额度记录，则初始化记录
       creditInfo = await this.initCustomerCredit(customerInfo, user);
     }
+    this.logger.log('额度汇总操作前数据:', JSON.stringify(creditInfo));
     // 锁定客户发货金额
     // creditInfo.shippedAmount = String(
     //   parseFloat(creditInfo.shippedAmount ?? '0') +
@@ -119,7 +121,6 @@ export class CustomerCreditLimitService {
     creditInfo.reviserName = user.username;
     creditInfo.revisedTime = dayjs().toDate();
     console.log('frozen final creditInfo:', JSON.stringify(creditInfo));
-
     await this.creditRepository.update({ id: creditInfo.id }, creditInfo);
   }
 
@@ -128,88 +129,100 @@ export class CustomerCreditLimitService {
    * @param creditLimitDetail 信用额度详情请求参数，包含客户ID和各种金额信息
    * @param user JWT用户负载信息
    * @param confirm
+   * @param manager
    */
   async releaseCreditByCustomer(
     creditLimitDetail: CustomerCreditLimitDetailEntity,
     user: JwtUserPayload,
     confirm = false,
+    manager: EntityManager,
   ) {
-    let creditInfo = new CustomerCreditAmountInfoEntity();
-    // 获取客户额度信息
-    creditInfo = await this.getCreditInfoByCustomerId(
-      creditLimitDetail?.customerId,
-    );
+    const repo = manager.getRepository(CustomerCreditAmountInfoEntity);
+    const creditInfo = await repo.findOne({
+      where: { customerId: creditLimitDetail.customerId },
+      lock: { mode: 'pessimistic_write' },
+    });
     if (!creditInfo) {
-      this.logger.warn('客户额度信息不存在不允许释放，请确认是否已初始化！');
-      return;
-    }
-    // 辅销金额
-    creditInfo.frozenSaleGoodsAmount = String(
-      parseFloat(creditInfo.frozenSaleGoodsAmount ?? '0') -
-        parseFloat(creditLimitDetail.auxiliarySaleGoodsAmount ?? '0'),
-    );
-    creditInfo.frozenUsedSaleGoodsAmount = String(
-      parseFloat(creditInfo.frozenUsedSaleGoodsAmount ?? '0') -
-        parseFloat(creditLimitDetail.usedAuxiliarySaleGoodsAmount ?? '0'),
-    );
-    // 货补金额
-    creditInfo.frozenReplenishingGoodsAmount = String(
-      parseFloat(creditInfo.frozenReplenishingGoodsAmount ?? '0') -
-        parseFloat(creditLimitDetail.replenishingGoodsAmount ?? '0'),
-    );
-    creditInfo.frozenUsedReplenishingGoodsAmount = String(
-      parseFloat(creditInfo.frozenUsedReplenishingGoodsAmount ?? '0') -
-        parseFloat(creditLimitDetail.usedReplenishingGoodsAmount ?? '0'),
-    );
-    if (confirm) {
-      // 若确认收款，则将冻结金额分别加入指定金额
-      // 确认收款发货金额应当累加
-      creditInfo.shippedAmount = String(
-        parseFloat(creditInfo.shippedAmount ?? '0') +
-          parseFloat(creditLimitDetail.shippedAmount ?? '0'),
-      );
-      // 10%货补金额
-      creditInfo.replenishingGoodsAmount = String(
-        parseFloat(
-          creditInfo.replenishingGoodsAmount +
-            creditLimitDetail.replenishingGoodsAmount,
-        ),
-      );
-      // 辅销品金额
-      creditInfo.auxiliarySaleGoodsAmount = String(
-        parseFloat(
-          creditInfo.auxiliarySaleGoodsAmount +
-            creditLimitDetail.auxiliarySaleGoodsAmount,
-        ),
-      );
-      // 已提辅销金额
-      creditInfo.usedAuxiliarySaleGoodsAmount = String(
-        parseFloat(
-          creditInfo.usedAuxiliarySaleGoodsAmount +
-            creditLimitDetail.usedAuxiliarySaleGoodsAmount,
-        ),
-      );
-      // 已提货补金额
-      creditInfo.usedReplenishingGoodsAmount = String(
-        parseFloat(
-          creditInfo.usedReplenishingGoodsAmount +
-            creditLimitDetail.usedReplenishingGoodsAmount,
-        ),
+      throw new BusinessException(
+        `客户额度不存在，跳过释放；customerId=${creditLimitDetail.customerId}`,
       );
     }
 
+    // 辅销金额
+    creditInfo.frozenSaleGoodsAmount = MoneyUtil.fromYuan(
+      creditInfo.frozenSaleGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(creditLimitDetail.auxiliarySaleGoodsAmount))
+      .toYuan();
+    creditInfo.frozenUsedSaleGoodsAmount = MoneyUtil.fromYuan(
+      creditInfo.frozenUsedSaleGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(creditLimitDetail.usedAuxiliarySaleGoodsAmount))
+      .toYuan();
+
+    // 货补金额
+    creditInfo.frozenReplenishingGoodsAmount = MoneyUtil.fromYuan(
+      creditInfo.frozenReplenishingGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(creditLimitDetail.replenishingGoodsAmount))
+      .toYuan();
+
+    creditInfo.frozenUsedReplenishingGoodsAmount = MoneyUtil.fromYuan(
+      creditInfo.frozenUsedReplenishingGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(creditLimitDetail.usedReplenishingGoodsAmount))
+      .toYuan();
+
+    if (confirm) {
+      // 若确认收款，则将冻结金额分别加入指定金额
+      // 确认收款发货金额应当累加
+      creditInfo.shippedAmount = MoneyUtil.fromYuan(creditInfo.shippedAmount)
+        .add(MoneyUtil.fromYuan(creditLimitDetail.shippedAmount))
+        .toYuan();
+      // 辅销品金额
+      creditInfo.auxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
+        creditInfo.auxiliarySaleGoodsAmount,
+      )
+        .add(MoneyUtil.fromYuan(creditLimitDetail.auxiliarySaleGoodsAmount))
+        .toYuan();
+
+      // 已提辅销金额
+      creditInfo.usedAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
+        creditInfo.usedAuxiliarySaleGoodsAmount,
+      )
+        .add(MoneyUtil.fromYuan(creditLimitDetail.usedAuxiliarySaleGoodsAmount))
+        .toYuan();
+
+      // 10%货补金额
+      creditInfo.replenishingGoodsAmount = MoneyUtil.fromYuan(
+        creditInfo.replenishingGoodsAmount,
+      )
+        .add(MoneyUtil.fromYuan(creditLimitDetail.replenishingGoodsAmount))
+        .toYuan();
+
+      // 已提货补金额
+      creditInfo.usedReplenishingGoodsAmount = MoneyUtil.fromYuan(
+        creditInfo.usedReplenishingGoodsAmount,
+      )
+        .add(MoneyUtil.fromYuan(creditLimitDetail.usedReplenishingGoodsAmount))
+        .toYuan();
+    }
+
     // 剩余货补金额
-    creditInfo.remainReplenishingGoodsAmount = String(
-      parseFloat(creditInfo.replenishingGoodsAmount) -
-        parseFloat(creditInfo.usedReplenishingGoodsAmount) -
-        parseFloat(creditInfo.frozenUsedReplenishingGoodsAmount),
-    );
+    creditInfo.remainReplenishingGoodsAmount = MoneyUtil.fromYuan(
+      creditInfo.replenishingGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(creditInfo.usedReplenishingGoodsAmount))
+      .sub(MoneyUtil.fromYuan(creditInfo.frozenUsedReplenishingGoodsAmount))
+      .toYuan();
+
     // 剩余辅销金额
-    creditInfo.remainAuxiliarySaleGoodsAmount = String(
-      parseFloat(creditInfo.auxiliarySaleGoodsAmount) -
-        parseFloat(creditInfo.usedAuxiliarySaleGoodsAmount) -
-        parseFloat(creditInfo.frozenUsedSaleGoodsAmount),
-    );
+    creditInfo.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
+      creditInfo.auxiliarySaleGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(creditInfo.usedAuxiliarySaleGoodsAmount))
+      .sub(MoneyUtil.fromYuan(creditInfo.frozenUsedSaleGoodsAmount))
+      .toYuan();
 
     creditInfo.reviserId = user.userId;
     creditInfo.reviserName = user.username;
@@ -583,5 +596,55 @@ export class CustomerCreditLimitService {
     customerId: string,
   ): Promise<CreditLimitResponseDto> {
     return await this.creditRepository.findOneBy({ customerId });
+  }
+
+  async changeCustomerCreditAmount(
+    manager: EntityManager,
+    oldFlow: CustomerCreditLimitDetailEntity,
+    delta: {
+      replenishing: number;
+      auxiliary: number;
+      replenishingUsed: number;
+      auxiliaryUsed: number;
+    },
+    user: JwtUserPayload,
+  ) {
+    const creditRepo = manager.getRepository(CustomerCreditAmountInfoEntity);
+    const credit = await creditRepo.findOne({
+      where: { customerId: oldFlow.customerId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!credit) {
+      throw new BusinessException('客户额度信息不存在');
+    }
+    // 4.1 调整冻结额度
+    credit.frozenSaleGoodsAmount = String(
+      Number(credit.frozenSaleGoodsAmount || 0) + delta.auxiliary,
+    );
+    credit.frozenUsedSaleGoodsAmount = String(
+      Number(credit.frozenUsedSaleGoodsAmount || 0) + delta.auxiliaryUsed,
+    );
+    credit.frozenReplenishingGoodsAmount = String(
+      Number(credit.frozenReplenishingGoodsAmount || 0) + delta.replenishing,
+    );
+    credit.frozenUsedReplenishingGoodsAmount = String(
+      Number(credit.frozenUsedReplenishingGoodsAmount || 0) +
+        delta.replenishingUsed,
+    );
+    // 4.2 重新计算剩余额度
+    credit.remainAuxiliarySaleGoodsAmount = String(
+      Number(credit.auxiliarySaleGoodsAmount || 0) -
+        Number(credit.usedAuxiliarySaleGoodsAmount || 0) -
+        Number(credit.frozenUsedSaleGoodsAmount || 0),
+    );
+    credit.remainReplenishingGoodsAmount = String(
+      Number(credit.replenishingGoodsAmount || 0) -
+        Number(credit.usedReplenishingGoodsAmount || 0) -
+        Number(credit.frozenUsedReplenishingGoodsAmount || 0),
+    );
+    credit.reviserId = user.userId;
+    credit.reviserName = user.username;
+    credit.revisedTime = dayjs().toDate();
+    await creditRepo.update({ id: credit.id }, credit);
   }
 }

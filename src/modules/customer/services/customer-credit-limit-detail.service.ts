@@ -163,99 +163,151 @@ export class CustomerCreditLimitDetailService {
    * 编辑客户订单授信信息
    * @param creditParam - 授信限额详情请求参数对象，包含订单ID、发货金额、辅助销售商品金额等信息
    * @param user - JWT用户负载信息，包含用户ID和用户名
+   * @param confirm
    */
   async editCustomerOrderCredit(
     creditParam: CreditLimitDetailRequestDto,
     user: JwtUserPayload,
-    confirm = false,
   ) {
-    // 修改订单流水信息
-    const flowDetail = await this.creditDetailRepository.findOneBy({
-      orderId: creditParam.orderId,
-      deleted: GlobalStatusEnum.NO,
-    });
-    const updateFlowDetail = new CustomerCreditLimitDetailEntity();
-    if (CreditStatusEnum.FROZEN != updateFlowDetail.status) {
-      this.logger.warn('当前订单流水状态非冻结中，不允许修改！');
-    }
-    updateFlowDetail.id = flowDetail.id;
-    updateFlowDetail.shippedAmount = creditParam.shippedAmount;
-    updateFlowDetail.auxiliarySaleGoodsAmount =
-      creditParam.auxiliarySaleGoodsAmount;
-    updateFlowDetail.usedAuxiliarySaleGoodsAmount =
-      creditParam.usedAuxiliarySaleGoodsAmount;
+    return this.dataSource.transaction(async (manager) => {
+      // 1. 加锁拿到原流水
+      const flowRepo = manager.getRepository(CustomerCreditLimitDetailEntity);
+      const oldFlow = await flowRepo.findOne({
+        where: {
+          orderId: creditParam.orderId,
+          deleted: GlobalStatusEnum.NO,
+          status: CreditStatusEnum.FROZEN,
+        },
+        lock: { mode: 'pessimistic_write' }, // 行锁
+      });
+      if (!oldFlow) {
+        throw new BusinessException('订单流水不存在或状态非冻结，不允许修改');
+      }
 
-    updateFlowDetail.replenishingGoodsAmount =
-      creditParam.replenishingGoodsAmount;
-    updateFlowDetail.usedReplenishingGoodsAmount =
-      creditParam.usedReplenishingGoodsAmount;
-    updateFlowDetail.reviserId = user.userId;
-    updateFlowDetail.reviserName = user.username;
-    updateFlowDetail.revisedTime = dayjs().toDate();
-    await this.creditDetailRepository.update(
-      { id: updateFlowDetail.id },
-      updateFlowDetail,
-    );
-    // 获取流水信息
-    await this.customerCreditLimitService.releaseCreditByCustomer(
-      updateFlowDetail,
-      user,
-      confirm,
-    );
+      // 2. 计算各字段差额（新 - 旧）
+      const delta = {
+        auxiliary:
+          Number(creditParam.auxiliarySaleGoodsAmount || 0) -
+          Number(oldFlow.auxiliarySaleGoodsAmount || 0),
+        auxiliaryUsed:
+          Number(creditParam.usedAuxiliarySaleGoodsAmount || 0) -
+          Number(oldFlow.usedAuxiliarySaleGoodsAmount || 0),
+        replenishing:
+          Number(creditParam.replenishingGoodsAmount || 0) -
+          Number(oldFlow.replenishingGoodsAmount || 0),
+        replenishingUsed:
+          Number(creditParam.usedReplenishingGoodsAmount || 0) -
+          Number(oldFlow.usedReplenishingGoodsAmount || 0),
+      };
+      this.logger.log('差额信息：', delta);
+      // 3. 更新流水金额
+      const updFlow = {
+        ...oldFlow,
+        shippedAmount: creditParam.shippedAmount,
+        auxiliarySaleGoodsAmount: creditParam.auxiliarySaleGoodsAmount,
+        usedAuxiliarySaleGoodsAmount: creditParam.usedAuxiliarySaleGoodsAmount,
+        replenishingGoodsAmount: creditParam.replenishingGoodsAmount,
+        usedReplenishingGoodsAmount: creditParam.usedReplenishingGoodsAmount,
+        reviserId: user.userId,
+        reviserName: user.username,
+        revisedTime: dayjs().toDate(),
+      };
+      await flowRepo.update({ id: oldFlow.id }, updFlow);
+      // 4. 用差额调整客户额度（冻结金额）
+      await this.customerCreditLimitService.changeCustomerCreditAmount(
+        manager,
+        oldFlow,
+        delta,
+        user,
+      );
+    });
   }
 
+  /**
+   * 关闭客户订单额度
+   * @param orderId - 订单ID
+   * @param user - 当前操作用户信息
+   */
   async closeCustomerOrderCredit(orderId: string, user: JwtUserPayload) {
-    // 修改订单流水信息
-    const flowDetail = await this.creditDetailRepository.findOneBy({
-      orderId: orderId,
-      deleted: GlobalStatusEnum.NO,
+    const now = dayjs().toDate();
+    await this.dataSource.transaction(async (manager) => {
+      // 1. 一次带悲观锁查出流水（避免并发重复关闭）
+      const flowRepo = manager.getRepository(CustomerCreditLimitDetailEntity);
+      const flow = await flowRepo.findOne({
+        where: { orderId, deleted: GlobalStatusEnum.NO },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!flow) {
+        throw new BusinessException('订单流水不存在');
+      }
+      if (flow.status === CreditStatusEnum.CLOSE) {
+        this.logger.log(`订单流水已关闭，无需重复处理；orderId=${orderId}`);
+        return; // 幂等退出
+      }
+      if (flow.status !== CreditStatusEnum.FROZEN) {
+        throw new BusinessException('仅【冻结中】流水允许关闭');
+      }
+      // 2. 关闭流水
+      await flowRepo.update(
+        { id: flow.id },
+        {
+          status: CreditStatusEnum.CLOSE,
+          reviserId: user.userId,
+          reviserName: user.username,
+          revisedTime: now,
+        },
+      );
+      // 释放额度
+      await this.customerCreditLimitService.releaseCreditByCustomer(
+        flow,
+        user,
+        false,
+        manager,
+      );
     });
-    const updateFlowDetail = new CustomerCreditLimitDetailEntity();
-    if (CreditStatusEnum.CLOSE === updateFlowDetail.status) {
-      this.logger.warn('当前订单流水已关闭无需处理');
-      return;
-    }
-    updateFlowDetail.id = flowDetail.id;
-    updateFlowDetail.status = CreditStatusEnum.CLOSE;
-    updateFlowDetail.reviserId = user.userId;
-    updateFlowDetail.reviserName = user.username;
-    updateFlowDetail.revisedTime = dayjs().toDate();
-    await this.creditDetailRepository.update(
-      { id: updateFlowDetail.id },
-      updateFlowDetail,
-    );
-    // 释放额度
-    await this.customerCreditLimitService.releaseCreditByCustomer(
-      updateFlowDetail,
-      user,
-    );
   }
+  /**
+   * 确认客户订单额度
+   * @param orderId 订单ID
+   * @param user 当前操作用户信息
+   */
   async confirmCustomerOrderCredit(orderId: string, user: JwtUserPayload) {
-    // 修改订单流水信息
-    const flowDetail = await this.creditDetailRepository.findOneBy({
-      orderId: orderId,
-      deleted: GlobalStatusEnum.NO,
+    return this.dataSource.transaction(async (manager) => {
+      const flowRepo = manager.getRepository(CustomerCreditLimitDetailEntity);
+      const flow = await flowRepo.findOne({
+        where: { orderId, deleted: GlobalStatusEnum.NO },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!flow) {
+        throw new BusinessException('订单流水不存在');
+      }
+      if (flow.status === CreditStatusEnum.FINISH) {
+        this.logger.warn(`订单流水已确认，幂等退出；orderId=${orderId}`);
+        return;
+      }
+      if (flow.status !== CreditStatusEnum.FROZEN) {
+        throw new BusinessException('仅【冻结中】流水允许确认');
+      }
+      // 更新状态
+      await flowRepo.update(
+        { id: flow.id },
+        {
+          status: CreditStatusEnum.FINISH,
+          reviserId: user.userId,
+          reviserName: user.username,
+          revisedTime: dayjs().toDate(),
+        },
+      );
+
+      // 释放额度并累加到已使用（confirm=true）
+      await this.customerCreditLimitService.releaseCreditByCustomer(
+        flow,
+        user,
+        true, // 关键：确认收款，累加已使用额度
+        manager,
+      );
     });
-    const updateFlowDetail = new CustomerCreditLimitDetailEntity();
-    if (CreditStatusEnum.FINISH === updateFlowDetail.status) {
-      this.logger.warn('当前订单流水已完成无需处理');
-      return;
-    }
-    updateFlowDetail.id = flowDetail.id;
-    updateFlowDetail.status = CreditStatusEnum.FINISH;
-    updateFlowDetail.reviserId = user.userId;
-    updateFlowDetail.reviserName = user.username;
-    updateFlowDetail.revisedTime = dayjs().toDate();
-    await this.creditDetailRepository.update(
-      { id: updateFlowDetail.id },
-      updateFlowDetail,
-    );
-    // 释放额度
-    await this.customerCreditLimitService.releaseCreditByCustomer(
-      updateFlowDetail,
-      user,
-      true,
-    );
   }
   /**
    * 新增客户额度流水（后续逻辑预测：把产生货补金额、使用货补金额、产生辅销金额、使用辅销金额加到客户额度中的冻结金额里面）

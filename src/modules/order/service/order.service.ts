@@ -46,6 +46,7 @@ export class OrderService {
     private customerService: CustomerService,
     private businessLogService: BusinessLogService,
     private orderCheckService: OrderCheckService,
+    private creditLimitDetailService: CustomerCreditLimitDetailService,
     private dataSource: DataSource, // 添加数据源注入
   ) {}
 
@@ -400,6 +401,13 @@ export class OrderService {
     return response;
   }
 
+  /**
+   * 添加一个线下订单。
+   *
+   * @param req - 创建订单的请求参数，包含客户、商品及收货信息等
+   * @param user - 当前操作用户的身份信息（JWT解析后的数据）
+   * @returns 返回新创建订单的唯一标识符（orderId）
+   */
   async add(
     req: AddOfflineOrderRequest,
     user: JwtUserPayload,
@@ -526,10 +534,10 @@ export class OrderService {
       // 锁定额度
       const creditDetail = this.buildCreditDetailParam(orderId, orderMain);
       // todo 验证完成后再解开注释
-      // await this.creditLimitDetailService.addCustomerOrderCredit(
-      //   creditDetail,
-      //   user,
-      // );
+      await this.creditLimitDetailService.addCustomerOrderCredit(
+        creditDetail,
+        user,
+      );
       return orderId;
     } catch (error) {
       this.logger.error(
@@ -676,7 +684,10 @@ export class OrderService {
         updateOrderMain.usedAuxiliarySalesAmount
     ) {
       // todo 测试完再注释
-      // await this.creditLimitDetailService.editCustomerOrderCredit(this.buildCreditDetailParam(orderId, updateOrderMain), user);
+      await this.creditLimitDetailService.editCustomerOrderCredit(
+        this.buildCreditDetailParam(orderId, updateOrderMain),
+        user,
+      );
     }
 
     // 写入操作日志
@@ -711,17 +722,27 @@ export class OrderService {
     updateOrder.id = req.orderId;
     updateOrder.cancelledMessage = req.cancelReason;
     updateOrder.orderStatus = String(OrderStatusEnum.CLOSED);
+    updateOrder.reviserId = user.userId;
+    updateOrder.reviserName = user.username;
+    updateOrder.revisedTime = dayjs().toDate();
     // 关闭订单
-    await this.orderRepository.update({ id: orderMain.id }, updateOrder);
     // todo 关闭订单流水 测试完再打开
-    // await this.creditLimitDetailService.closeCustomerOrderCredit(orderMain.id,user);
+    await this.creditLimitDetailService.closeCustomerOrderCredit(
+      orderMain.id,
+      user,
+    );
+
+    await this.orderRepository.update({ id: updateOrder.id }, updateOrder);
+
     const result = OrderLogHelper.getOrderOperate(
       user,
       OrderOperateTemplateEnum.CANCEL_ORDER,
       lastOperateProgram,
       req.orderId,
     );
-    result.action = result.action + ';取消原因为:' + req.cancelReason;
+    if (req.cancelReason !== undefined) {
+      result.action = result.action + ';取消原因为:' + req.cancelReason;
+    }
     this.businessLogService.writeLog(result);
     return req.orderId;
   }
@@ -746,7 +767,7 @@ export class OrderService {
     // 修改订单信息
     await this.orderRepository.update({ id: orderMain.id }, updateOrder);
     // 释放额度
-    // await this.creditLimitDetailService.confirmCustomerOrderCredit(orderId,user);
+    await this.creditLimitDetailService.confirmCustomerOrderCredit(orderId,user);
     const result = OrderLogHelper.getOrderOperate(
       user,
       OrderOperateTemplateEnum.CONFIRM_ORDER_PAYMENT,
