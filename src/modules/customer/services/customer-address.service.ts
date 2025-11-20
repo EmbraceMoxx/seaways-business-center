@@ -147,7 +147,7 @@ export class CustomerAddressService {
         customerAddressDetail.isDefault = customerAddressParam.isDefault;
       }
 
-      // 3、检查客户地址默认地址已存在，即同一个客户下的地址只有一个地址的is_default为1
+      // 3、检查客户地址默认地址已存在，把之前那条的默认地址设置为0
       const isSefaultExist = await this.customerAddress.findOne({
         where: {
           customerId: customerAddressParam.customerId,
@@ -156,7 +156,9 @@ export class CustomerAddressService {
         },
       });
       if (customerAddressParam.isDefault === 1 && isSefaultExist) {
-        throw new BusinessException('同一个客户下的地址只能有一个默认地址');
+        this.customerAddress.update(isSefaultExist.id, {
+          isDefault: 0,
+        });
       }
 
       customerAddressDetail.customerId = customerAddressParam.customerId;
@@ -210,7 +212,7 @@ export class CustomerAddressService {
         throw new BusinessException('客户地址Id不存在');
       }
 
-      // 2、检查客户地址默认地址已存在，即同一个客户下的地址只有一个地址的is_default为1
+      // 3、检查客户地址默认地址已存在，把之前那条的默认地址设置为0
       const isSefaultExist = await this.customerAddress.findOne({
         where: {
           customerId: customerAddressParam.customerId,
@@ -219,7 +221,9 @@ export class CustomerAddressService {
         },
       });
       if (customerAddressParam.isDefault === 1 && isSefaultExist) {
-        throw new BusinessException('同一个客户下的地址只能有一个默认地址');
+        this.customerAddress.update(isSefaultExist.id, {
+          isDefault: 0,
+        });
       }
 
       // 3、创建新的客户地址实体
