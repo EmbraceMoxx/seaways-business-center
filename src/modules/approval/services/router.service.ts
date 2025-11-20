@@ -4,14 +4,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApprovalProcessNodeEntity } from '../entities/approval-process-node.entity';
 import { ApprovalProcessRouterEntity } from '../entities/approval-process-router.entity';
-import { ApprovalContext } from '../interfaces/approval-context.interface';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
-import { ApprovalNodeType } from '@src/enums/approval.enum';
+import { ApprovalNodeTypeEnum } from '@src/enums/approval.enum';
+import { CreateApprovalDto } from '@src/dto/approval/approval.dto';
 
 @Injectable()
-export class RuleEngineService {
+export class RouterService {
   private jexl: Jexl;
-  private readonly logger = new Logger(RuleEngineService.name);
+  private readonly logger = new Logger(RouterService.name);
 
   constructor(
     @InjectRepository(ApprovalProcessNodeEntity)
@@ -27,12 +27,12 @@ export class RuleEngineService {
    */
   async evaluateExpression(
     expression: string,
-    context: ApprovalContext,
+    createDto: CreateApprovalDto,
   ): Promise<boolean> {
     try {
       if (!expression) return true;
 
-      const result = await this.jexl.eval(expression, context);
+      const result = await this.jexl.eval(expression, createDto);
       return Boolean(result);
     } catch (error) {
       this.logger.error(`表达式计算失败: ${expression}`, error.stack);
@@ -41,55 +41,18 @@ export class RuleEngineService {
   }
 
   /**
-   * 根据当前节点和订单上下文，计算下一个节点
+   * 预计算审批路由
    */
-  async calculateNextNode(
+  async calRoute(
     processId: string,
-    currentNodeId: string,
-    context: ApprovalContext,
-  ): Promise<string | null> {
-    // 查询当前节点的所有出向路由
-    const routers = await this.routerRepository.find({
-      where: {
-        processId,
-        sourceNodeId: currentNodeId,
-        deleted: GlobalStatusEnum.NO,
-        enabled: GlobalStatusEnum.YES,
-      },
-    });
-
-    // 按优先级排序
-    routers.sort((a, b) => a.priority - b.priority);
-
-    // 遍历路由，计算条件
-    for (const router of routers) {
-      const conditionMet = await this.evaluateExpression(
-        router.conditionExpression,
-        context,
-      );
-
-      if (conditionMet) {
-        return router.targetNodeId;
-      }
-    }
-    // 没有符合条件的路由
-    return null;
-  }
-
-  /**
-   * 预计算审批路径
-   */
-  // Todo: 审批路径，加上下一步的审批原因？原因用不用动态的？ 审批原因返回出去
-  async calculateApprovalPath(
-    processId: string,
-    context: ApprovalContext,
+    createDto: CreateApprovalDto,
   ): Promise<ApprovalProcessNodeEntity[]> {
     const nodePath: ApprovalProcessNodeEntity[] = [];
 
     // 开始节点
     const startNode = await this.nodeRepository.findOneBy({
       processId,
-      nodeType: ApprovalNodeType.START,
+      nodeType: ApprovalNodeTypeEnum.START,
       deleted: GlobalStatusEnum.NO,
       enabled: GlobalStatusEnum.YES,
     });
@@ -118,12 +81,12 @@ export class RuleEngineService {
       for (const router of sortedRouters) {
         const conditionMet = await this.evaluateExpression(
           router.conditionExpression,
-          context,
+          createDto,
         );
         if (conditionMet) {
           nextNode = await this.nodeRepository.findOneBy({
             id: router.targetNodeId,
-            nodeType: ApprovalNodeType.APPROVAL,
+            nodeType: ApprovalNodeTypeEnum.APPROVAL,
             deleted: GlobalStatusEnum.NO,
             enabled: GlobalStatusEnum.YES,
           });
@@ -135,6 +98,8 @@ export class RuleEngineService {
       currentNode = nextNode;
       nodePath.push(currentNode);
     }
+
+    if (!nodePath?.length) throw new Error('无法计算审批路由');
 
     return nodePath;
   }

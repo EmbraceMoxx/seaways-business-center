@@ -476,22 +476,19 @@ export class OrderService {
       );
       // todo 添加审批流,待验证
       const approval = {
-        order: {
-          id: orderId,
-          creatorId: orderMain.creatorId,
-          customerId: orderMain.customerId,
-          regionalHeadId: orderMain.regionalHeadId || null,
-          provincialHeadId: orderMain.provincialHeadId || null,
-          usedReplenishRatio: parseFloat(orderMain.usedReplenishRatio ?? '0'),
-          usedAuxiliarySalesRatio: parseFloat(
-            orderMain.usedAuxiliarySalesRatio ?? '0',
-          ),
-        },
-        operator: {
-          id: user.userId,
-          name: user.nickName,
-        },
+        orderId,
+        creatorId: orderMain.creatorId,
+        customerId: orderMain.customerId,
+        regionalHeadId: orderMain.regionalHeadId || null,
+        provincialHeadId: orderMain.provincialHeadId || null,
+        usedReplenishRatio: parseFloat(orderMain.usedReplenishRatio ?? '0'),
+        usedAuxiliarySalesRatio: parseFloat(
+          orderMain.usedAuxiliarySalesRatio ?? '0',
+        ),
+        operatorId: user.userId,
+        operatorName: user.nickName,
       };
+
       await this.approvalEngineService.startApprovalProcess(approval);
       // 写入操作日志
       const logInput = OrderLogHelper.getOrderOperate(

@@ -1,16 +1,31 @@
-import { ApiProperty } from '@nestjs/swagger';
 import { ApprovalActionEnum } from '@src/enums/approval.enum';
 
-// /**
-//  * 流程审批DTO
-//  */
-// export class TaskApprovalDto {
-//   @ApiProperty({ description: '任务ID' })
-//   taskId: string;
+// 审批操作指令
+export class ApprovalCommand {
+  action: ApprovalActionEnum;
+  remark: string;
+  orderId: string;
+  operatorId: string;
+  operatorName: string;
+}
 
-//   @ApiProperty({ description: '审批操作' })
-//   action: ApprovalActionEnum;
+// 审批流程上下文
+export class CreateApprovalDto {
+  orderId: string;
+  creatorId: string;
+  customerId: string;
+  regionalHeadId: string;
+  provincialHeadId?: string;
+  usedReplenishRatio: number;
+  usedAuxiliarySalesRatio: number;
+  operatorId: string;
+  operatorName: string;
+}
 
-//   @ApiProperty({ description: '审批意见，可为空。' })
-//   remark: string;
-// }
+// 取消审批Dto
+export class CancelApprovalDto {
+  orderId: string;
+  operatorId: string;
+  operatorName: string;
+  reason: string;
+}
