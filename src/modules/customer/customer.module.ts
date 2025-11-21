@@ -58,6 +58,11 @@ import { UserService } from '@modules/common/user/user.service';
     CustomerCreditLimitController,
     CustomerCreditLimitDetailController,
   ],
-  exports: [CustomerService],
+  exports: [
+    CustomerService,
+    CustomerCreditLimitService,
+    CustomerMonthlyCreditLimitService,
+    CustomerCreditLimitDetailService,
+  ],
 })
 export class CustomerModule {}

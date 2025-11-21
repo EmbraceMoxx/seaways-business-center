@@ -33,6 +33,8 @@ import { CustomerCreditLimitDetailService } from '@modules/customer/services/cus
 import { CreditLimitDetailRequestDto } from '@src/dto';
 import { OrderCheckService } from '@src/modules/order/service/order-check.service';
 import { UserService } from '@modules/common/user/user.service';
+import { ApprovalEngineService } from '@modules/approval/services/approval-engine.service';
+import { ApprovalContext } from '@modules/approval/interfaces/approval-context.interface';
 
 @Injectable()
 export class OrderService {
@@ -47,6 +49,7 @@ export class OrderService {
     private customerService: CustomerService,
     private businessLogService: BusinessLogService,
     private orderCheckService: OrderCheckService,
+    private approvalEngineService: ApprovalEngineService,
     private userService: UserService,
     private creditLimitDetailService: CustomerCreditLimitDetailService,
     private dataSource: DataSource, // 添加数据源注入
@@ -535,11 +538,27 @@ export class OrderService {
       await this.businessLogService.writeLog(logInput);
       // 锁定额度
       const creditDetail = this.buildCreditDetailParam(orderId, orderMain);
-      // todo 验证完成后再解开注释
       await this.creditLimitDetailService.addCustomerOrderCredit(
         creditDetail,
         user,
       );
+      // todo 添加审批流,待验证
+      const approval = {
+        order:{
+          id: orderId,
+          creatorId: orderMain.creatorId,
+          customerId: orderMain.customerId,
+          regionalHeadId: orderMain.regionalHeadId || null,
+          provincialHeadId: orderMain.provincialHeadId || null,
+          usedReplenishRatio: parseFloat(orderMain.usedReplenishRatio ?? '0'),
+          usedAuxiliarySalesRatio: parseFloat(orderMain.usedAuxiliarySalesRatio ?? '0'),
+        },
+        operator:{
+          id: user.userId,
+          name: user.nickName,
+        }
+      }
+      await this.approvalEngineService.startApprovalProcess(approval);
       return orderId;
     } catch (error) {
       this.logger.error(
