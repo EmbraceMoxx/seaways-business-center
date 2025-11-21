@@ -17,7 +17,8 @@ import { CustomerService } from '../services/customer.service';
 import { IdUtil } from '@src/utils';
 import { CreditStatusEnum } from '@src/enums/credit-status.enum';
 import { MoneyUtil } from '@utils/MoneyUtil';
-
+import { CustomerInfoEntity } from '../entities/customer.entity';
+import { CustomerMonthlyCreditLimitService } from '../services/customer-monthly-credit-limit.server';
 @Injectable()
 export class CustomerCreditLimitDetailService {
   private readonly logger = new Logger(CustomerCreditLimitDetailService.name);
@@ -27,6 +28,7 @@ export class CustomerCreditLimitDetailService {
     private customerService: CustomerService,
     private customerCreditLimitService: CustomerCreditLimitService,
     private dataSource: DataSource,
+    private customerMonthlyCreditLimitService: CustomerMonthlyCreditLimitService,
   ) {}
 
   /**
@@ -421,5 +423,101 @@ export class CustomerCreditLimitDetailService {
       customerId,
     });
     return creditDetail;
+  }
+
+  /**
+   * 获取获取大于等于该时间的流水明细列表，根据客户id分组
+   */
+  async getCreditDetailListByCustomerIdAndTime(
+    saveTime: Date,
+  ): Promise<CreditLimitDetailResponseDto[]> {
+    const creditDetailList = this.creditDetailRepository
+      .createQueryBuilder('creditDetail')
+      .select([
+        'creditDetail.customer_id as customerId',
+        'customer.customer_name as customerName',
+        'customer.region as region',
+        'SUM(creditDetail.shipped_amount) as shippedAmount',
+        'SUM(creditDetail.auxiliary_sale_goods_amount) as auxiliarySaleGoodsAmount',
+        'SUM(creditDetail.replenishing_goods_amount) as replenishingGoodsAmount',
+        'SUM(creditDetail.used_auxiliary_sale_goods_amount) as usedAuxiliarySaleGoodsAmount',
+        'SUM(creditDetail.remain_auxiliary_sale_goods_amount) as remainAuxiliarySaleGoodsAmount',
+        'SUM(creditDetail.used_replenishing_goods_amount) as usedReplenishingGoodsAmount',
+        'SUM(creditDetail.remain_replenishing_goods_amount) as remainReplenishingGoodsAmount',
+      ])
+      .leftJoin(
+        CustomerInfoEntity,
+        'customer',
+        'customer.id = creditDetail.customerId',
+      )
+      .where('creditDetail.created_time >= :saveTime', { saveTime: saveTime })
+      .andWhere('creditDetail.status = :status', { status: 1 })
+      .andWhere('creditDetail.deleted = :deleted', {
+        deleted: GlobalStatusEnum.NO,
+      })
+      .groupBy('creditDetail.customerId')
+      .getRawMany();
+
+    return creditDetailList;
+  }
+
+  /**
+   * 把客户额度流水明细存入月度额度
+   */
+  async saveCreditDetailToMonth({ saveTime }: any, user: JwtUserPayload) {
+    try {
+      // 1、获取操作存入的时间(不传入就默认当天)
+      const dateStr = saveTime ? saveTime : dayjs().format('YYYY-MM-DD');
+
+      // 2、转换为 dayjs 对象进行处理
+      const dateObj = dayjs(dateStr);
+
+      // 3、格式化时间
+      const newSaveTime = TimeFormatterUtil.formatToStandard(dateStr, 'start');
+
+      // 4、提取年月信息
+      const bizYear = dateObj.year(); // 例如: 2025
+      const bizMonth = dateObj.month() + 1; // month() 返回 0-11，所以需要 +1
+      const bizYearMonth = parseInt(dateObj.format('YYYYMM')); // 格式化为 YYMM，例如: 2510
+
+      // 5、获取大于等于该时间的流水明细列表
+      const creditDetailList =
+        await this.getCreditDetailListByCustomerIdAndTime(newSaveTime);
+
+      // 6、根据流水明细列表【客户ID+年月】以此查询月度表是否存在，不存在则新增后再修改金额
+      for (const item of creditDetailList) {
+        let monthlyCredit =
+          await this.customerMonthlyCreditLimitService.findByCustomerIdAndMonth(
+            item.customerId,
+            bizYear,
+            bizMonth,
+          );
+        // 6.1 不存在则先创建
+        if (!monthlyCredit) {
+          // 6.1.1 新增
+          await this.customerMonthlyCreditLimitService.create(
+            { ...item, bizYear, bizMonth, bizYearMonth },
+            user,
+          );
+          // 6.1.2 重新查询获取刚创建的记录
+          monthlyCredit =
+            await this.customerMonthlyCreditLimitService.findByCustomerIdAndMonth(
+              item.customerId,
+              bizYear,
+              bizMonth,
+            );
+        }
+
+        // 6.2 修改累加金额 (此时 monthlyCredit 一定不为 null)
+        await this.customerMonthlyCreditLimitService.updateWithIncrement(
+          item,
+          monthlyCredit,
+          user,
+        );
+      }
+      return creditDetailList;
+    } catch (error) {
+      throw new BusinessException(error.message);
+    }
   }
 }

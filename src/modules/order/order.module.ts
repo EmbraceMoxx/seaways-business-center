@@ -17,6 +17,7 @@ import { CustomerCreditLimitDetailEntity } from '@modules/customer/entities/cust
 import { CustomerCreditLimitService } from '@modules/customer/services/customer-credit-limit.service';
 import { CustomerCreditAmountInfoEntity } from '@modules/customer/entities/customer-credit-limit.entity';
 import { CustomerMonthlyCreditLimitEntity } from '@modules/customer/entities/customer-monthly-credit-limit.entity';
+import { CustomerMonthlyCreditLimitService } from '@modules/customer/services/customer-monthly-credit-limit.server';
 import { CustomerService } from '@modules/customer/services/customer.service';
 import { CommodityModule } from '../commodity/commodity.module';
 import { OrderCheckService } from '@modules/order/service/order-check.service';
@@ -51,6 +52,7 @@ import { OrderEventTaskService } from './service/order-event-task.service';
     CustomerService,
     OrderCheckService,
     UserService,
+    CustomerMonthlyCreditLimitService,
   ],
 
   controllers: [OrderController, OrderTaskController],

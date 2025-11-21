@@ -1,4 +1,4 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Post, Body, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import {
   SuccessResponseDto,
@@ -59,5 +59,18 @@ export class CustomerCreditLimitDetailController {
   ): Promise<SuccessResponseDto> {
     await this.creditLimitDetailService.onReceipt(false, customerId, user);
     return new SuccessResponseDto(null, '取消订单成功');
+  }
+
+  @ApiOperation({ summary: '客户额度流水明细存入月度额度' })
+  @Get('saveToMonth')
+  async saveCreditDetailToMonth(
+    @Query() params: any,
+    @CurrentUser() user: JwtUserPayload,
+  ) {
+    const result = await this.creditLimitDetailService.saveCreditDetailToMonth(
+      params,
+      user,
+    );
+    return new SuccessResponseDto(result, '存入成功');
   }
 }
