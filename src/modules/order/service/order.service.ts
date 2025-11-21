@@ -140,9 +140,9 @@ export class OrderService {
       // 订单状态
       if (orderStatus) {
         queryBuilder = queryBuilder.andWhere(
-          'order.order_status = :orderStatus',
+          'order.order_status LIKE :orderStatus',
           {
-            orderStatus,
+            orderStatus: `${orderStatus}%`,
           },
         );
       }
@@ -241,6 +241,8 @@ export class OrderService {
           'order.replenish_amount as replenishAmount',
           'order.auxiliary_sales_amount as auxiliarySalesAmount',
           'order.contact as contact',
+          'order.used_replenish_ratio as usedReplenishRatio',
+          'order.used_auxiliary_sales_ratio as usedAuxiliarySalesRatio',
           'order.contact_phone as contactPhone',
           'order.created_time as createdTime',
         ])
