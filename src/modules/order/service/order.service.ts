@@ -515,7 +515,7 @@ export class OrderService {
     orderMain.lastOperateProgram = lastOperateProgram;
 
     // todo 计算额度使用情况后，结合客户信息计算订单初始状态
-    orderMain.orderStatus = String(OrderStatusEnum.PENDING_PAYMENT.valueOf());
+    orderMain.orderStatus = OrderStatusEnum.PENDING_PAYMENT;
     try {
       await this.dataSource.transaction(async (manager) => {
         this.logger.log(`开始事务处理，orderId: ${orderId}`);
@@ -856,6 +856,7 @@ export class OrderService {
       finishGoods: [],
       replenishGoods: [],
       auxiliaryGoods: [],
+      operateButtons: [],
     };
 
     //按照 type 装入不同的商品类型数组

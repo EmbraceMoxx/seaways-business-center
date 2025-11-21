@@ -10,7 +10,6 @@ export class UserService{
     token: string,
     userId: string,
   ): Promise<OrderUserQueryDto> {
-    console.log('token:', token);
     const userDto = new OrderUserQueryDto();
     userDto.isQueryAll = false;
     // 获取当前用户所属角色

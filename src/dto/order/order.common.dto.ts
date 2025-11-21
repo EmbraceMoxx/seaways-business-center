@@ -397,17 +397,37 @@ export class OrderDetailResponseDto {
 
   @ApiProperty({ description: '辅销商品明细项列表' })
   auxiliaryGoods: OrderDetailItem[];
+
+  @ApiProperty({ description: '允许操作按钮集合' })
+  operateButtons: OrderOperateButton[];
 }
 
-export class OrderUserQueryDto{
+export class OrderUserQueryDto {
   @ApiProperty({
     description: '是否查询全部',
     example: 'true',
   })
-  isQueryAll:boolean;
+  isQueryAll: boolean;
   @ApiProperty({
     description: '负责人ID集合',
     example: '[1,633192656222162944]',
   })
-  principalUserIds:string[];
+  principalUserIds: string[];
+}
+export class OrderOperateButton {
+  @ApiProperty({
+    description: '按钮编码',
+    example: 'cancel',
+  })
+  buttonCode: string;
+  @ApiProperty({
+    description: '按钮名称',
+    example: '取消订单',
+  })
+  buttonName: string;
+  @ApiProperty({
+    description: '是否允许操作',
+    example: 'true',
+  })
+  isOperate: boolean;
 }

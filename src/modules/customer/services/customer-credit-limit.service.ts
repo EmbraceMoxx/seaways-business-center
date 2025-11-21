@@ -125,7 +125,6 @@ export class CustomerCreditLimitService {
     await this.creditRepository.update({ id: creditInfo.id }, creditInfo);
   }
 
-
   /**
    * 获取客户额度列表
    */
@@ -550,7 +549,7 @@ export class CustomerCreditLimitService {
     credit.reviserId = user.userId;
     credit.reviserName = user.username;
     credit.revisedTime = dayjs().toDate();
-    this.logger.log('开始调整差额：',JSON.stringify(credit));
+    this.logger.log('开始调整差额：', JSON.stringify(credit));
     await creditRepo.update({ id: credit.id }, credit);
   }
 
