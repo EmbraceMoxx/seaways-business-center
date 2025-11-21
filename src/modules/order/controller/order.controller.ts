@@ -123,8 +123,8 @@ export class OrderController {
     return new SuccessResponseDto(orderDetail, '获取订单详情成功');
   }
 
-  @ApiOperation({ summary: '获取订单列表' })
-  @Post('unReviewlist')
+  @ApiOperation({ summary: '获取待审核订单列表' })
+  @Post('unReviewList')
   async getUnReviewOrderList(
     @Body() body: QueryOrderDto,
   ): Promise<
