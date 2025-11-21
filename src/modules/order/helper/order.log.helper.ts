@@ -66,7 +66,7 @@ export class OrderLogHelper {
       businessId: orderId,
       businessType: businessType,
       creatorId: user.userId,
-      creatorName: user.username,
+      creatorName: user.nickName,
       action: action,
       operateProgram: lastOperateProgram,
       ipAddress: ipAddress,
@@ -82,7 +82,7 @@ export class OrderLogHelper {
     }
     const { logTmpl } = OrderOperateMap[operate];
     return logTmpl.includes('%s')
-      ? logTmpl.replace('%s', user.username)
+      ? logTmpl.replace('%s', user.nickName)
       : logTmpl;
   }
 }

@@ -16,12 +16,15 @@ export class MoneyUtil {
   }
 
   /* =============== 运算 =============== */
-  add(other: MoneyUtil): MoneyUtil {
-    return new MoneyUtil(this.cents + other.cents);
+  add(other: MoneyUtil | number): MoneyUtil {
+    const otherCent =
+      typeof other === 'number' ? Math.round(other * 100) : other.cents;
+    return new MoneyUtil(this.cents + otherCent);
   }
-
-  sub(other: MoneyUtil): MoneyUtil {
-    return new MoneyUtil(this.cents - other.cents);
+  sub(other: MoneyUtil | number): MoneyUtil {
+    const otherCent =
+      typeof other === 'number' ? Math.round(other * 100) : other.cents;
+    return new MoneyUtil(this.cents - otherCent);
   }
 
   /* =============== 输出 =============== */
@@ -31,6 +34,9 @@ export class MoneyUtil {
 
   toCent(): number {
     return this.cents;
+  }
+  toNumber(): number {
+    return this.cents / 100;
   }
 
   /* 调试用 */

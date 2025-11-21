@@ -507,10 +507,10 @@ export class OrderService {
     );
     // 订单基础信息
     orderMain.creatorId = user.userId;
-    orderMain.creatorName = user.username;
+    orderMain.creatorName = user.nickName;
     orderMain.createdTime = dayjs().toDate();
     orderMain.reviserId = user.userId;
-    orderMain.reviserName = user.username;
+    orderMain.reviserName = user.nickName;
     orderMain.revisedTime = dayjs().toDate();
     orderMain.lastOperateProgram = lastOperateProgram;
 
@@ -725,7 +725,7 @@ export class OrderService {
     updateOrder.cancelledMessage = req.cancelReason;
     updateOrder.orderStatus = String(OrderStatusEnum.CLOSED);
     updateOrder.reviserId = user.userId;
-    updateOrder.reviserName = user.username;
+    updateOrder.reviserName = user.nickName;
     updateOrder.revisedTime = dayjs().toDate();
     // 关闭订单
     // todo 关闭订单流水 测试完再打开
