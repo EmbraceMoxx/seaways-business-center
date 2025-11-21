@@ -50,6 +50,7 @@ export class ReceiverAddress {
 }
 export class AddOfflineOrderRequest {
   @ApiProperty({ description: '客户ID', example: 1 })
+  @IsNotEmpty({ message: '客户信息不能为空' })
   customerId: string;
   @ApiProperty({ description: '客户名称', example: 1 })
   customerName: string;
@@ -58,14 +59,17 @@ export class AddOfflineOrderRequest {
   @ApiProperty({ description: '下单联系人电话' })
   contactPhone: string;
   @ApiProperty({ description: '收货地址信息' })
+  @IsNotEmpty({ message: '收货地址信息不能为空' })
   receiverAddress: ReceiverAddress;
   @ApiProperty({ description: '成品商品集合' })
+  @IsNotEmpty({ message: '成品商品集合不能为空' })
   finishGoods: OrderItem[];
   @ApiProperty({ description: '货补商品集合' })
   replenishGoods: OrderItem[];
   @ApiProperty({ description: '辅销商品集合' })
   auxiliaryGoods: OrderItem[];
   @ApiProperty({ description: '备注信息' })
+  @IsOptional()
   @MaxLength(1000, { message: '备注信息过长，请简化描述' })
   remark: string;
 }

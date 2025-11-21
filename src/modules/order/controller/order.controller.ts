@@ -19,7 +19,6 @@ import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { OrderPushDto } from '@src/dto/order/order-push.dto';
 import { OrderPushService } from '../service/order-push.service';
 import { CurrentToken } from '@src/decorators/current-token.decorator';
-import { OrderCheckService } from '@modules/order/service/order-check.service';
 import { UserService } from '@modules/common/user/user.service';
 
 @ApiTags('订单管理')
@@ -69,6 +68,7 @@ export class OrderController {
       const result = await this.orderService.update(req, user);
       return new SuccessResponseDto(result, '订单修改成功！');
     } catch (error) {
+      console.log(error);
       // 确保这里能捕获到 BusinessException
       return new ErrorResponseDto('订单修改失败！');
     }
@@ -83,20 +83,20 @@ export class OrderController {
     try {
       await this.orderService.cancel(req, user);
       return new SuccessResponseDto('id', '订单已取消！');
-    }catch (error) {
+    } catch (error) {
       return new ErrorResponseDto('订单确认支付失败！');
     }
   }
   @Post('confirm-payment/:orderId')
   @ApiOperation({ summary: '确认回款' })
   async confirmPayment(
-    @Param('orderId') orderId:string,
+    @Param('orderId') orderId: string,
     @CurrentUser() user: JwtUserPayload,
   ) {
     try {
       await this.orderService.confirmPayment(orderId, user);
       return new SuccessResponseDto('id', '订单已确认支付！');
-    }catch (error) {
+    } catch (error) {
       return new ErrorResponseDto('订单确认支付失败！');
     }
   }
@@ -105,12 +105,12 @@ export class OrderController {
   @Post('list')
   async getOrderList(
     @Body() body: QueryOrderDto,
-    @CurrentUser() user:JwtUserPayload,
-    @CurrentToken() token:string
+    @CurrentUser() user: JwtUserPayload,
+    @CurrentToken() token: string,
   ): Promise<
     SuccessResponseDto<{ items: OrderInfoResponseDto[]; total: number }>
   > {
-    const list = await this.orderService.getOrderList(body,user,token);
+    const list = await this.orderService.getOrderList(body, user, token);
     return new SuccessResponseDto(list, '获取订单列表成功');
   }
 
@@ -123,8 +123,8 @@ export class OrderController {
     return new SuccessResponseDto(orderDetail, '获取订单详情成功');
   }
 
-  @ApiOperation({ summary: '获取订单列表' })
-  @Post('unReviewlist')
+  @ApiOperation({ summary: '获取待审核订单列表' })
+  @Post('unReviewList')
   async getUnReviewOrderList(
     @Body() body: QueryOrderDto,
   ): Promise<
@@ -147,9 +147,17 @@ export class OrderController {
   }
 
   @Post('test')
-  async testCheckService(@CurrentUser() user: JwtUserPayload,@CurrentToken() token:string){
-    const result = await this.userService.getRangeOfOrderQueryUser(token,user.userId);
-    console.log('result:',JSON.stringify(result));
+  async testCheckService(
+    @CurrentUser() user: JwtUserPayload,
+    @CurrentToken() token: string,
+  ) {
+    console.log('user:', user);
+    // 测试取消订单
 
+    const result = await this.userService.getRangeOfOrderQueryUser(
+      token,
+      user.userId,
+    );
+    console.log('result:', JSON.stringify(result));
   }
 }

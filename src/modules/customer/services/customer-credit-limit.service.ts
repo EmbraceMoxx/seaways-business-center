@@ -53,10 +53,10 @@ export class CustomerCreditLimitService {
     // creditAmountInfo.remainReplenishingGoodsAmount = '0';
     creditAmountInfo.deleted = GlobalStatusEnum.NO;
     creditAmountInfo.creatorId = user.userId;
-    creditAmountInfo.creatorName = user.username;
+    creditAmountInfo.creatorName = user.nickName;
     creditAmountInfo.createdTime = dayjs().toDate();
     creditAmountInfo.reviserId = user.userId;
-    creditAmountInfo.reviserName = user.username;
+    creditAmountInfo.reviserName = user.nickName;
     creditAmountInfo.revisedTime = dayjs().toDate();
     await this.creditRepository.save(creditAmountInfo);
     return creditAmountInfo;
@@ -81,133 +81,28 @@ export class CustomerCreditLimitService {
       creditInfo = await this.initCustomerCredit(customerInfo, user);
     }
     this.logger.log('额度汇总操作前数据:', JSON.stringify(creditInfo));
-    // 锁定客户发货金额
-    // creditInfo.shippedAmount = String(
-    //   parseFloat(creditInfo.shippedAmount ?? '0') +
-    //     parseFloat(creditParam.shippedAmount ?? '0'),
-    // );
-    // 辅销金额
-    creditInfo.frozenSaleGoodsAmount = String(
-      parseFloat(creditInfo.frozenSaleGoodsAmount ?? '0') +
-        parseFloat(creditParam.auxiliarySaleGoodsAmount ?? '0'),
-    );
-    creditInfo.frozenUsedSaleGoodsAmount = String(
-      parseFloat(creditInfo.frozenUsedSaleGoodsAmount ?? '0') +
-        parseFloat(creditParam.usedAuxiliarySaleGoodsAmount ?? '0'),
-    );
-    // 货补金额
-    creditInfo.frozenReplenishingGoodsAmount = String(
-      parseFloat(creditInfo.frozenReplenishingGoodsAmount ?? '0') +
-        parseFloat(creditParam.replenishingGoodsAmount ?? '0'),
-    );
-    creditInfo.frozenUsedReplenishingGoodsAmount = String(
-      parseFloat(creditInfo.frozenUsedReplenishingGoodsAmount ?? '0') +
-        parseFloat(creditParam.usedReplenishingGoodsAmount ?? '0'),
-    );
-    // 剩余货补金额
-    creditInfo.remainReplenishingGoodsAmount = String(
-      parseFloat(creditInfo.replenishingGoodsAmount) -
-        parseFloat(creditInfo.usedReplenishingGoodsAmount) -
-        parseFloat(creditInfo.frozenUsedReplenishingGoodsAmount),
-    );
-    // 剩余辅销金额
-    creditInfo.remainAuxiliarySaleGoodsAmount = String(
-      parseFloat(creditInfo.auxiliarySaleGoodsAmount) -
-        parseFloat(creditInfo.usedAuxiliarySaleGoodsAmount) -
-        parseFloat(creditInfo.frozenUsedSaleGoodsAmount),
-    );
-
-    creditInfo.reviserId = user.userId;
-    creditInfo.reviserName = user.username;
-    creditInfo.revisedTime = dayjs().toDate();
-    console.log('frozen final creditInfo:', JSON.stringify(creditInfo));
-    await this.creditRepository.update({ id: creditInfo.id }, creditInfo);
-  }
-
-  /**
-   * 根据客户信息释放信用额度
-   * @param creditLimitDetail 信用额度详情请求参数，包含客户ID和各种金额信息
-   * @param user JWT用户负载信息
-   * @param confirm
-   * @param manager
-   */
-  async releaseCreditByCustomer(
-    creditLimitDetail: CustomerCreditLimitDetailEntity,
-    user: JwtUserPayload,
-    confirm = false,
-    manager: EntityManager,
-  ) {
-    const repo = manager.getRepository(CustomerCreditAmountInfoEntity);
-    const creditInfo = await repo.findOne({
-      where: { customerId: creditLimitDetail.customerId },
-      lock: { mode: 'pessimistic_write' },
-    });
-    if (!creditInfo) {
-      throw new BusinessException(
-        `客户额度不存在，跳过释放；customerId=${creditLimitDetail.customerId}`,
-      );
-    }
-
     // 辅销金额
     creditInfo.frozenSaleGoodsAmount = MoneyUtil.fromYuan(
       creditInfo.frozenSaleGoodsAmount,
     )
-      .sub(MoneyUtil.fromYuan(creditLimitDetail.auxiliarySaleGoodsAmount))
+      .add(MoneyUtil.fromYuan(creditParam.auxiliarySaleGoodsAmount))
       .toYuan();
     creditInfo.frozenUsedSaleGoodsAmount = MoneyUtil.fromYuan(
       creditInfo.frozenUsedSaleGoodsAmount,
     )
-      .sub(MoneyUtil.fromYuan(creditLimitDetail.usedAuxiliarySaleGoodsAmount))
+      .add(MoneyUtil.fromYuan(creditParam.usedAuxiliarySaleGoodsAmount))
       .toYuan();
-
     // 货补金额
     creditInfo.frozenReplenishingGoodsAmount = MoneyUtil.fromYuan(
       creditInfo.frozenReplenishingGoodsAmount,
     )
-      .sub(MoneyUtil.fromYuan(creditLimitDetail.replenishingGoodsAmount))
+      .add(MoneyUtil.fromYuan(creditParam.replenishingGoodsAmount))
       .toYuan();
-
     creditInfo.frozenUsedReplenishingGoodsAmount = MoneyUtil.fromYuan(
       creditInfo.frozenUsedReplenishingGoodsAmount,
     )
-      .sub(MoneyUtil.fromYuan(creditLimitDetail.usedReplenishingGoodsAmount))
+      .add(MoneyUtil.fromYuan(creditParam.usedReplenishingGoodsAmount))
       .toYuan();
-
-    if (confirm) {
-      // 若确认收款，则将冻结金额分别加入指定金额
-      // 确认收款发货金额应当累加
-      creditInfo.shippedAmount = MoneyUtil.fromYuan(creditInfo.shippedAmount)
-        .add(MoneyUtil.fromYuan(creditLimitDetail.shippedAmount))
-        .toYuan();
-      // 辅销品金额
-      creditInfo.auxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
-        creditInfo.auxiliarySaleGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(creditLimitDetail.auxiliarySaleGoodsAmount))
-        .toYuan();
-
-      // 已提辅销金额
-      creditInfo.usedAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
-        creditInfo.usedAuxiliarySaleGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(creditLimitDetail.usedAuxiliarySaleGoodsAmount))
-        .toYuan();
-
-      // 10%货补金额
-      creditInfo.replenishingGoodsAmount = MoneyUtil.fromYuan(
-        creditInfo.replenishingGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(creditLimitDetail.replenishingGoodsAmount))
-        .toYuan();
-
-      // 已提货补金额
-      creditInfo.usedReplenishingGoodsAmount = MoneyUtil.fromYuan(
-        creditInfo.usedReplenishingGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(creditLimitDetail.usedReplenishingGoodsAmount))
-        .toYuan();
-    }
-
     // 剩余货补金额
     creditInfo.remainReplenishingGoodsAmount = MoneyUtil.fromYuan(
       creditInfo.replenishingGoodsAmount,
@@ -215,7 +110,6 @@ export class CustomerCreditLimitService {
       .sub(MoneyUtil.fromYuan(creditInfo.usedReplenishingGoodsAmount))
       .sub(MoneyUtil.fromYuan(creditInfo.frozenUsedReplenishingGoodsAmount))
       .toYuan();
-
     // 剩余辅销金额
     creditInfo.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
       creditInfo.auxiliarySaleGoodsAmount,
@@ -225,11 +119,12 @@ export class CustomerCreditLimitService {
       .toYuan();
 
     creditInfo.reviserId = user.userId;
-    creditInfo.reviserName = user.username;
+    creditInfo.reviserName = user.nickName;
     creditInfo.revisedTime = dayjs().toDate();
-    console.log('release final creditInfo:', JSON.stringify(creditInfo));
+    console.log('frozen final creditInfo:', JSON.stringify(creditInfo));
     await this.creditRepository.update({ id: creditInfo.id }, creditInfo);
   }
+
 
   /**
    * 获取客户额度列表
@@ -618,33 +513,149 @@ export class CustomerCreditLimitService {
       throw new BusinessException('客户额度信息不存在');
     }
     // 4.1 调整冻结额度
-    credit.frozenSaleGoodsAmount = String(
-      Number(credit.frozenSaleGoodsAmount || 0) + delta.auxiliary,
-    );
-    credit.frozenUsedSaleGoodsAmount = String(
-      Number(credit.frozenUsedSaleGoodsAmount || 0) + delta.auxiliaryUsed,
-    );
-    credit.frozenReplenishingGoodsAmount = String(
-      Number(credit.frozenReplenishingGoodsAmount || 0) + delta.replenishing,
-    );
-    credit.frozenUsedReplenishingGoodsAmount = String(
-      Number(credit.frozenUsedReplenishingGoodsAmount || 0) +
-        delta.replenishingUsed,
-    );
+    credit.frozenSaleGoodsAmount = MoneyUtil.fromYuan(
+      credit.frozenSaleGoodsAmount,
+    )
+      .add(delta.auxiliary)
+      .toYuan();
+
+    credit.frozenUsedSaleGoodsAmount = MoneyUtil.fromYuan(
+      credit.frozenUsedSaleGoodsAmount,
+    )
+      .add(delta.auxiliaryUsed)
+      .toYuan();
+    credit.frozenReplenishingGoodsAmount = MoneyUtil.fromYuan(
+      credit.frozenReplenishingGoodsAmount,
+    )
+      .add(delta.replenishing)
+      .toYuan();
+    credit.frozenUsedReplenishingGoodsAmount = MoneyUtil.fromYuan(
+      credit.frozenUsedReplenishingGoodsAmount,
+    )
+      .add(delta.replenishingUsed)
+      .toYuan();
     // 4.2 重新计算剩余额度
-    credit.remainAuxiliarySaleGoodsAmount = String(
-      Number(credit.auxiliarySaleGoodsAmount || 0) -
-        Number(credit.usedAuxiliarySaleGoodsAmount || 0) -
-        Number(credit.frozenUsedSaleGoodsAmount || 0),
-    );
-    credit.remainReplenishingGoodsAmount = String(
-      Number(credit.replenishingGoodsAmount || 0) -
-        Number(credit.usedReplenishingGoodsAmount || 0) -
-        Number(credit.frozenUsedReplenishingGoodsAmount || 0),
-    );
+    credit.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
+      credit.auxiliarySaleGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(credit.usedAuxiliarySaleGoodsAmount))
+      .sub(MoneyUtil.fromYuan(credit.frozenUsedSaleGoodsAmount))
+      .toYuan();
+    credit.remainReplenishingGoodsAmount = MoneyUtil.fromYuan(
+      credit.replenishingGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(credit.usedReplenishingGoodsAmount))
+      .sub(MoneyUtil.fromYuan(credit.frozenUsedReplenishingGoodsAmount))
+      .toYuan();
     credit.reviserId = user.userId;
     credit.reviserName = user.username;
     credit.revisedTime = dayjs().toDate();
+    this.logger.log('开始调整差额：',JSON.stringify(credit));
     await creditRepo.update({ id: credit.id }, credit);
+  }
+
+  // customer-credit-limit.service.ts
+
+  /**
+   * 安全释放客户额度（由事务管理器调用）
+   * @param customerId 客户ID
+   * @param flow 流水数据（含金额）
+   * @param user 操作人
+   * @param manager 事务管理器
+   * @param confirm 是否确认收款（true=累加到已使用）
+   */
+  async releaseCreditInTransaction(
+    customerId: string,
+    flow: Pick<
+      CustomerCreditLimitDetailEntity,
+      | 'auxiliarySaleGoodsAmount'
+      | 'usedAuxiliarySaleGoodsAmount'
+      | 'replenishingGoodsAmount'
+      | 'usedReplenishingGoodsAmount'
+      | 'shippedAmount'
+    >,
+    user: JwtUserPayload,
+    manager: EntityManager,
+    confirm: boolean,
+  ): Promise<void> {
+    const repo = manager.getRepository(CustomerCreditAmountInfoEntity);
+
+    // 1. 先锁额度主表
+    const credit = await repo.findOne({
+      where: { customerId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!credit) {
+      throw new BusinessException('客户额度不存在');
+    }
+
+    //  2. 释放冻结金额
+    credit.frozenSaleGoodsAmount = MoneyUtil.fromYuan(
+      credit.frozenSaleGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(flow.auxiliarySaleGoodsAmount))
+      .toYuan();
+    credit.frozenUsedSaleGoodsAmount = MoneyUtil.fromYuan(
+      credit.frozenUsedSaleGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(flow.usedAuxiliarySaleGoodsAmount))
+      .toYuan();
+    credit.frozenReplenishingGoodsAmount = MoneyUtil.fromYuan(
+      credit.frozenReplenishingGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(flow.replenishingGoodsAmount))
+      .toYuan();
+    credit.frozenUsedReplenishingGoodsAmount = MoneyUtil.fromYuan(
+      credit.frozenUsedReplenishingGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(flow.usedReplenishingGoodsAmount))
+      .toYuan();
+
+    // 3. 若确认收款，则累加到已使用
+    if (confirm) {
+      credit.shippedAmount = MoneyUtil.fromYuan(credit.shippedAmount)
+        .add(MoneyUtil.fromYuan(flow.shippedAmount))
+        .toYuan();
+      credit.auxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
+        credit.auxiliarySaleGoodsAmount,
+      )
+        .add(MoneyUtil.fromYuan(flow.auxiliarySaleGoodsAmount))
+        .toYuan();
+      credit.usedAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
+        credit.usedAuxiliarySaleGoodsAmount,
+      )
+        .add(MoneyUtil.fromYuan(flow.usedAuxiliarySaleGoodsAmount))
+        .toYuan();
+      credit.replenishingGoodsAmount = MoneyUtil.fromYuan(
+        credit.replenishingGoodsAmount,
+      )
+        .add(MoneyUtil.fromYuan(flow.replenishingGoodsAmount))
+        .toYuan();
+      credit.usedReplenishingGoodsAmount = MoneyUtil.fromYuan(
+        credit.usedReplenishingGoodsAmount,
+      )
+        .add(MoneyUtil.fromYuan(flow.usedReplenishingGoodsAmount))
+        .toYuan();
+    }
+
+    //  4. 重新计算剩余额度
+    credit.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
+      credit.auxiliarySaleGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(credit.usedAuxiliarySaleGoodsAmount))
+      .sub(MoneyUtil.fromYuan(credit.frozenUsedSaleGoodsAmount))
+      .toYuan();
+    credit.remainReplenishingGoodsAmount = MoneyUtil.fromYuan(
+      credit.replenishingGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(credit.usedReplenishingGoodsAmount))
+      .sub(MoneyUtil.fromYuan(credit.frozenUsedReplenishingGoodsAmount))
+      .toYuan();
+
+    credit.reviserId = user.userId;
+    credit.reviserName = user.nickName;
+    credit.revisedTime = dayjs().toDate();
+
+    await repo.update({ id: credit.id }, credit);
   }
 }

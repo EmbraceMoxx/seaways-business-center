@@ -16,6 +16,7 @@ import { CustomerCreditLimitService } from '../services/customer-credit-limit.se
 import { CustomerService } from '../services/customer.service';
 import { IdUtil } from '@src/utils';
 import { CreditStatusEnum } from '@src/enums/credit-status.enum';
+import { MoneyUtil } from '@utils/MoneyUtil';
 
 @Injectable()
 export class CustomerCreditLimitDetailService {
@@ -169,6 +170,7 @@ export class CustomerCreditLimitDetailService {
     creditParam: CreditLimitDetailRequestDto,
     user: JwtUserPayload,
   ) {
+    this.logger.log('开始编辑客户流水！');
     return this.dataSource.transaction(async (manager) => {
       // 1. 加锁拿到原流水
       const flowRepo = manager.getRepository(CustomerCreditLimitDetailEntity);
@@ -186,20 +188,27 @@ export class CustomerCreditLimitDetailService {
 
       // 2. 计算各字段差额（新 - 旧）
       const delta = {
-        auxiliary:
-          Number(creditParam.auxiliarySaleGoodsAmount || 0) -
-          Number(oldFlow.auxiliarySaleGoodsAmount || 0),
-        auxiliaryUsed:
-          Number(creditParam.usedAuxiliarySaleGoodsAmount || 0) -
-          Number(oldFlow.usedAuxiliarySaleGoodsAmount || 0),
-        replenishing:
-          Number(creditParam.replenishingGoodsAmount || 0) -
-          Number(oldFlow.replenishingGoodsAmount || 0),
-        replenishingUsed:
-          Number(creditParam.usedReplenishingGoodsAmount || 0) -
-          Number(oldFlow.usedReplenishingGoodsAmount || 0),
+        auxiliary: MoneyUtil.fromYuan(creditParam.auxiliarySaleGoodsAmount)
+          .sub(MoneyUtil.fromYuan(oldFlow.auxiliarySaleGoodsAmount))
+          .toNumber(),
+
+        auxiliaryUsed: MoneyUtil.fromYuan(
+          creditParam.usedAuxiliarySaleGoodsAmount,
+        )
+          .sub(MoneyUtil.fromYuan(oldFlow.usedAuxiliarySaleGoodsAmount))
+          .toNumber(),
+
+        replenishing: MoneyUtil.fromYuan(creditParam.replenishingGoodsAmount)
+          .sub(MoneyUtil.fromYuan(oldFlow.replenishingGoodsAmount))
+          .toNumber(),
+
+        replenishingUsed: MoneyUtil.fromYuan(
+          creditParam.usedReplenishingGoodsAmount,
+        )
+          .sub(MoneyUtil.fromYuan(oldFlow.usedReplenishingGoodsAmount))
+          .toNumber(),
       };
-      this.logger.log('差额信息：', delta);
+      this.logger.log('差额信息：', JSON.stringify(delta));
       // 3. 更新流水金额
       const updFlow = {
         ...oldFlow,
@@ -212,6 +221,8 @@ export class CustomerCreditLimitDetailService {
         reviserName: user.username,
         revisedTime: dayjs().toDate(),
       };
+      this.logger.log('updFlow：', JSON.stringify(updFlow));
+
       await flowRepo.update({ id: oldFlow.id }, updFlow);
       // 4. 用差额调整客户额度（冻结金额）
       await this.customerCreditLimitService.changeCustomerCreditAmount(
@@ -231,38 +242,36 @@ export class CustomerCreditLimitDetailService {
   async closeCustomerOrderCredit(orderId: string, user: JwtUserPayload) {
     const now = dayjs().toDate();
     await this.dataSource.transaction(async (manager) => {
-      // 1. 一次带悲观锁查出流水（避免并发重复关闭）
       const flowRepo = manager.getRepository(CustomerCreditLimitDetailEntity);
+
+      //  1. 先查流水（不加锁）
       const flow = await flowRepo.findOne({
         where: { orderId, deleted: GlobalStatusEnum.NO },
-        lock: { mode: 'pessimistic_write' },
       });
-      if (!flow) {
-        throw new BusinessException('订单流水不存在');
-      }
-      if (flow.status === CreditStatusEnum.CLOSE) {
-        this.logger.log(`订单流水已关闭，无需重复处理；orderId=${orderId}`);
-        return; // 幂等退出
-      }
+      if (!flow) throw new BusinessException('订单流水不存在');
+      if (flow.status === CreditStatusEnum.CLOSE) return; // 幂等
       if (flow.status !== CreditStatusEnum.FROZEN) {
         throw new BusinessException('仅【冻结中】流水允许关闭');
       }
-      // 2. 关闭流水
+
+      //  2. 更新流水状态（不加锁额度表）
       await flowRepo.update(
         { id: flow.id },
         {
           status: CreditStatusEnum.CLOSE,
           reviserId: user.userId,
-          reviserName: user.username,
+          reviserName: user.nickName,
           revisedTime: now,
         },
       );
-      // 释放额度
-      await this.customerCreditLimitService.releaseCreditByCustomer(
+
+      //  3. 委托额度 Service 处理额度释放（带事务）
+      await this.customerCreditLimitService.releaseCreditInTransaction(
+        flow.customerId,
         flow,
         user,
-        false,
         manager,
+        false, // 非确认收款
       );
     });
   }
@@ -272,40 +281,34 @@ export class CustomerCreditLimitDetailService {
    * @param user 当前操作用户信息
    */
   async confirmCustomerOrderCredit(orderId: string, user: JwtUserPayload) {
-    return this.dataSource.transaction(async (manager) => {
+    await this.dataSource.transaction(async (manager) => {
       const flowRepo = manager.getRepository(CustomerCreditLimitDetailEntity);
       const flow = await flowRepo.findOne({
         where: { orderId, deleted: GlobalStatusEnum.NO },
-        lock: { mode: 'pessimistic_write' },
       });
-
-      if (!flow) {
-        throw new BusinessException('订单流水不存在');
-      }
-      if (flow.status === CreditStatusEnum.FINISH) {
-        this.logger.warn(`订单流水已确认，幂等退出；orderId=${orderId}`);
-        return;
-      }
+      if (!flow) throw new BusinessException('订单流水不存在');
+      if (flow.status === CreditStatusEnum.FINISH) return;
       if (flow.status !== CreditStatusEnum.FROZEN) {
         throw new BusinessException('仅【冻结中】流水允许确认');
       }
-      // 更新状态
+
       await flowRepo.update(
         { id: flow.id },
         {
           status: CreditStatusEnum.FINISH,
           reviserId: user.userId,
-          reviserName: user.username,
+          reviserName: user.nickName,
           revisedTime: dayjs().toDate(),
         },
       );
 
-      // 释放额度并累加到已使用（confirm=true）
-      await this.customerCreditLimitService.releaseCreditByCustomer(
+      // 委托额度 Service 处理
+      await this.customerCreditLimitService.releaseCreditInTransaction(
+        flow.customerId,
         flow,
         user,
-        true, // 关键：确认收款，累加已使用额度
         manager,
+        true, // 确认收款
       );
     });
   }
@@ -344,12 +347,12 @@ export class CustomerCreditLimitDetailService {
 
       // 设置创建时间
       creditDetail.creatorId = userPayload.userId;
-      creditDetail.creatorName = userPayload.username;
+      creditDetail.creatorName = userPayload.nickName;
       creditDetail.createdTime = dayjs().toDate();
 
       // 设置更新时间
       creditDetail.reviserId = userPayload.userId;
-      creditDetail.reviserName = userPayload.username;
+      creditDetail.reviserName = userPayload.nickName;
       creditDetail.revisedTime = dayjs().toDate();
 
       return await this.creditDetailRepository.save(creditDetail);
