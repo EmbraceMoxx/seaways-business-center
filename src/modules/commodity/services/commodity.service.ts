@@ -57,6 +57,7 @@ export class CommodityService {
           'commodity.commodity_name AS commodityName',
           'commodity.commodity_alia_name AS commodityAliaName',
           'commodity.item_spec_piece AS itemSpecPiece',
+          'commodity.item_spec_info AS itemSpecInfo',
           'commodity.commodity_internal_code AS commodityInternalCode',
           'commodity.commodity_barcode AS commodityBarcode',
           'commodity.commodity_first_category AS commodityFirstCategory',
