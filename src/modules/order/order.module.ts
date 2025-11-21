@@ -21,6 +21,8 @@ import { CustomerService } from '@modules/customer/services/customer.service';
 import { CommodityModule } from '../commodity/commodity.module';
 import { OrderCheckService } from '@modules/order/service/order-check.service';
 import { UserService } from '@modules/common/user/user.service';
+import { OrderTaskController } from './controller/order-task.controller';
+import { OrderEventTaskService } from './service/order-event-task.service';
 
 @Module({
   imports: [
@@ -42,6 +44,7 @@ import { UserService } from '@modules/common/user/user.service';
     CommodityService,
     OrderEventService,
     OrderPushService,
+    OrderEventTaskService,
     BusinessLogService,
     CustomerCreditLimitDetailService,
     CustomerCreditLimitService,
@@ -50,6 +53,6 @@ import { UserService } from '@modules/common/user/user.service';
     UserService,
   ],
 
-  controllers: [OrderController],
+  controllers: [OrderController, OrderTaskController],
 })
 export class OrderModule {}

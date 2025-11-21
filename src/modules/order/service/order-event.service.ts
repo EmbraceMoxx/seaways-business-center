@@ -98,7 +98,7 @@ export class OrderEventService {
           businessId: orderId,
           // 其他必要字段赋值
           businessTitle: title,
-          businessStatus: orderMain.orderStatus,
+          businessStatus: orderMain.orderStatus, // 创建时业务状态为订单当前状态
           businessMessage: orderMain.remark,
           createdTime: dayjs().toDate(),
           lastOperateProgram: thisContext,
@@ -109,7 +109,7 @@ export class OrderEventService {
         await orderMainRepo.update(orderId, {
           orderStatus: String(OrderStatusEnum.PUSHING),
           reviserId: user.userId,
-          reviserName: user.username,
+          reviserName: user.nickName,
           lastOperateProgram: thisContext,
         });
 

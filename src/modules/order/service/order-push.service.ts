@@ -18,6 +18,7 @@ import { OrderItemTypeEnum } from '@src/enums/order-item-type.enum';
 import { JstOrderPostDataItem } from '../interface/order-push.interface';
 import { OrderEventEntity } from '../entities/order.event.entity';
 import { OrderStatusEnum } from '@src/enums/order-status.enum';
+import { OrderEventMainInfo } from '../interface/order-event-task.interface';
 
 @Injectable()
 export class OrderPushService {
@@ -211,7 +212,7 @@ export class OrderPushService {
           oriInnerOrderCode: oriInnerOrderCode, // 聚水潭内部订单编号
           pushTime: now,
           reviserId: user.userId,
-          reviserName: user.username,
+          reviserName: user.nickName,
           revisedTime: now,
           lastOperateProgram: context,
         },
@@ -222,7 +223,7 @@ export class OrderPushService {
         eventId: event.id,
         status: OrderEventStatusEnum.COMPLETED,
         message: '订单推送成功',
-        businessStatus: 'COMPLETED',
+        businessStatus: String(OrderStatusEnum.PUSHED),
         businessMessage: '订单已成功推送到聚水潭',
         lastOperateProgram: context,
         manager: queryRunner.manager,
@@ -347,5 +348,15 @@ export class OrderPushService {
       }
       throw new BusinessException('订单已登记，但推送ERP出错');
     }
+  }
+
+  async handleOrderPushEvent(eventInfo: OrderEventMainInfo): Promise<void> {
+    const user: JwtUserPayload = {
+      userId: '1',
+      username: 'admin',
+      nickName: '系统自动任务',
+    };
+    // todo: 实现订单推送处理逻辑，事件更新等
+    return;
   }
 }
