@@ -7,6 +7,8 @@ import {
   QueryCreditLimiDetailtDto,
   CreditLimitDetailResponseDto,
   CreditLimitDetailRequestDto,
+  QueryCreditToMonthDto,
+  CreditToMonthResponseDto,
 } from '@src/dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
@@ -430,7 +432,7 @@ export class CustomerCreditLimitDetailService {
    */
   async getCreditDetailListByCustomerIdAndTime(
     saveTime: Date,
-  ): Promise<CreditLimitDetailResponseDto[]> {
+  ): Promise<CreditToMonthResponseDto[]> {
     const creditDetailList = this.creditDetailRepository
       .createQueryBuilder('creditDetail')
       .select([
@@ -464,7 +466,10 @@ export class CustomerCreditLimitDetailService {
   /**
    * 把客户额度流水明细存入月度额度
    */
-  async saveCreditDetailToMonth({ saveTime }: any, user: JwtUserPayload) {
+  async saveCreditDetailToMonth(
+    { saveTime }: QueryCreditToMonthDto,
+    user: JwtUserPayload,
+  ): Promise<CreditToMonthResponseDto[]> {
     try {
       // 1、获取操作存入的时间(不传入就默认当天)
       const dateStr = saveTime ? saveTime : dayjs().format('YYYY-MM-DD');

@@ -6,7 +6,12 @@ import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
 import { CustomerMonthlyCreditLimitEntity } from '../entities/customer-monthly-credit-limit.entity';
 import { MoneyUtil } from '@utils/MoneyUtil';
-import { CreditLimitStatisticsResponseDto } from '@src/dto';
+import {
+  CreditLimitStatisticsResponseDto,
+  QueryMonthlyCreditDto,
+  CreditToMonthResponseDto,
+  MonthCreditInfoResponseDto,
+} from '@src/dto';
 
 @Injectable()
 export class CustomerMonthlyCreditLimitService {
@@ -35,7 +40,7 @@ export class CustomerMonthlyCreditLimitService {
   /**
    * 新增月度额度流水
    */
-  async create(creditDetail: any, user: JwtUserPayload) {
+  async create(creditDetail: QueryMonthlyCreditDto, user: JwtUserPayload) {
     // 1、初始化数据
     const customerMonthlyCredit = new CustomerMonthlyCreditLimitEntity();
 
@@ -77,8 +82,8 @@ export class CustomerMonthlyCreditLimitService {
    * 更新月度额度流水-累加金额
    */
   async updateWithIncrement(
-    creditDetail: any,
-    existingRecord: CustomerMonthlyCreditLimitEntity,
+    creditDetail: CreditToMonthResponseDto,
+    existingRecord: MonthCreditInfoResponseDto,
     user: JwtUserPayload,
   ) {
     // 1、使用 MoneyUtil 进行金额累加计算
@@ -90,9 +95,6 @@ export class CustomerMonthlyCreditLimitService {
         .toYuan(),
       shippedAmount: MoneyUtil.fromYuan(existingRecord.shippedAmount)
         .add(MoneyUtil.fromYuan(creditDetail.shippedAmount || 0))
-        .toYuan(),
-      repaymentAmount: MoneyUtil.fromYuan(existingRecord.repaymentAmount)
-        .add(MoneyUtil.fromYuan(creditDetail.repaymentAmount || 0))
         .toYuan(),
       auxiliarySaleGoodsAmount: MoneyUtil.fromYuan(
         existingRecord.auxiliarySaleGoodsAmount,

@@ -24,3 +24,6 @@ export * from './order/order.common.dto';
 
 // 审批相关DTO
 export * from './approval/approval.dto';
+
+// 月度额度相关DTO
+export * from './customer/customer-monthly-credit-limit.dto';
