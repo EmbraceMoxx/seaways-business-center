@@ -7,6 +7,7 @@ import { Request } from 'express';
 export interface JwtUserPayload {
   userId: string;
   username: string;
+  nickName: string;
   businessSystemId?: string;
   ipAddress?: string;
   iat?: number;
@@ -31,6 +32,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: payload.userId,
       username: payload.username,
+      nickName: payload.nickName,
       businessSystemId: payload.businessSystemId,
       iat: payload.iat,
       exp: payload.exp,
