@@ -61,6 +61,7 @@ export class CommodityService {
           'commodity.commodity_barcode AS commodityBarcode',
           'commodity.commodity_first_category AS commodityFirstCategory',
           'commodity.box_spec_info AS boxSpecInfo',
+          'commodity.box_spec_piece AS boxSpecPiece',
           'commodity.item_ex_factory_price AS itemExFactoryPrice',
           'firstCategory.category_name AS commodityFirstCategoryName',
           'commodity.commodity_second_category AS commoditySecondCategory',
