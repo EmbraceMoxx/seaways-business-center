@@ -137,9 +137,9 @@ export class OrderService {
       // 订单状态
       if (orderStatus) {
         queryBuilder = queryBuilder.andWhere(
-          'order.order_status = :orderStatus',
+          'order.order_status LIKE :orderStatus',
           {
-            orderStatus,
+            orderStatus: `${orderStatus}%`,
           },
         );
       }
