@@ -482,7 +482,7 @@ export class CustomerCreditLimitService {
       .sub(MoneyUtil.fromYuan(credit.frozenUsedReplenishingGoodsAmount))
       .toYuan();
     credit.reviserId = user.userId;
-    credit.reviserName = user.username;
+    credit.reviserName = user.nickName;
     credit.revisedTime = dayjs().toDate();
     this.logger.log('开始调整差额：', JSON.stringify(credit));
     await creditRepo.update({ id: credit.id }, credit);

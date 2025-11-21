@@ -222,7 +222,7 @@ export class CustomerCreditLimitDetailService {
         replenishingGoodsAmount: creditParam.replenishingGoodsAmount,
         usedReplenishingGoodsAmount: creditParam.usedReplenishingGoodsAmount,
         reviserId: user.userId,
-        reviserName: user.username,
+        reviserName: user.nickName,
         revisedTime: dayjs().toDate(),
       };
       this.logger.log('updFlow：', JSON.stringify(updFlow));
@@ -398,7 +398,7 @@ export class CustomerCreditLimitDetailService {
         const params = {
           status: flag ? 1 : 2,
           reviserId: user?.userId,
-          reviserName: user?.username,
+          reviserName: user?.nickName,
           revisedTime: new Date(),
         };
         await manager.update(

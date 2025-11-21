@@ -183,12 +183,12 @@ export class CustomerAddressService {
 
       // 5、设置创建时间
       customerAddressDetail.creatorId = userPayload.userId;
-      customerAddressDetail.creatorName = userPayload.username;
+      customerAddressDetail.creatorName = userPayload.nickName;
       customerAddressDetail.createdTime = dayjs().toDate();
 
       // 6、设置更新时间
       customerAddressDetail.reviserId = userPayload.userId;
-      customerAddressDetail.reviserName = userPayload.username;
+      customerAddressDetail.reviserName = userPayload.nickName;
       customerAddressDetail.revisedTime = dayjs().toDate();
 
       return await this.customerAddress.save(customerAddressDetail);
@@ -248,7 +248,7 @@ export class CustomerAddressService {
 
       // 4、设置更新时间
       customerAddressDetail.reviserId = userPayload.userId;
-      customerAddressDetail.reviserName = userPayload.username;
+      customerAddressDetail.reviserName = userPayload.nickName;
       customerAddressDetail.revisedTime = dayjs().toDate();
 
       // 5、更新客户地址
