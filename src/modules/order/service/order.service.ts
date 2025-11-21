@@ -577,6 +577,7 @@ export class OrderService {
     if (!orderMain) {
       throw new BusinessException('订单不存在或已被删除');
     }
+    this.logger.log('开始修改订单');
     const updateOrderMain = new OrderMainEntity();
     updateOrderMain.id = orderMain.id;
     updateOrderMain.customerId = orderMain.customerId;
@@ -589,7 +590,11 @@ export class OrderService {
       updateOrderMain,
       req.receiverAddress,
     );
-    updateOrderMain.remark = req.remark.trim();
+    updateOrderMain.remark = req.remark ? req.remark.trim() : '';
+    this.logger.log(
+      '开始修改商品信息！updateOrderMain：',
+      JSON.stringify(updateOrderMain),
+    );
     // 3. 订单商品信息
     const finishGoodsList = req.finishGoods;
     const replenishGoodsList = req.replenishGoods;
@@ -679,18 +684,28 @@ export class OrderService {
     });
     // 若金额有变化则需要释放额度后冻结额度
     if (
-      orderMain.amount !== updateOrderMain.amount ||
-      orderMain.creditAmount !== updateOrderMain.creditAmount ||
-      orderMain.usedReplenishAmount !== updateOrderMain.usedReplenishAmount ||
-      orderMain.usedAuxiliarySalesAmount !==
-        updateOrderMain.usedAuxiliarySalesAmount
+      this.isAmountChanged(orderMain.amount, updateOrderMain.amount) ||
+      this.isAmountChanged(
+        orderMain.creditAmount,
+        updateOrderMain.creditAmount,
+      ) ||
+      this.isAmountChanged(
+        orderMain.usedReplenishAmount,
+        updateOrderMain.usedReplenishAmount,
+      ) ||
+      this.isAmountChanged(
+        orderMain.usedAuxiliarySalesAmount,
+        updateOrderMain.usedAuxiliarySalesAmount,
+      )
     ) {
+      this.logger.log('金额变更，即将进入更新客户额度变更流程');
       // todo 测试完再注释
       await this.creditLimitDetailService.editCustomerOrderCredit(
         this.buildCreditDetailParam(orderId, updateOrderMain),
         user,
       );
     }
+    this.logger.log('开始写入日志：');
 
     // 写入操作日志
     const logInput = OrderLogHelper.getOrderOperate(
@@ -699,7 +714,7 @@ export class OrderService {
       lastOperateProgram,
       orderId,
     );
-    logInput.params(JSON.stringify(req));
+    logInput.params = req;
     this.businessLogService.writeLog(logInput);
     // todo 确认审批流程
 
@@ -952,5 +967,11 @@ export class OrderService {
   ): string[] {
     const newIds = new Set(newItems.map((i) => i.id));
     return oldItems.filter((i) => i.id && !newIds.has(i.id)).map((i) => i.id);
+  }
+  private isAmountChanged(oldValue: string, newValue: string): boolean {
+    return (
+      Math.abs(parseFloat(oldValue || '0') - parseFloat(newValue || '0')) >
+      0.0001
+    );
   }
 }

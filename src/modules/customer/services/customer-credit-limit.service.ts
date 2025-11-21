@@ -125,112 +125,6 @@ export class CustomerCreditLimitService {
     await this.creditRepository.update({ id: creditInfo.id }, creditInfo);
   }
 
-  /**
-   * 根据客户信息释放信用额度
-   * @param creditLimitDetail 信用额度详情请求参数，包含客户ID和各种金额信息
-   * @param user JWT用户负载信息
-   * @param confirm
-   * @param manager
-   */
-  async releaseCreditByCustomer(
-    creditLimitDetail: CustomerCreditLimitDetailEntity,
-    user: JwtUserPayload,
-    confirm = false,
-    manager: EntityManager,
-  ) {
-    const repo = manager.getRepository(CustomerCreditAmountInfoEntity);
-    const creditInfo = await repo.findOne({
-      where: { customerId: creditLimitDetail.customerId },
-      lock: { mode: 'pessimistic_write' },
-    });
-    if (!creditInfo) {
-      throw new BusinessException(
-        `客户额度不存在，跳过释放；customerId=${creditLimitDetail.customerId}`,
-      );
-    }
-
-    // 辅销金额
-    creditInfo.frozenSaleGoodsAmount = MoneyUtil.fromYuan(
-      creditInfo.frozenSaleGoodsAmount,
-    )
-      .sub(MoneyUtil.fromYuan(creditLimitDetail.auxiliarySaleGoodsAmount))
-      .toYuan();
-    creditInfo.frozenUsedSaleGoodsAmount = MoneyUtil.fromYuan(
-      creditInfo.frozenUsedSaleGoodsAmount,
-    )
-      .sub(MoneyUtil.fromYuan(creditLimitDetail.usedAuxiliarySaleGoodsAmount))
-      .toYuan();
-
-    // 货补金额
-    creditInfo.frozenReplenishingGoodsAmount = MoneyUtil.fromYuan(
-      creditInfo.frozenReplenishingGoodsAmount,
-    )
-      .sub(MoneyUtil.fromYuan(creditLimitDetail.replenishingGoodsAmount))
-      .toYuan();
-
-    creditInfo.frozenUsedReplenishingGoodsAmount = MoneyUtil.fromYuan(
-      creditInfo.frozenUsedReplenishingGoodsAmount,
-    )
-      .sub(MoneyUtil.fromYuan(creditLimitDetail.usedReplenishingGoodsAmount))
-      .toYuan();
-
-    if (confirm) {
-      // 若确认收款，则将冻结金额分别加入指定金额
-      // 确认收款发货金额应当累加
-      creditInfo.shippedAmount = MoneyUtil.fromYuan(creditInfo.shippedAmount)
-        .add(MoneyUtil.fromYuan(creditLimitDetail.shippedAmount))
-        .toYuan();
-      // 辅销品金额
-      creditInfo.auxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
-        creditInfo.auxiliarySaleGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(creditLimitDetail.auxiliarySaleGoodsAmount))
-        .toYuan();
-
-      // 已提辅销金额
-      creditInfo.usedAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
-        creditInfo.usedAuxiliarySaleGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(creditLimitDetail.usedAuxiliarySaleGoodsAmount))
-        .toYuan();
-
-      // 10%货补金额
-      creditInfo.replenishingGoodsAmount = MoneyUtil.fromYuan(
-        creditInfo.replenishingGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(creditLimitDetail.replenishingGoodsAmount))
-        .toYuan();
-
-      // 已提货补金额
-      creditInfo.usedReplenishingGoodsAmount = MoneyUtil.fromYuan(
-        creditInfo.usedReplenishingGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(creditLimitDetail.usedReplenishingGoodsAmount))
-        .toYuan();
-    }
-
-    // 剩余货补金额
-    creditInfo.remainReplenishingGoodsAmount = MoneyUtil.fromYuan(
-      creditInfo.replenishingGoodsAmount,
-    )
-      .sub(MoneyUtil.fromYuan(creditInfo.usedReplenishingGoodsAmount))
-      .sub(MoneyUtil.fromYuan(creditInfo.frozenUsedReplenishingGoodsAmount))
-      .toYuan();
-
-    // 剩余辅销金额
-    creditInfo.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
-      creditInfo.auxiliarySaleGoodsAmount,
-    )
-      .sub(MoneyUtil.fromYuan(creditInfo.usedAuxiliarySaleGoodsAmount))
-      .sub(MoneyUtil.fromYuan(creditInfo.frozenUsedSaleGoodsAmount))
-      .toYuan();
-
-    creditInfo.reviserId = user.userId;
-    creditInfo.reviserName = user.nickName;
-    creditInfo.revisedTime = dayjs().toDate();
-    console.log('release final creditInfo:', JSON.stringify(creditInfo));
-    await this.creditRepository.update({ id: creditInfo.id }, creditInfo);
-  }
 
   /**
    * 获取客户额度列表
@@ -656,6 +550,7 @@ export class CustomerCreditLimitService {
     credit.reviserId = user.userId;
     credit.reviserName = user.username;
     credit.revisedTime = dayjs().toDate();
+    this.logger.log('开始调整差额：',JSON.stringify(credit));
     await creditRepo.update({ id: credit.id }, credit);
   }
 

@@ -170,6 +170,7 @@ export class CustomerCreditLimitDetailService {
     creditParam: CreditLimitDetailRequestDto,
     user: JwtUserPayload,
   ) {
+    this.logger.log('开始编辑客户流水！');
     return this.dataSource.transaction(async (manager) => {
       // 1. 加锁拿到原流水
       const flowRepo = manager.getRepository(CustomerCreditLimitDetailEntity);
@@ -207,7 +208,7 @@ export class CustomerCreditLimitDetailService {
           .sub(MoneyUtil.fromYuan(oldFlow.usedReplenishingGoodsAmount))
           .toNumber(),
       };
-      this.logger.log('差额信息：', delta);
+      this.logger.log('差额信息：', JSON.stringify(delta));
       // 3. 更新流水金额
       const updFlow = {
         ...oldFlow,
@@ -220,6 +221,8 @@ export class CustomerCreditLimitDetailService {
         reviserName: user.username,
         revisedTime: dayjs().toDate(),
       };
+      this.logger.log('updFlow：', JSON.stringify(updFlow));
+
       await flowRepo.update({ id: oldFlow.id }, updFlow);
       // 4. 用差额调整客户额度（冻结金额）
       await this.customerCreditLimitService.changeCustomerCreditAmount(
