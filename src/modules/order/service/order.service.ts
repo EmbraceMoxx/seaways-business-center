@@ -33,6 +33,8 @@ import { CustomerCreditLimitDetailService } from '@modules/customer/services/cus
 import { CreditLimitDetailRequestDto } from '@src/dto';
 import { OrderCheckService } from '@src/modules/order/service/order-check.service';
 import { UserService } from '@modules/common/user/user.service';
+import { ApprovalEngineService } from '@modules/approval/services/approval-engine.service';
+import { ApprovalContext } from '@modules/approval/interfaces/approval-context.interface';
 
 @Injectable()
 export class OrderService {
@@ -47,6 +49,7 @@ export class OrderService {
     private customerService: CustomerService,
     private businessLogService: BusinessLogService,
     private orderCheckService: OrderCheckService,
+    private approvalEngineService: ApprovalEngineService,
     private userService: UserService,
     private creditLimitDetailService: CustomerCreditLimitDetailService,
     private dataSource: DataSource, // 添加数据源注入
@@ -137,9 +140,9 @@ export class OrderService {
       // 订单状态
       if (orderStatus) {
         queryBuilder = queryBuilder.andWhere(
-          'order.order_status = :orderStatus',
+          'order.order_status LIKE :orderStatus',
           {
-            orderStatus,
+            orderStatus: `${orderStatus}%`,
           },
         );
       }
@@ -238,6 +241,8 @@ export class OrderService {
           'order.replenish_amount as replenishAmount',
           'order.auxiliary_sales_amount as auxiliarySalesAmount',
           'order.contact as contact',
+          'order.used_replenish_ratio as usedReplenishRatio',
+          'order.used_auxiliary_sales_ratio as usedAuxiliarySalesRatio',
           'order.contact_phone as contactPhone',
           'order.created_time as createdTime',
         ])
@@ -515,7 +520,7 @@ export class OrderService {
     orderMain.lastOperateProgram = lastOperateProgram;
 
     // todo 计算额度使用情况后，结合客户信息计算订单初始状态
-    orderMain.orderStatus = String(OrderStatusEnum.PENDING_PAYMENT.valueOf());
+    orderMain.orderStatus = OrderStatusEnum.PENDING_PAYMENT;
     try {
       await this.dataSource.transaction(async (manager) => {
         this.logger.log(`开始事务处理，orderId: ${orderId}`);
@@ -535,11 +540,27 @@ export class OrderService {
       await this.businessLogService.writeLog(logInput);
       // 锁定额度
       const creditDetail = this.buildCreditDetailParam(orderId, orderMain);
-      // todo 验证完成后再解开注释
       await this.creditLimitDetailService.addCustomerOrderCredit(
         creditDetail,
         user,
       );
+      // todo 添加审批流,待验证
+      const approval = {
+        order:{
+          id: orderId,
+          creatorId: orderMain.creatorId,
+          customerId: orderMain.customerId,
+          regionalHeadId: orderMain.regionalHeadId || null,
+          provincialHeadId: orderMain.provincialHeadId || null,
+          usedReplenishRatio: parseFloat(orderMain.usedReplenishRatio ?? '0'),
+          usedAuxiliarySalesRatio: parseFloat(orderMain.usedAuxiliarySalesRatio ?? '0'),
+        },
+        operator:{
+          id: user.userId,
+          name: user.nickName,
+        }
+      }
+      await this.approvalEngineService.startApprovalProcess(approval);
       return orderId;
     } catch (error) {
       this.logger.error(
@@ -856,6 +877,7 @@ export class OrderService {
       finishGoods: [],
       replenishGoods: [],
       auxiliaryGoods: [],
+      operateButtons: [],
     };
 
     //按照 type 装入不同的商品类型数组

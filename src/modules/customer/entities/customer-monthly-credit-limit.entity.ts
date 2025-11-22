@@ -4,8 +4,10 @@ import {
   PrimaryColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  BeforeInsert,
 } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
+import { generateId } from '@src/utils';
 
 @Entity('customer_monthly_credit_amount_info')
 export class CustomerMonthlyCreditLimitEntity {
@@ -208,4 +210,11 @@ export class CustomerMonthlyCreditLimitEntity {
     comment: '更新人名字',
   })
   reviserName: string;
+
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = generateId();
+    }
+  }
 }

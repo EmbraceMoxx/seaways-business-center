@@ -129,10 +129,10 @@ export class CommodityCategoryService {
       // 2、默认状态
       category.deleted = GlobalStatusEnum.NO;
       category.creatorId = user.userId;
-      category.creatorName = user.username;
+      category.creatorName = user.nickName;
       category.createdTime = dayjs().toDate();
       category.reviserId = user.userId;
-      category.reviserName = user.username;
+      category.reviserName = user.nickName;
       category.revisedTime = dayjs().toDate();
 
       // 3、新创建的分类默认是【非】叶子节点
@@ -227,7 +227,7 @@ export class CommodityCategoryService {
 
       // 7、更新修订信息
       category.reviserId = user.userId;
-      category.reviserName = user.username;
+      category.reviserName = user.nickName;
       category.revisedTime = dayjs().toDate();
 
       // 8、只有分类编码有变更时才检查【编码唯一性】

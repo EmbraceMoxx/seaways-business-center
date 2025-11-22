@@ -340,7 +340,7 @@ export class CustomerService {
 
       // 3、当前更新人信息
       customer.reviserId = user.userId;
-      customer.reviserName = user.username;
+      customer.reviserName = user.nickName;
       customer.revisedTime = dayjs().toDate();
 
       // 4、执行更新

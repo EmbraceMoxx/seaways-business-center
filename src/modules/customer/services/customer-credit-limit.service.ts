@@ -13,13 +13,13 @@ import {
   CreditLimitDetailRequestDto,
 } from '@src/dto';
 import { CustomerCreditAmountInfoEntity } from '../entities/customer-credit-limit.entity';
-import { CustomerMonthlyCreditLimitEntity } from '../entities/customer-monthly-credit-limit.entity';
 import { IdUtil } from '@src/utils';
 import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
 import { CustomerCreditLimitDetailEntity } from '@modules/customer/entities/customer-credit-limit-detail.entity';
 import { MoneyUtil } from '@utils/MoneyUtil';
+import { CustomerMonthlyCreditLimitService } from '../services/customer-monthly-credit-limit.server';
 
 @Injectable()
 export class CustomerCreditLimitService {
@@ -27,8 +27,7 @@ export class CustomerCreditLimitService {
   constructor(
     @InjectRepository(CustomerCreditAmountInfoEntity)
     private creditRepository: Repository<CustomerCreditAmountInfoEntity>,
-    @InjectRepository(CustomerMonthlyCreditLimitEntity)
-    private monthlyCreditRepository: Repository<CustomerMonthlyCreditLimitEntity>,
+    private customerMonthlyCreditLimitService: CustomerMonthlyCreditLimitService,
   ) {}
 
   async initCustomerCredit(
@@ -124,7 +123,6 @@ export class CustomerCreditLimitService {
     console.log('frozen final creditInfo:', JSON.stringify(creditInfo));
     await this.creditRepository.update({ id: creditInfo.id }, creditInfo);
   }
-
 
   /**
    * 获取客户额度列表
@@ -230,18 +228,20 @@ export class CustomerCreditLimitService {
       const currentYear = currentDate.getFullYear();
       const currentMonth = currentDate.getMonth() + 1;
 
-      const monthlyCredit = await this.getMonthlyCreditInfo(
-        customerId,
-        currentYear,
-        currentMonth,
-      );
+      const monthlyCredit =
+        await this.customerMonthlyCreditLimitService.getMonthlyCreditInfo(
+          customerId,
+          currentYear,
+          currentMonth,
+        );
 
       // 2、计算出本年度的额度信息（例如当月是11月，计算的就是1月到11月的）
-      const annualCredit = await this.getAnnualCreditInfo(
-        customerId,
-        currentYear,
-        currentMonth,
-      );
+      const annualCredit =
+        await this.customerMonthlyCreditLimitService.getAnnualCreditInfo(
+          customerId,
+          currentYear,
+          currentMonth,
+        );
 
       // 3、获取客户累计额度信息
       const cumulativeCredit = await this.getCumulativeCreditInfo(customerId);
@@ -254,72 +254,6 @@ export class CustomerCreditLimitService {
     } catch (error) {
       throw new BusinessException('获取客户详情失败');
     }
-  }
-
-  /**
-   * 获取当月的客户月度信息
-   * @param customerId 客户ID
-   * @param year 年份
-   * @param month 月份
-   */
-  private async getMonthlyCreditInfo(
-    customerId: string,
-    year: number,
-    month: number,
-  ): Promise<CreditLimitStatisticsResponseDto> {
-    const yearMonth = year * 100 + month;
-
-    return await this.monthlyCreditRepository
-      .createQueryBuilder('monthly')
-      .select([
-        'monthly.shipped_amount AS shippedAmount',
-        'monthly.repayment_amount AS repaymentAmount',
-        'monthly.auxiliary_sale_goods_amount AS auxiliarySaleGoodsAmount',
-        'monthly.used_auxiliary_sale_goods_amount AS usedAuxiliarySaleGoodsAmount',
-        'monthly.remain_auxiliary_sale_goods_amount AS remainAuxiliarySaleGoodsAmount',
-        'monthly.replenishing_goods_amount AS replenishingGoodsAmount',
-        'monthly.used_replenishing_goods_amount AS usedReplenishingGoodsAmount',
-        'monthly.remain_replenishing_goods_amount AS remainReplenishingGoodsAmount',
-      ])
-      .where('monthly.customer_id = :customerId', { customerId })
-      .andWhere('monthly.biz_year_month = :yearMonth', { yearMonth })
-      .andWhere('monthly.deleted = :deleted', { deleted: GlobalStatusEnum.NO })
-      .getRawOne();
-  }
-
-  /**
-   * 获取客户本年度额度信息汇总
-   * @param customerId 客户ID
-   * @param year 年份
-   * @param month 当前月份
-   */
-  private async getAnnualCreditInfo(
-    customerId: string,
-    year: number,
-    month: number,
-  ): Promise<CreditLimitStatisticsResponseDto> {
-    const startYearMonth = year * 100 + 1; // 年初 (如202301)
-    const endYearMonth = year * 100 + month; // 当前月 (如202311)
-
-    const annualSummary = await this.monthlyCreditRepository
-      .createQueryBuilder('monthly')
-      .select([
-        'SUM(monthly.shipped_amount) AS shippedAmount',
-        'SUM(monthly.repayment_amount) AS repaymentAmount',
-        'SUM(monthly.auxiliary_sale_goods_amount) AS auxiliarySaleGoodsAmount',
-        'SUM(monthly.used_auxiliary_sale_goods_amount) AS usedAuxiliarySaleGoodsAmount',
-        'SUM(monthly.remain_auxiliary_sale_goods_amount) AS remainAuxiliarySaleGoodsAmount',
-        'SUM(monthly.replenishing_goods_amount) AS replenishingGoodsAmount',
-        'SUM(monthly.used_replenishing_goods_amount) AS usedReplenishingGoodsAmount',
-        'SUM(monthly.remain_replenishing_goods_amount) AS remainReplenishingGoodsAmount',
-      ])
-      .where('monthly.customer_id = :customerId', { customerId })
-      .andWhere('monthly.biz_year_month >= :startYearMonth', { startYearMonth })
-      .andWhere('monthly.biz_year_month <= :endYearMonth', { endYearMonth })
-      .andWhere('monthly.deleted = :deleted', { deleted: GlobalStatusEnum.NO })
-      .getRawOne();
-
-    return annualSummary;
   }
 
   /**
@@ -548,9 +482,9 @@ export class CustomerCreditLimitService {
       .sub(MoneyUtil.fromYuan(credit.frozenUsedReplenishingGoodsAmount))
       .toYuan();
     credit.reviserId = user.userId;
-    credit.reviserName = user.username;
+    credit.reviserName = user.nickName;
     credit.revisedTime = dayjs().toDate();
-    this.logger.log('开始调整差额：',JSON.stringify(credit));
+    this.logger.log('开始调整差额：', JSON.stringify(credit));
     await creditRepo.update({ id: credit.id }, credit);
   }
 

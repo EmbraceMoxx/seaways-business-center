@@ -8,6 +8,7 @@ import { CustomerService } from './services/customer.service';
 
 // 客户月度额度信息
 import { CustomerMonthlyCreditLimitEntity } from './entities/customer-monthly-credit-limit.entity';
+import { CustomerMonthlyCreditLimitService } from './services/customer-monthly-credit-limit.server';
 
 // 客户地址管理
 import { CustomerAddressEntity } from './entities/customer-address.entity';
@@ -49,6 +50,7 @@ import { UserService } from '@modules/common/user/user.service';
     CustomerCreditLimitDetailService,
     BusinessLogService,
     UserService,
+    CustomerMonthlyCreditLimitService,
   ],
   controllers: [
     CustomerController,
@@ -56,6 +58,11 @@ import { UserService } from '@modules/common/user/user.service';
     CustomerCreditLimitController,
     CustomerCreditLimitDetailController,
   ],
-  exports: [CustomerService],
+  exports: [
+    CustomerService,
+    CustomerCreditLimitService,
+    CustomerMonthlyCreditLimitService,
+    CustomerCreditLimitDetailService,
+  ],
 })
 export class CustomerModule {}

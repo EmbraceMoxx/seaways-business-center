@@ -1,17 +1,17 @@
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Param, Post } from '@nestjs/common';
 import {
-  SuccessResponseDto,
-  QueryOrderDto,
-  OrderInfoResponseDto,
+  AddOfflineOrderRequest,
   CancelOrderRequest,
   CheckOrderAmountRequest,
   CheckOrderAmountResponse,
-  UpdateOfflineOrderRequest,
-  AddOfflineOrderRequest,
+  ErrorResponseDto,
   GetOrderDetailDto,
   OrderDetailResponseDto,
-  ErrorResponseDto,
+  OrderInfoResponseDto,
+  QueryOrderDto,
+  SuccessResponseDto,
+  UpdateOfflineOrderRequest,
 } from '@src/dto';
 import { OrderService } from '@modules/order/service/order.service';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
@@ -20,12 +20,14 @@ import { OrderPushDto } from '@src/dto/order/order-push.dto';
 import { OrderPushService } from '../service/order-push.service';
 import { CurrentToken } from '@src/decorators/current-token.decorator';
 import { UserService } from '@modules/common/user/user.service';
+import { OrderCheckService } from '@modules/order/service/order-check.service';
 
 @ApiTags('订单管理')
 @Controller('order')
 export class OrderController {
   constructor(
     private orderService: OrderService,
+    private orderCheckService: OrderCheckService,
     private userService: UserService,
     private orderPushService: OrderPushService,
   ) {}
@@ -118,8 +120,16 @@ export class OrderController {
   @ApiOperation({ summary: '获取订单详情' })
   async getOrderDetail(
     @Body() body: GetOrderDetailDto,
+    @CurrentUser() user: JwtUserPayload,
+    @CurrentToken() token: string,
   ): Promise<SuccessResponseDto<OrderDetailResponseDto>> {
     const orderDetail = await this.orderService.getOrderDetail(body.orderId);
+    orderDetail.operateButtons =
+      await this.orderCheckService.getOrderOperateButtons(
+        user,
+        token,
+        body.orderId,
+      );
     return new SuccessResponseDto(orderDetail, '获取订单详情成功');
   }
 
@@ -153,11 +163,11 @@ export class OrderController {
   ) {
     console.log('user:', user);
     // 测试取消订单
-
-    const result = await this.userService.getRangeOfOrderQueryUser(
+    const result = await this.orderCheckService.getOrderOperateButtons(
+      user,
       token,
-      user.userId,
+      '646955860077187072',
     );
-    console.log('result:', JSON.stringify(result));
+    return result;
   }
 }

@@ -124,7 +124,7 @@ export class CheckOrderAmountResponse {
 }
 
 /**
- * 客户地址管理列表查询参数DTO
+ * 订单管理列表查询参数DTO
  */
 export class QueryOrderDto extends PageRequestDto {
   @ApiProperty({
@@ -220,11 +220,17 @@ export class OrderInfoResponseDto {
   })
   amount: string;
 
+  @ApiProperty({ description: '使用的货补比例, 单位：%' })
+  usedReplenishRatio: string;
+
   @ApiProperty({
     description: '产生的货补金额, 单位：元',
     example: '150.0',
   })
   replenishAmount: string;
+
+  @ApiProperty({ description: '使用的辅销比例, 单位：%' })
+  usedAuxiliarySalesRatio: string;
 
   @ApiProperty({
     description: '产生辅销金额, 单位：元',
@@ -397,17 +403,37 @@ export class OrderDetailResponseDto {
 
   @ApiProperty({ description: '辅销商品明细项列表' })
   auxiliaryGoods: OrderDetailItem[];
+
+  @ApiProperty({ description: '允许操作按钮集合' })
+  operateButtons: OrderOperateButton[];
 }
 
-export class OrderUserQueryDto{
+export class OrderUserQueryDto {
   @ApiProperty({
     description: '是否查询全部',
     example: 'true',
   })
-  isQueryAll:boolean;
+  isQueryAll: boolean;
   @ApiProperty({
     description: '负责人ID集合',
     example: '[1,633192656222162944]',
   })
-  principalUserIds:string[];
+  principalUserIds: string[];
+}
+export class OrderOperateButton {
+  @ApiProperty({
+    description: '按钮编码',
+    example: 'cancel',
+  })
+  buttonCode: string;
+  @ApiProperty({
+    description: '按钮名称',
+    example: '取消订单',
+  })
+  buttonName: string;
+  @ApiProperty({
+    description: '是否允许操作',
+    example: 'true',
+  })
+  isOperate: boolean;
 }
