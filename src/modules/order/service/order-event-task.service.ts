@@ -13,6 +13,7 @@ import {
   OrderEventTypeEnum,
 } from './order-event.constant';
 import { BusinessException } from '@src/dto';
+import { JwtUserPayload } from '@src/modules/auth/jwt.strategy';
 
 @Injectable()
 export class OrderEventTaskService {
@@ -67,9 +68,14 @@ export class OrderEventTaskService {
   }
 
   async _processOrderEvent(eventInfo: OrderEventMainInfo): Promise<void> {
+    const user: JwtUserPayload = {
+      userId: '1',
+      username: 'admin',
+      nickName: '系统自动任务',
+    };
     switch (eventInfo.eventType) {
       case OrderEventTypeEnum.ORDER_PUSH:
-        await this._orderPushService.handleOrderPushEvent(eventInfo);
+        await this._orderPushService.handleOrderPushEvent(eventInfo, user);
         break;
       default:
         throw new BusinessException(
@@ -86,7 +92,11 @@ export class OrderEventTaskService {
     const thisContext = `${this.constructor.name}.orderEventTaskProcess`;
     const taskId = randomUUID();
     const startTime = Date.now(); // 记录任务开始时间，以便后续计算执行时长
-    this._logger.log(`[${taskId}] 开始订单事件任务`, thisContext);
+    this._logger.log(
+      `[${taskId}] 开始订单事件任务，配置：最大批处理数量=${this._maxEventBatchSize}，` +
+        ` 最早处理时间= '${this._earliestTime}' ，最晚处理时间='${this._latestTime}'`,
+      thisContext,
+    );
 
     const processedResult: ProcessedResult = {
       processedCount: 0,
@@ -94,12 +104,6 @@ export class OrderEventTaskService {
       processedTime: 0,
       message: '',
     };
-
-    this._logger.log(
-      `订单事件任务参数配置：最大批处理数量=${this._maxEventBatchSize}，` +
-        ` 最早处理时间= '${this._earliestTime}' ，最晚处理时间='${this._latestTime}'`,
-      thisContext,
-    );
 
     // 查询所有待处理的订单事件
     let pendingEvents: OrderEventMainInfo[] = [];
@@ -127,10 +131,6 @@ export class OrderEventTaskService {
     for (const eventInfo of pendingEvents) {
       try {
         await this._processOrderEvent(eventInfo);
-        this._logger.log(
-          `[${taskId}] 成功处理订单事件 id=${eventInfo.id}，类型=${eventInfo.eventType}`,
-          thisContext,
-        );
         processedResult.processedCount += 1;
       } catch (err) {
         this._logger.error(
@@ -147,7 +147,7 @@ export class OrderEventTaskService {
     const duration = endTime - startTime;
     processedResult.processedTime = duration;
     processedResult.message =
-      `订单事件任务完成，` +
+      `完成订单事件任务，` +
       ` 成功处理 ${processedResult.processedCount} 个，失败 ${processedResult.failedCount} 个`;
     this._logger.log(
       `[${taskId}] 完成订单事件任务处理，耗时 ${duration} 毫秒`,

@@ -278,14 +278,15 @@ export class OrderPushService {
         await this._orderEventService.updateEventStatus({
           eventId: event.id,
           status: OrderEventStatusEnum.ERROR,
-          message: response?.msg || '推送订单出错',
-          businessStatus: 'ERROR',
+          message: '推送订单出错',
           businessMessage: `${response.code}: ${response?.msg || ''}`,
           lastOperateProgram: thisContext,
         });
 
         throw new BusinessException(`推送订单返回错误信息`);
       }
+
+      throw new BusinessException('推送订单出错，系统将重试');
     }
 
     const orderData = response?.data?.datas;
@@ -350,13 +351,113 @@ export class OrderPushService {
     }
   }
 
-  async handleOrderPushEvent(eventInfo: OrderEventMainInfo): Promise<void> {
-    const user: JwtUserPayload = {
-      userId: '1',
-      username: 'admin',
-      nickName: '系统自动任务',
-    };
-    // todo: 实现订单推送处理逻辑，事件更新等
-    return;
+  /**
+   * 处理订单推送事件, 用于订单事件任务
+   * @param eventInfo
+   * @param user
+   * @returns
+   */
+  async handleOrderPushEvent(
+    eventInfo: OrderEventMainInfo,
+    user: JwtUserPayload,
+  ): Promise<void> {
+    const thisContext = `${this.constructor.name}.handleOrderPushEvent`;
+    const orderId = eventInfo.businessId;
+    this._logger.log(`Pushing order id=${orderId}`, thisContext);
+
+    const order = await this._orderRepository.findOne({
+      where: { id: orderId, deleted: GlobalStatusEnum.NO },
+    });
+    if (!order) {
+      this._logger.warn(`Order not found id=${orderId}`, thisContext);
+      await this._orderEventService.updateEventStatus({
+        eventId: eventInfo.id,
+        status: OrderEventStatusEnum.ERROR,
+        message: '订单不存在，无法推送',
+        businessMessage: '订单不存在',
+        lastOperateProgram: thisContext,
+      });
+      throw new BusinessException('订单不存在，无法推送');
+    }
+
+    const afterPushStatuses = [
+      String(OrderStatusEnum.PUSHED),
+      String(OrderStatusEnum.DELIVERED),
+    ];
+    if (afterPushStatuses.includes(order.orderStatus)) {
+      // 订单已推送或已完成，无需重复推送
+      this._logger.warn(`Order already pushed, id=${orderId}`, thisContext);
+      await this._orderEventService.updateEventStatus({
+        eventId: eventInfo.id,
+        status: OrderEventStatusEnum.COMPLETED,
+        message: '订单已推送，无需重复推送',
+        businessStatus: String(order.orderStatus), // 处理完成后的业务状态
+        businessMessage: '订单状态为已推送或已发货',
+        lastOperateProgram: thisContext,
+      });
+
+      return;
+    }
+
+    if (order.orderStatus !== String(OrderStatusEnum.PUSHING)) {
+      this._logger.warn(
+        `Order status error, id=${orderId}, status=${order.orderStatus}`,
+        thisContext,
+      );
+      await this._orderEventService.updateEventStatus({
+        eventId: eventInfo.id,
+        status: OrderEventStatusEnum.ERROR,
+        message: `订单状态异常，无法推送`,
+        businessStatus: String(order.orderStatus),
+        businessMessage: '订单状态异常，无法推送',
+        lastOperateProgram: thisContext,
+      });
+      throw new BusinessException('订单状态异常，无法推送');
+    }
+
+    try {
+      const event = await this._orderEventService.findEventById(eventInfo.id);
+      const postData = await this.assembleOrderData(orderId);
+      const response = await this._uploadOrderToJst(postData);
+      if (response.code !== ERP_JST_CODE.SUCCESS) {
+        this._logger.warn(
+          `Push to jst error: id=${orderId}, code=${response.code}, message=${response?.msg}`,
+        );
+        throw new BusinessException('推送订单返回错误信息: ' + response?.msg);
+      }
+
+      const orderData = response?.data?.datas;
+      if (!Array.isArray(orderData) || orderData.length === 0) {
+        throw new BusinessException('推送订单响应数据格式不正确或为空');
+      }
+
+      const innerOrderCode = orderData[0]?.o_id || null;
+      if (!innerOrderCode) {
+        throw new BusinessException('推送订单响应缺少内部订单编号');
+      }
+
+      await this.updateSuccessfulPush(event, innerOrderCode, user, thisContext);
+
+      this._logger.log(
+        `Push id=${orderId} to ERP, innerOrderCode=${innerOrderCode}.`,
+        thisContext,
+      );
+    } catch (err) {
+      this._logger.error(
+        `Error pushing id=${orderId}: ${err?.message}`,
+        err?.stack,
+        thisContext,
+      );
+
+      await this._orderEventService.updateEventStatus({
+        eventId: eventInfo.id,
+        status: OrderEventStatusEnum.ERROR,
+        message: '订单推送事件出错',
+        businessMessage: err.message || '未知错误',
+        lastOperateProgram: thisContext,
+      });
+
+      throw err;
+    }
   }
 }

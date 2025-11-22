@@ -211,4 +211,12 @@ export class OrderEventService {
     const result = await repo.update({ id: eventId }, updateData);
     return result.affected || 0;
   }
+
+  async findEventById(eventId: string): Promise<OrderEventEntity | null> {
+    const repo = this._dataSource.getRepository(OrderEventEntity);
+    const event = repo.findOne({
+      where: { id: eventId, deleted: GlobalStatusEnum.NO },
+    });
+    return event;
+  }
 }
