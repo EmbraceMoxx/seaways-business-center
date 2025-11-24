@@ -465,15 +465,6 @@ export class OrderService {
           manager.save(finalOrderItemList),
         ]);
       });
-      // 写入操作日志
-      const logInput = OrderLogHelper.getOrderOperate(
-        user,
-        OrderOperateTemplateEnum.CREATE_ORDER,
-        lastOperateProgram,
-        orderId,
-      );
-      logInput.params = req;
-      await this.businessLogService.writeLog(logInput);
       // 锁定额度
       const creditDetail = OrderConvertHelper.buildCreditDetailParam(
         orderId,
@@ -502,6 +493,15 @@ export class OrderService {
         },
       };
       await this.approvalEngineService.startApprovalProcess(approval);
+      // 写入操作日志
+      const logInput = OrderLogHelper.getOrderOperate(
+        user,
+        OrderOperateTemplateEnum.CREATE_ORDER,
+        lastOperateProgram,
+        orderId,
+      );
+      logInput.params = req;
+      await this.businessLogService.writeLog(logInput);
       return orderId;
     } catch (error) {
       this.logger.error(
@@ -527,13 +527,8 @@ export class OrderService {
     const lastOperateProgram = 'OrderService.update';
     const orderId = req.orderId;
     // 判断是否存在订单
-    const orderMain = await this.orderRepository.findOne({
-      where: { id: req.orderId, deleted: GlobalStatusEnum.NO },
-    });
-    if (!orderMain) {
-      throw new BusinessException('订单不存在或已被删除');
-    }
-    this.logger.log('开始修改订单');
+    const orderMain = await this.orderCheckService.checkOrderExist(orderId);
+    this.logger.log(`开始修改订单：before: ${orderMain}`);
     const updateOrderMain = new OrderMainEntity();
     updateOrderMain.id = orderMain.id;
     updateOrderMain.customerId = orderMain.customerId;
@@ -547,20 +542,15 @@ export class OrderService {
       req.receiverAddress,
     );
     updateOrderMain.remark = req.remark ? req.remark.trim() : '';
-    this.logger.log(
-      '开始修改商品信息！updateOrderMain：',
-      JSON.stringify(updateOrderMain),
-    );
     // 3. 订单商品信息
     const finishGoodsList = req.finishGoods;
     const replenishGoodsList = req.replenishGoods;
     const auxiliaryGoodsList = req.auxiliaryGoods;
-    const { commodityInfos, commodityPriceMap } =
-      await this.getCommodityMapByOrderItems(
-        finishGoodsList,
-        replenishGoodsList,
-        auxiliaryGoodsList,
-      );
+    const { commodityPriceMap } = await this.getCommodityMapByOrderItems(
+      finishGoodsList,
+      replenishGoodsList,
+      auxiliaryGoodsList,
+    );
     const finalOrderItemList: OrderItemEntity[] = [
       ...OrderConvertHelper.buildOrderItems(
         orderId,
@@ -589,27 +579,20 @@ export class OrderService {
     ];
 
     // 开始计算订单金额
-    // orderMain
-
-    // await this.orderCheckService.calculateCheckAmountResult();
-
-    // 统计完商品后计算金额信息
-    const orderAmount = OrderConvertHelper.calculateTotalAmount(
-      finishGoodsList,
-      commodityInfos,
+    const customerInfo = await this.orderCheckService.checkCustomerInfo(
+      orderMain.customerId,
     );
-    updateOrderMain.amount = String(orderAmount);
-
-    const creditAmount = OrderConvertHelper.calculateTotalAmount(
-      req.finishGoods,
-      commodityInfos,
-      true,
-    );
-    updateOrderMain.creditAmount = String(creditAmount);
+    const calculateAmount =
+      await this.orderCheckService.calculateCheckAmountResult(
+        customerInfo,
+        finishGoodsList,
+        replenishGoodsList,
+        auxiliaryGoodsList,
+      );
     OrderConvertHelper.convertOrderItemAmount(
       finalOrderItemList,
       updateOrderMain,
-      null, // todo
+      calculateAmount,
     );
 
     await this.dataSource.transaction(async (manage) => {
@@ -654,7 +637,6 @@ export class OrderService {
         )
       ) {
         this.logger.log('金额变更，即将进入更新客户额度变更流程');
-        // todo 测试完再注释
         await this.creditLimitDetailService.editCustomerOrderCredit(
           OrderConvertHelper.buildCreditDetailParam(orderId, updateOrderMain),
           user,
@@ -670,7 +652,7 @@ export class OrderService {
         orderId,
       );
       logInput.params = req;
-      this.businessLogService.writeLog(logInput);
+      await this.businessLogService.writeLog(logInput);
       // todo 确认审批流程
     });
 
@@ -685,12 +667,13 @@ export class OrderService {
    */
   async cancel(req: CancelOrderRequest, user: JwtUserPayload): Promise<string> {
     const lastOperateProgram = 'OrderService.cancel';
-    const orderMain = await this.orderRepository.findOne({
-      where: { id: req.orderId, deleted: GlobalStatusEnum.NO },
-    });
-    if (!orderMain) {
-      throw new BusinessException('订单不存在或已被删除');
+    const orderMain = await this.orderCheckService.checkOrderExist(req.orderId);
+    // todo 待完善对审批的校验
+    const flag = await this.orderCheckService.checkIsCloseOrder(orderMain);
+    if (!flag) {
+      throw new BusinessException('当前订单不允许取消！');
     }
+
     const updateOrder = new OrderMainEntity();
     updateOrder.id = req.orderId;
     updateOrder.cancelledMessage = req.cancelReason;
@@ -698,25 +681,26 @@ export class OrderService {
     updateOrder.reviserId = user.userId;
     updateOrder.reviserName = user.nickName;
     updateOrder.revisedTime = dayjs().toDate();
-    // 关闭订单
-    // todo 关闭订单流水 测试完再打开
-    await this.creditLimitDetailService.closeCustomerOrderCredit(
-      orderMain.id,
-      user,
-    );
+    await this.dataSource.transaction(async (manager) => {
+      // 关闭订单
+      await this.creditLimitDetailService.closeCustomerOrderCredit(
+        orderMain.id,
+        user,
+      );
+      // 修改订单
+      await manager.save(updateOrder);
+      const result = OrderLogHelper.getOrderOperate(
+        user,
+        OrderOperateTemplateEnum.CANCEL_ORDER,
+        lastOperateProgram,
+        req.orderId,
+      );
+      if (req.cancelReason !== undefined) {
+        result.action = result.action + ';取消原因为:' + req.cancelReason;
+      }
+      this.businessLogService.writeLog(result);
+    });
 
-    await this.orderRepository.update({ id: updateOrder.id }, updateOrder);
-
-    const result = OrderLogHelper.getOrderOperate(
-      user,
-      OrderOperateTemplateEnum.CANCEL_ORDER,
-      lastOperateProgram,
-      req.orderId,
-    );
-    if (req.cancelReason !== undefined) {
-      result.action = result.action + ';取消原因为:' + req.cancelReason;
-    }
-    this.businessLogService.writeLog(result);
     return req.orderId;
   }
 
@@ -728,32 +712,30 @@ export class OrderService {
    */
   async confirmPayment(orderId: string, user: JwtUserPayload) {
     const lastOperateProgram = 'OrderService.confirmPayment';
-    const orderMain = await this.orderRepository.findOne({
-      where: { id: orderId, deleted: GlobalStatusEnum.NO },
-    });
-    if (!orderMain) {
-      throw new BusinessException('订单不存在或已被删除');
-    }
+    const orderMain = await this.orderCheckService.checkOrderExist(orderId);
     if (OrderStatusEnum.PENDING_PAYMENT !== orderMain.orderStatus) {
       throw new BusinessException('订单当前状态不允许操作确认回款请确认！');
     }
     const updateOrder = new OrderMainEntity();
     updateOrder.id = orderId;
     updateOrder.orderStatus = String(OrderStatusEnum.PENDING_PUSH);
-    // 修改订单信息
-    await this.orderRepository.update({ id: orderMain.id }, updateOrder);
-    // 释放额度
-    await this.creditLimitDetailService.confirmCustomerOrderCredit(
-      orderId,
-      user,
-    );
-    const result = OrderLogHelper.getOrderOperate(
-      user,
-      OrderOperateTemplateEnum.CONFIRM_ORDER_PAYMENT,
-      lastOperateProgram,
-      orderId,
-    );
-    this.businessLogService.writeLog(result);
+    await this.dataSource.transaction(async (manager) => {
+      // 修改订单信息
+      await manager.update(OrderMainEntity, { id: orderMain.id }, updateOrder);
+      // 释放额度
+      await this.creditLimitDetailService.confirmCustomerOrderCredit(
+        orderId,
+        user,
+      );
+      const result = OrderLogHelper.getOrderOperate(
+        user,
+        OrderOperateTemplateEnum.CONFIRM_ORDER_PAYMENT,
+        lastOperateProgram,
+        orderId,
+      );
+      await this.businessLogService.writeLog(result);
+    });
+
     return orderId;
   }
 

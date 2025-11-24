@@ -209,7 +209,7 @@ export class OrderConvertHelper {
       .reduce((sum, current) => sum + current, 0);
     orderMain.auxiliarySalesAmount = String(auxiliarySalesAmount) || '0';
 
-    // 汇总商品信息
+    // 汇总商品下单数量信息
     orderMain.finishedProductBoxCount = orderItemList
       .filter((e) => OrderItemTypeEnum.FINISHED_PRODUCT === e.type)
       .map((good) => good.boxQty)

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
   BusinessException,
+  CancelOrderRequest,
   CheckOrderAmountResponse,
   OrderItem,
   OrderOperateButton,
@@ -40,7 +41,15 @@ export class OrderCheckService {
     private customerService: CustomerService,
     private commodityService: CommodityService,
   ) {}
-
+  async checkOrderExist(orderId: string) {
+    const orderMain = await this.orderRepository.findOne({
+      where: { id: orderId, deleted: GlobalStatusEnum.NO },
+    });
+    if (!orderMain) {
+      throw new BusinessException('订单不存在或已被删除');
+    }
+    return orderMain;
+  }
   /**
    * 检查客户信息是否符合要求
    * @returns 客户基本信息对象
@@ -77,7 +86,6 @@ export class OrderCheckService {
     // 获取金额额度，若额度过低则无需审批进入待确认回款
     const auxiliarySalesRatio = Number(response.auxiliarySalesRatio) || 0;
     const replenishRatio = Number(response.replenishRatio) || 0;
-    console.log('user.userId', user.userId);
     // 当前操作人是否为客户负责人
     const flag = user.userId === customerInfo.principalUserId;
     this.logger.log(`当前操作人是否为客户负责人：${flag}`);
@@ -114,8 +122,6 @@ export class OrderCheckService {
     // 默认流程： 省区审批
     return OrderStatusEnum.PROVINCE_REVIEWING;
   }
-
-  // todo check goods
 
   /**
    * 计算订单金额及相关校验结果
@@ -284,6 +290,16 @@ export class OrderCheckService {
     }
 
     return buttons;
+  }
+
+  async checkIsCloseOrder(orderMain: OrderMainEntity): Promise<boolean> {
+    // 校验是否被驳回，驳回后才可以关闭订单
+    if (orderMain.orderStatus.includes('20001')) {
+      // todo 校验是否有审批，有上级审批同意的情况需要驳回后再关闭订单,现在默认允许
+      return true;
+    }
+    // 校验是否有审批，有上级审批同意的情况需要驳回后再关闭订单
+    return OrderStatusEnum.REJECTED == orderMain.orderStatus;
   }
 
   /**
