@@ -126,7 +126,7 @@ export class CheckOrderAmountResponse {
   @ApiProperty({ description: '校验结果' })
   message: string;
   @ApiProperty({ description: '是否需要审批' })
-  isNeedApproval:boolean = false;
+  isNeedApproval: boolean = false;
 }
 
 /**
@@ -255,6 +255,14 @@ export class OrderInfoResponseDto {
     example: '150887787889',
   })
   contactPhone: string;
+
+  @ApiProperty({
+    description: '审核原因',
+    example: '审核拒绝原因',
+    required: false,
+  })
+  @IsOptional()
+  approvalReason?: string;
 
   @ApiProperty({
     description: '创建时间(下单时间)',

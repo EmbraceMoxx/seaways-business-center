@@ -224,7 +224,6 @@ export class OrderService {
         pageSize,
       } = params;
 
-      // 差一个审核原因(连表查询)
       let queryBuilder = this.orderRepository
         .createQueryBuilder('order')
         .select([
@@ -239,6 +238,7 @@ export class OrderService {
           'order.contact as contact',
           'order.used_replenish_ratio as usedReplenishRatio',
           'order.used_auxiliary_sales_ratio as usedAuxiliarySalesRatio',
+          'order.approval_reason as approvalReason',
           'order.contact_phone as contactPhone',
           'order.created_time as createdTime',
         ])
