@@ -185,7 +185,7 @@ export class CustomerService {
           isContract: 1,
         })
         .andWhere('customer.co_status = :coStatus', {
-          coStatus: '0',
+          coStatus: '1',
         });
 
       // 获取权限

@@ -1,4 +1,9 @@
-import { OrderItem, ReceiverAddress } from '@src/dto';
+import {
+  CheckOrderAmountResponse,
+  CreditLimitDetailRequestDto,
+  OrderItem,
+  ReceiverAddress,
+} from '@src/dto';
 import { CommodityInfoEntity } from '@modules/commodity/entities/commodity-info.entity';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { OrderItemEntity } from '@modules/order/entities/order.item.entity';
@@ -111,14 +116,26 @@ export class OrderConvertHelper {
     orderItem.exFactoryPrice = commodityInfo.itemExFactoryPrice;
     orderItem.exFactoryBoxPrice = commodityInfo.boxExFactoryPrice;
     orderItem.isQuotaInvolved = commodityInfo.isQuotaInvolved;
-    orderItem.boxQty = item.boxQty ?? 0;
-    orderItem.qty = item.qty ?? 0;
-    const amount = item.qty * parseFloat(commodityInfo.itemExFactoryPrice);
+    orderItem.boxQty = Number(item.boxQty || 0);
+    orderItem.qty = Number(item.qty || 0);
+    const amount = orderItem.qty * parseFloat(commodityInfo.itemExFactoryPrice);
     orderItem.amount = amount.toFixed(2);
     orderItem.deleted = GlobalStatusEnum.NO;
     return { orderItem, commodityInfo };
   }
 
+  static buildCreditDetailParam(orderId: string, orderMain: OrderMainEntity) {
+    const creditDetail = new CreditLimitDetailRequestDto();
+    creditDetail.orderId = orderId;
+    creditDetail.customerId = orderMain.customerId;
+    creditDetail.shippedAmount = orderMain.amount;
+    creditDetail.auxiliarySaleGoodsAmount = orderMain.auxiliarySalesAmount;
+    creditDetail.replenishingGoodsAmount = orderMain.replenishAmount;
+    creditDetail.usedAuxiliarySaleGoodsAmount =
+      orderMain.usedAuxiliarySalesAmount;
+    creditDetail.usedReplenishingGoodsAmount = orderMain.usedReplenishAmount;
+    return creditDetail;
+  }
   /**
    * 根据商品列表计算总金额
    * @param goods 商品列表
@@ -155,19 +172,33 @@ export class OrderConvertHelper {
       .reduce((sum, current) => sum + current, 0);
   }
 
-  static convertOrderAmount(
+  static convertOrderItemAmount(
     orderItemList: OrderItemEntity[],
     orderMain: OrderMainEntity,
-    creditAmount: number,
-    finishGoods: OrderItem[],
-    replenishGoods: OrderItem[],
-    auxiliaryGoods: OrderItem[],
+    calculateAmount: CheckOrderAmountResponse,
   ) {
+    console.log('calculateAmount', JSON.stringify(calculateAmount));
+    orderMain.approvalReason = calculateAmount.isNeedApproval
+      ? calculateAmount.message
+      : null;
+    // 统计完商品后计算金额信息
+    const orderAmount = calculateAmount.orderAmount;
+    orderMain.amount = String(orderAmount);
+    const creditAmount = calculateAmount.orderSubsidyAmount;
+    orderMain.creditAmount = String(creditAmount);
+
+    orderMain.usedReplenishAmount =
+      String(calculateAmount.replenishAmount) || '0';
+    orderMain.usedAuxiliarySalesAmount =
+      String(calculateAmount.auxiliarySalesAmount) || '0';
+    orderMain.usedAuxiliarySalesRatio =
+      calculateAmount.auxiliarySalesRatio || '0';
+    orderMain.usedReplenishRatio = calculateAmount.replenishRatio || '0';
     const replenishAmount = orderItemList
       .filter((e) => OrderItemTypeEnum.FINISHED_PRODUCT === e.type)
       .map((e) => (e.replenishAmount ? parseFloat(e.replenishAmount) : 0))
       .reduce((sum, current) => sum + current, 0);
-    console.log('replenishAmount', replenishAmount);
+
     orderMain.replenishAmount = String(replenishAmount);
 
     const auxiliarySalesAmount = orderItemList
@@ -176,51 +207,22 @@ export class OrderConvertHelper {
         e.auxiliarySalesAmount ? parseFloat(e.auxiliarySalesAmount) : 0,
       )
       .reduce((sum, current) => sum + current, 0);
-    console.log('auxiliarySalesAmount', auxiliarySalesAmount);
     orderMain.auxiliarySalesAmount = String(auxiliarySalesAmount) || '0';
 
-    const usedReplenishAmount = orderItemList
-      .filter((e) => OrderItemTypeEnum.REPLENISH_PRODUCT === e.type)
-      .map((e) => (e.amount ? parseFloat(e.amount) : 0))
-      .reduce((sum, current) => sum + current, 0);
-    console.log('usedReplenishAmount', usedReplenishAmount);
-    orderMain.usedReplenishAmount = String(usedReplenishAmount) || '0';
-
-    const usedAuxiliarySalesAmount = orderItemList
-      .filter((e) => OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT === e.type)
-      .map((e) => parseFloat(e.amount))
-      .reduce((sum, current) => sum + current, 0);
-    orderMain.usedAuxiliarySalesAmount =
-      String(usedAuxiliarySalesAmount) || '0';
-
-    orderMain.usedAuxiliarySalesRatio = (
-      usedAuxiliarySalesAmount / creditAmount
-    ).toFixed(4);
-    orderMain.usedReplenishRatio = (usedReplenishAmount / creditAmount).toFixed(
-      4,
-    );
-    // 汇总商品信息
-    orderMain.finishedProductBoxCount = finishGoods
+    // 汇总商品下单数量信息
+    orderMain.finishedProductBoxCount = orderItemList
+      .filter((e) => OrderItemTypeEnum.FINISHED_PRODUCT === e.type)
       .map((good) => good.boxQty)
       .reduce((sum, current) => sum + current, 0);
-    console.log('finishedProductBoxCount:', orderMain.finishedProductBoxCount);
-    if (replenishGoods && replenishGoods.length > 0) {
-      orderMain.replenishProductBoxCount = replenishGoods
-        .map((good) => good.boxQty)
-        .reduce((sum, current) => sum + current, 0);
-      console.log(
-        'replenishProductBoxCount:',
-        orderMain.replenishProductBoxCount,
-      );
-    }
-    if (auxiliaryGoods && auxiliaryGoods.length > 0) {
-      orderMain.auxiliarySalesProductCount = auxiliaryGoods
-        .map((good) => good.qty)
-        .reduce((sum, current) => sum + current, 0);
-      console.log(
-        'auxiliarySalesProductCount:',
-        orderMain.auxiliarySalesProductCount,
-      );
-    }
+
+    orderMain.replenishProductBoxCount = orderItemList
+      .filter((e) => OrderItemTypeEnum.REPLENISH_PRODUCT === e.type)
+      .map((good) => good.boxQty ?? 0)
+      .reduce((sum, current) => sum + current, 0);
+
+    orderMain.auxiliarySalesProductCount = orderItemList
+      .filter((e) => OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT === e.type)
+      .map((good) => good.qty)
+      .reduce((sum, current) => sum + current, 0);
   }
 }
