@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { PageRequestDto } from '@src/dto/common/common.dto';
 import { MaxLength } from 'class-validator';
 
@@ -13,8 +13,12 @@ export class OrderItem {
   @ApiProperty({ description: '商品内部编码' })
   internalCode: string;
   @ApiProperty({ description: '箱数' })
+  @IsOptional()
+  @Min(1, { message: '箱数必须大于0' })
   boxQty: number;
   @ApiProperty({ description: '推单数量' })
+  @IsOptional()
+  @Min(1, { message: '推单数量必须大于0' })
   qty: number;
   @ApiProperty({ description: '商品金额' })
   amount: string;
@@ -113,7 +117,7 @@ export class CheckOrderAmountResponse {
   orderSubsidyAmount: string;
   @ApiProperty({ description: '货补金额' })
   replenishAmount: string;
-  @ApiProperty({ description: '辅助金额' })
+  @ApiProperty({ description: '辅销金额' })
   auxiliarySalesAmount: string;
   @ApiProperty({ description: '货补比例' })
   replenishRatio: string;
@@ -121,6 +125,8 @@ export class CheckOrderAmountResponse {
   auxiliarySalesRatio: string;
   @ApiProperty({ description: '校验结果' })
   message: string;
+  @ApiProperty({ description: '是否需要审批' })
+  isNeedApproval:boolean = false;
 }
 
 /**

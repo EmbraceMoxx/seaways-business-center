@@ -16,6 +16,12 @@ import { OrderTaskController } from './controller/order-task.controller';
 import { OrderEventTaskService } from './service/order-event-task.service';
 import { ApprovalModule } from '@modules/approval/approval.module';
 import { CustomerModule } from '@modules/customer/customer.module';
+import {
+  AuxiliarySalesRatioValidationStrategy,
+  RegionQuotaValidationStrategy,
+  ReplenishRatioValidationStrategy,
+} from '@modules/order/strategy/order-validation.interface';
+import { CustomerCreditAmountInfoEntity } from '@modules/customer/entities/customer-credit-limit.entity';
 
 @Module({
   imports: [
@@ -23,6 +29,7 @@ import { CustomerModule } from '@modules/customer/customer.module';
       OrderItemEntity,
       OrderMainEntity,
       BusinessLogEntity,
+      CustomerCreditAmountInfoEntity,
     ]),
     JstHttpModule,
     CustomerModule,
@@ -37,6 +44,9 @@ import { CustomerModule } from '@modules/customer/customer.module';
     BusinessLogService,
     OrderCheckService,
     UserService,
+    ReplenishRatioValidationStrategy,
+    AuxiliarySalesRatioValidationStrategy,
+    RegionQuotaValidationStrategy,
   ],
 
   controllers: [OrderController, OrderTaskController],

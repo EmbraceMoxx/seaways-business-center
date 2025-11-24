@@ -21,6 +21,7 @@ import { OrderPushService } from '../service/order-push.service';
 import { CurrentToken } from '@src/decorators/current-token.decorator';
 import { UserService } from '@modules/common/user/user.service';
 import { OrderCheckService } from '@modules/order/service/order-check.service';
+import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
 
 @ApiTags('订单管理')
 @Controller('order')
@@ -97,9 +98,9 @@ export class OrderController {
   ) {
     try {
       await this.orderService.confirmPayment(orderId, user);
-      return new SuccessResponseDto('id', '订单已确认支付！');
+      return new SuccessResponseDto('id', '订单已确认回款！');
     } catch (error) {
-      return new ErrorResponseDto('订单确认支付失败！');
+      return new ErrorResponseDto('订单确认回款失败！');
     }
   }
 
@@ -162,12 +163,19 @@ export class OrderController {
     @CurrentToken() token: string,
   ) {
     console.log('user:', user);
+    const req = new CheckOrderAmountResponse();
+    req.replenishRatio = '0.12';
+    req.auxiliarySalesRatio = '0.004';
+    const customer = new CustomerInfoEntity();
+    customer.regionalHeadId = '633192657597894656';
+    customer.principalUserId = '633192657597894656';
+    user.userId = '633192658931683328';
+    // customer.provincialHeadId = '633192658931683328';
     // 测试取消订单
-    const result = await this.orderCheckService.getOrderOperateButtons(
+    return await this.orderCheckService.calculateOrderStatus(
+      req,
       user,
-      token,
-      '646955860077187072',
+      customer,
     );
-    return result;
   }
 }
