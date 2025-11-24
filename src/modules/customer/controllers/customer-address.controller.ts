@@ -28,9 +28,7 @@ export class CustomerAddressController {
   @Post('list')
   async getCustomerAddressList(
     @Body() body: QueryCustomerAddressDto,
-  ): Promise<
-    SuccessResponseDto<{ items: CustomerAddressResponseDto[]; total: number }>
-  > {
+  ): Promise<SuccessResponseDto<CustomerAddressResponseDto[]>> {
     const list = await this.customerAddressService.getCustomerAddressPageList(
       body,
     );

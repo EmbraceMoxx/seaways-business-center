@@ -28,7 +28,7 @@ export class CustomerAddressService {
    */
   async getCustomerAddressPageList(
     params: QueryCustomerAddressDto,
-  ): Promise<{ items: CustomerAddressResponseDto[]; total: number }> {
+  ): Promise<CustomerAddressResponseDto[]> {
     try {
       const { consigneeName, phone, searchKeyValue, customerId } = params;
 
@@ -102,17 +102,11 @@ export class CustomerAddressService {
         );
       }
 
-      // 执行计数查询
-      const countQueryBuilder = queryBuilder.clone();
-      const total = await countQueryBuilder.getCount();
-
       queryBuilder = queryBuilder
         .orderBy('customerAddress.created_time', 'DESC')
         .orderBy('customerAddress.id', 'DESC');
 
-      const items = await queryBuilder.getRawMany();
-
-      return { items, total };
+      return await queryBuilder.getRawMany();
     } catch (error) {
       throw new BusinessException('获取客户地址管理列表失败' + error.message);
     }
