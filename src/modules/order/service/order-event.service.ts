@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OrderEventEntity } from '../entities/order.event.entity';
-import { DataSource, EntityManager, UpdateEvent } from 'typeorm';
+import { DataSource } from 'typeorm';
 import {
   OrderEventStatusEnum,
   OrderEventTypeEnum,

@@ -10,6 +10,8 @@ export enum OrderEventStatusEnum {
   COMPLETED = 1,
   /** 错误 */
   ERROR = 2,
+  /** 处理中 */
+  PROCESSING = 3,
 }
 
 export const JST_ORDER_STATUS = {

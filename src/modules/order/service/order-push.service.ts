@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { OrderMainEntity } from '../entities/order.main.entity';
 import { OrderItemEntity } from '../entities/order.item.entity';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { JstHttpService } from '@src/modules/erp/jushuitan/jst-http.service';
 import {
   ERP_JST_API,
@@ -18,7 +18,13 @@ import { OrderItemTypeEnum } from '@src/enums/order-item-type.enum';
 import { JstOrderPostDataItem } from '../interface/order-push.interface';
 import { OrderEventEntity } from '../entities/order.event.entity';
 import { OrderStatusEnum } from '@src/enums/order-status.enum';
-import { OrderEventMainInfo } from '../interface/order-event-task.interface';
+import {
+  BusinessResult,
+  OrderEventMainInfo,
+} from '../interface/order-event-task.interface';
+import { OrderLogHelper } from '../helper/order.log.helper';
+import { OrderOperateTemplateEnum } from '@src/enums/order-operate-template.enum';
+import { BusinessLogService } from '@src/modules/common/business-log/business-log.service';
 
 @Injectable()
 export class OrderPushService {
@@ -34,6 +40,7 @@ export class OrderPushService {
     private readonly _orderItemRepository: Repository<OrderItemEntity>,
 
     private readonly _dataSource: DataSource,
+    private readonly _businessLogService: BusinessLogService,
   ) {}
 
   async _uploadOrderToJst(postData: any): Promise<any> {
@@ -184,38 +191,18 @@ export class OrderPushService {
     context: string,
   ): Promise<void> {
     const thisContext = `${this.constructor.name}.updateSuccessfulPush`;
-    const now = dayjs().toDate();
 
     const queryRunner = this._dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-      // 更新订单:状态为已推送, 更新线上订单号，内部订单编号等字段
-      const orderRepo = queryRunner.manager.getRepository(OrderMainEntity);
-      const order = await orderRepo.findOne({
-        where: { id: event.businessId, deleted: GlobalStatusEnum.NO },
-      });
-
-      if (!order) {
-        this._logger.warn(
-          `Order not found when updating successful push, orderId=${event.businessId}`,
-          thisContext,
-        );
-        throw new BusinessException(`未找到订单`);
-      }
-
-      await orderRepo.update(
-        { id: order.id },
-        {
-          orderStatus: String(OrderStatusEnum.PUSHED),
-          onlineOrderCode: order.orderCode, // 推送后线上订单号即为订单编号
-          oriInnerOrderCode: oriInnerOrderCode, // 聚水潭内部订单编号
-          pushTime: now,
-          reviserId: user.userId,
-          reviserName: user.nickName,
-          revisedTime: now,
-          lastOperateProgram: context,
-        },
+      // 更新订单状态为已推送
+      await this.updatePushedOrder(
+        event.businessId,
+        oriInnerOrderCode,
+        user,
+        context,
+        queryRunner.manager,
       );
 
       // 更新事件状态为已完成
@@ -244,13 +231,8 @@ export class OrderPushService {
     }
   }
 
-  async uploadOrderAndUpdate(
-    event: OrderEventEntity,
-    postData: any,
-    user: JwtUserPayload,
-  ): Promise<string | null> {
-    const thisContext = `${this.constructor.name}.uploadOrderAndUpdate`;
-    const orderId = event.businessId;
+  async uploadOrder(orderId: string, postData: any): Promise<string | null> {
+    const thisContext = `${this.constructor.name}.uploadOrder`;
 
     let innerOrderCode: string | null = null;
     let response: any;
@@ -270,48 +252,85 @@ export class OrderPushService {
       this._logger.warn(
         `Push order error: orderId=${orderId}, code=${response.code}, message=${response?.msg}`,
       );
-      if (
-        response.code !== ERP_JST_CODE.TOO_FREQUENT &&
-        response.code !== ERP_JST_CODE.EXCEED_LIMIT
-      ) {
-        // 非可重试错误，更新事件状态为错误(不会重试)，并抛出业务异常
-        await this._orderEventService.updateEventStatus({
-          eventId: event.id,
-          status: OrderEventStatusEnum.ERROR,
-          message: '推送订单出错',
-          businessMessage: `${response.code}: ${response?.msg || ''}`,
-          lastOperateProgram: thisContext,
-        });
-
-        throw new BusinessException(`推送订单返回错误信息`);
-      }
-
-      throw new BusinessException('推送订单出错，系统将重试');
+      throw new BusinessException('推送订单出错');
     }
 
     const orderData = response?.data?.datas;
     if (!Array.isArray(orderData) || orderData.length === 0) {
-      throw new BusinessException('推送订单响应数据格式不正确或为空');
+      throw new BusinessException('响应数据格式不正确或为空');
     }
 
     innerOrderCode = orderData[0]?.o_id || null;
     if (!innerOrderCode) {
-      throw new BusinessException('推送订单响应缺少内部订单编号');
-    }
-
-    // 开启事务更新订单和事件状态
-    try {
-      await this.updateSuccessfulPush(event, innerOrderCode, user, thisContext);
-    } catch (err) {
-      this._logger.error(
-        `Error updating order and event after successful push for orderId=${orderId}: ${err?.message}`,
-        err?.stack,
-        thisContext,
-      );
-      throw new BusinessException('订单已推送但更新状态出错');
+      throw new BusinessException('响应数据缺少内部订单编号');
     }
 
     return innerOrderCode;
+  }
+
+  async checkOrderPushAble(orderId: string): Promise<void> {
+    const thisContext = `${this.constructor.name}.checkOrderPushAble`;
+
+    const orderMain = await this._orderRepository.findOne({
+      where: { id: orderId, deleted: GlobalStatusEnum.NO },
+    });
+
+    if (!orderMain) {
+      this._logger.warn(`Order not found, id=${orderId}`, thisContext);
+      throw new BusinessException(`未找到订单`);
+    }
+
+    // 检查订单状态，待推送或推送中(出错重新推送)才允许推送
+    if (
+      orderMain.orderStatus !== String(OrderStatusEnum.PENDING_PUSH) &&
+      orderMain.orderStatus !== String(OrderStatusEnum.PUSHING)
+    ) {
+      this._logger.warn(
+        `Order status invalid, id=${orderId}, status=${orderMain.orderStatus}`,
+        thisContext,
+      );
+      throw new BusinessException(`订单状态不允许推送`);
+    }
+  }
+
+  async updatePushedOrder(
+    orderId: string,
+    innerOrderCode: string,
+    user: JwtUserPayload,
+    context: string,
+    manager?: EntityManager,
+  ): Promise<void> {
+    const now = dayjs().toDate();
+
+    const repo = manager
+      ? manager.getRepository(OrderMainEntity)
+      : this._orderRepository;
+
+    const order = await repo.findOne({
+      where: { id: orderId, deleted: GlobalStatusEnum.NO },
+    });
+
+    if (!order) {
+      this._logger.warn(
+        `Order not found when updating pushed order, orderId=${orderId}`,
+        context,
+      );
+      throw new BusinessException(`未找到订单`);
+    }
+
+    await repo.update(
+      { id: order.id },
+      {
+        orderStatus: String(OrderStatusEnum.PUSHED),
+        onlineOrderCode: order.orderCode, // 推送后线上订单号即为订单编号
+        oriInnerOrderCode: innerOrderCode, // 聚水潭内部订单编号
+        pushTime: now,
+        reviserId: user.userId,
+        reviserName: user.nickName,
+        revisedTime: now,
+        lastOperateProgram: context,
+      },
+    );
   }
 
   /**
@@ -325,17 +344,26 @@ export class OrderPushService {
     user: JwtUserPayload,
   ): Promise<string | null> {
     const thisContext = `${this.constructor.name}.pushOrderToErp`;
+    this._logger.log(`Pushing order id=${orderId}`, thisContext);
 
-    // 创建订单推送事件, 更新订单状态为推送中
-    const event = await this._orderEventService.createOrderPushEvent(
-      orderId,
+    // 检查推送条件
+    await this.checkOrderPushAble(orderId);
+
+    // 记录操作日志
+    const logInput = OrderLogHelper.getOrderOperate(
       user,
+      OrderOperateTemplateEnum.PUSH_ORDER_PAYMENT,
+      thisContext,
+      orderId,
     );
+    logInput.params = { orderId: orderId };
+    await this._businessLogService.writeLog(logInput);
 
     let erpOrderCode: string | null = null;
     try {
       const orderData = await this.assembleOrderData(orderId);
-      erpOrderCode = await this.uploadOrderAndUpdate(event, orderData, user);
+      erpOrderCode = await this.uploadOrder(orderId, orderData);
+      await this.updatePushedOrder(orderId, erpOrderCode, user, thisContext);
       this._logger.log(`Pushed order ${orderId} to ERP.`, thisContext);
       return erpOrderCode;
     } catch (err) {
@@ -344,40 +372,56 @@ export class OrderPushService {
         err?.stack,
         thisContext,
       );
+
+      // 实时推送异常，登记事件等待后续任务处理
+      try {
+        await this._orderEventService.createOrderPushEvent(orderId, user);
+      } catch (eventErr) {
+        this._logger.error(
+          `Failed to create order push event for orderId=${orderId}: ${eventErr.message}`,
+          eventErr?.stack,
+          thisContext,
+        );
+        if (eventErr instanceof BusinessException) {
+          throw eventErr;
+        } else {
+          throw new BusinessException('推送订单异常，且未能登记订单事件');
+        }
+      }
+
       if (err instanceof BusinessException) {
         throw err;
       }
-      throw new BusinessException('订单已登记，但推送ERP出错');
+      throw new BusinessException('推送订单到ERP系统异常');
     }
   }
 
   /**
-   * 处理订单推送事件, 用于订单事件任务
+   * 处理订单推送事件并更新状态
    * @param eventInfo
    * @param user
-   * @returns
+   * @returns BusinessResult 业务结果
    */
   async handleOrderPushEvent(
     eventInfo: OrderEventMainInfo,
     user: JwtUserPayload,
-  ): Promise<void> {
+  ): Promise<BusinessResult> {
     const thisContext = `${this.constructor.name}.handleOrderPushEvent`;
     const orderId = eventInfo.businessId;
+
     this._logger.log(`Pushing order id=${orderId}`, thisContext);
 
     const order = await this._orderRepository.findOne({
       where: { id: orderId, deleted: GlobalStatusEnum.NO },
     });
+
     if (!order) {
       this._logger.warn(`Order not found id=${orderId}`, thisContext);
-      await this._orderEventService.updateEventStatus({
-        eventId: eventInfo.id,
-        status: OrderEventStatusEnum.ERROR,
-        message: '订单不存在，无法推送',
+      return {
+        success: false,
+        message: '订单不存在',
         businessMessage: '订单不存在',
-        lastOperateProgram: thisContext,
-      });
-      throw new BusinessException('订单不存在，无法推送');
+      };
     }
 
     const afterPushStatuses = [
@@ -385,18 +429,13 @@ export class OrderPushService {
       String(OrderStatusEnum.DELIVERED),
     ];
     if (afterPushStatuses.includes(order.orderStatus)) {
-      // 订单已推送或已完成，无需重复推送
       this._logger.warn(`Order already pushed, id=${orderId}`, thisContext);
-      await this._orderEventService.updateEventStatus({
-        eventId: eventInfo.id,
-        status: OrderEventStatusEnum.COMPLETED,
+      return {
+        success: true,
         message: '订单已推送，无需重复推送',
-        businessStatus: String(order.orderStatus), // 处理完成后的业务状态
+        businessStatus: String(order.orderStatus),
         businessMessage: '订单状态为已推送或已发货',
-        lastOperateProgram: thisContext,
-      });
-
-      return;
+      };
     }
 
     if (order.orderStatus !== String(OrderStatusEnum.PUSHING)) {
@@ -404,15 +443,12 @@ export class OrderPushService {
         `Order status error, id=${orderId}, status=${order.orderStatus}`,
         thisContext,
       );
-      await this._orderEventService.updateEventStatus({
-        eventId: eventInfo.id,
-        status: OrderEventStatusEnum.ERROR,
-        message: `订单状态异常，无法推送`,
+      return {
+        success: false,
+        message: '订单状态异常，无法推送',
         businessStatus: String(order.orderStatus),
         businessMessage: '订单状态异常，无法推送',
-        lastOperateProgram: thisContext,
-      });
-      throw new BusinessException('订单状态异常，无法推送');
+      };
     }
 
     try {
@@ -423,18 +459,21 @@ export class OrderPushService {
         this._logger.warn(
           `Push to jst error: id=${orderId}, code=${response.code}, message=${response?.msg}`,
         );
-        throw new BusinessException('推送订单返回错误信息: ' + response?.msg);
+        return {
+          success: false,
+          message: `推送订单出错: ${response?.msg || ''}`,
+        };
       }
 
       const orderData = response?.data?.datas;
       if (!Array.isArray(orderData) || orderData.length === 0) {
-        throw new BusinessException('推送订单响应数据格式不正确或为空');
+        return {
+          success: false,
+          message: 'ERP系统返回数据格式不正确或为空',
+        };
       }
 
       const innerOrderCode = orderData[0]?.o_id || null;
-      if (!innerOrderCode) {
-        throw new BusinessException('推送订单响应缺少内部订单编号');
-      }
 
       await this.updateSuccessfulPush(event, innerOrderCode, user, thisContext);
 
@@ -442,22 +481,25 @@ export class OrderPushService {
         `Push id=${orderId} to ERP, innerOrderCode=${innerOrderCode}.`,
         thisContext,
       );
+
+      return {
+        success: true,
+        message: '订单推送成功',
+        businessStatus: String(OrderStatusEnum.PUSHED),
+        businessMessage: '订单已成功推送到聚水潭',
+        data: { innerOrderCode },
+      };
     } catch (err) {
       this._logger.error(
         `Error pushing id=${orderId}: ${err?.message}`,
         err?.stack,
         thisContext,
       );
-
-      await this._orderEventService.updateEventStatus({
-        eventId: eventInfo.id,
-        status: OrderEventStatusEnum.ERROR,
-        message: '订单推送事件出错',
-        businessMessage: err.message || '未知错误',
-        lastOperateProgram: thisContext,
-      });
-
-      throw err;
+      return {
+        success: false,
+        message: `推送订单异常: ${err?.message}`,
+        businessMessage: `推送订单异常: ${err?.message}`,
+      };
     }
   }
 }
