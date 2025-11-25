@@ -16,6 +16,13 @@ export class ApprovalProcessNodeEntity extends AuditEntity {
   nodeOrder: number;
 
   @Column('varchar', {
+    name: 'order_status',
+    comment: '节点对应的订单状态',
+    length: 32,
+  })
+  orderStatus: string;
+
+  @Column('varchar', {
     name: 'assignee_type',
     comment:
       '审批人指定方式: ROLE-按角色, USER-按指定用户, CUSTOMER_RESPONSIBLE-按客户负责人',

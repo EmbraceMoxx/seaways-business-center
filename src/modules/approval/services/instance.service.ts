@@ -113,9 +113,8 @@ export class InstanceService {
     // 查询现有实例
     const instance = await this.instanceRepository.findOneBy({ orderId });
 
-    if (!instance) {
-      return null; // 没有现有实例，可以正常提交
-    }
+    // 没有现有实例，可以正常提交
+    if (!instance) return null;
 
     // 检查订单状态
     const currentOrder = await this.entityManager.findOneBy(OrderMainEntity, {
@@ -134,9 +133,7 @@ export class InstanceService {
       status: ApprovalTaskStatusEnum.APPROVED,
       autoApproved: GlobalStatusEnum.NO, // 非自动审批
     });
-    if (task) {
-      throw new BusinessException('流程已被审批过，无法重新提交');
-    }
+    if (task) throw new BusinessException('流程已被审批过，无法重新提交');
 
     return instance;
   }

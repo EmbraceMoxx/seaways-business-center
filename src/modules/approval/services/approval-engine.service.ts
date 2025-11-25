@@ -29,7 +29,6 @@ export class ApprovalEngineService {
 
   // Todo: 各个环节加上异常处理
   // Todo: 各步骤写操作日志
-  // Todo: 查询订单是否被驳回过
   constructor(
     @InjectRepository(ApprovalInstanceEntity)
     private instanceRepository: Repository<ApprovalInstanceEntity>,
@@ -119,7 +118,6 @@ export class ApprovalEngineService {
         },
       );
       await manager.save(instance);
-      // Todo: 写入操作日志
     });
 
     this.logger.log(

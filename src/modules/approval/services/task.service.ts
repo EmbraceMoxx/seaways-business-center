@@ -1,15 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, EntityManager } from 'typeorm';
-import { ApprovalTaskEntity } from '../entities/approval-task.entity';
-import { ApprovalProcessNodeEntity } from '../entities/approval-process-node.entity';
-import { ApprovalInstanceEntity } from '../entities/approval-instance.entity';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
+import * as dayjs from 'dayjs';
+import { OrderLogHelper } from '@modules/order/helper/order.log.helper';
+// Dto
 import {
   ApprovalCommand,
   CreateApprovalDto,
 } from '@src/dto/approval/approval.dto';
 import { BusinessException } from '@src/dto/common/common.dto';
+// Entity
+import { ApprovalInstanceEntity } from '../entities/approval-instance.entity';
+import { ApprovalProcessNodeEntity } from '../entities/approval-process-node.entity';
+import { ApprovalTaskEntity } from '../entities/approval-task.entity';
+import { OrderMainEntity } from '@src/modules/order/entities/order.main.entity';
+// Enum
 import {
   ApprovalTaskStatusEnum,
   AssigneeTypeEnum,
@@ -17,11 +23,9 @@ import {
   ApprovalInstanceStatusEnum,
 } from '@src/enums/approval.enum';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
-import { OrderMainEntity } from '@src/modules/order/entities/order.main.entity';
-import * as dayjs from 'dayjs';
-import { OrderStatusEnum } from '@src/enums/order-status.enum';
 import { OrderOperateTemplateEnum } from '@src/enums/order-operate-template.enum';
-import { OrderLogHelper } from '@modules/order/helper/order.log.helper';
+import { OrderStatusEnum } from '@src/enums/order-status.enum';
+// Service
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
 
 @Injectable()
@@ -184,19 +188,7 @@ export class TaskService {
       id: nextTask.nodeId,
     });
 
-    const statusMap = {
-      [CustomerResponsibleTypeEnum.PROVINCIAL_HEAD]:
-        OrderStatusEnum.PROVINCE_REVIEWING,
-      [CustomerResponsibleTypeEnum.REGIONAL_HEAD]:
-        OrderStatusEnum.REGION_REVIEWING,
-      ['633192671120330752']: OrderStatusEnum.DIRECTOR_REVIEWING,
-    };
-
-    if (!statusMap[nextNode.assigneeValue]) {
-      throw new BusinessException('找不到对应的审批节点');
-    }
-
-    return statusMap[nextNode.assigneeValue];
+    return OrderStatusEnum[nextNode.orderStatus];
   }
 
   /**
@@ -355,7 +347,7 @@ export class TaskService {
     task.reviserId = user.userId;
     task.reviserName = user.nickName;
 
-    const lastOperateProgram = 'OrderService.approvalReject';
+    const lastOperateProgram = 'TaskService.handleTaskRejection';
 
     const updateOrder = Object.assign(new OrderMainEntity(), {
       id: instance.orderId,

@@ -12,7 +12,6 @@ import { BusinessLogEntity } from '@modules/common/business-log/entity/business-
 import { ApprovalEngineService } from '@modules/approval/services/approval-engine.service';
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
 import { InstanceService } from '@modules/approval/services/instance.service';
-import { NodeService } from '@modules/approval/services/node.service';
 import { ProcessService } from '@modules/approval/services/process.service';
 import { RouterService } from '@modules/approval/services/router.service';
 import { TaskService } from '@modules/approval/services/task.service';
@@ -31,7 +30,6 @@ import { TaskService } from '@modules/approval/services/task.service';
   providers: [
     ApprovalEngineService,
     InstanceService,
-    NodeService,
     RouterService,
     ProcessService,
     TaskService,
