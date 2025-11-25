@@ -331,15 +331,15 @@ export class CustomerCreditLimitDetailService {
       creditDetail.flowCode = IdUtil.generateFlowCode();
       creditDetail.orderId = creditParam.orderId;
       creditDetail.onlineOrderId = creditParam.onlineOrderId;
-      creditDetail.shippedAmount = creditParam.shippedAmount;
+      creditDetail.shippedAmount = creditParam.shippedAmount || '0';
       creditDetail.auxiliarySaleGoodsAmount =
-        creditParam.auxiliarySaleGoodsAmount;
+        creditParam.auxiliarySaleGoodsAmount || '0';
       creditDetail.replenishingGoodsAmount =
-        creditParam.replenishingGoodsAmount;
+        creditParam.replenishingGoodsAmount || '0';
       creditDetail.usedAuxiliarySaleGoodsAmount =
-        creditParam.usedAuxiliarySaleGoodsAmount;
+        creditParam.usedAuxiliarySaleGoodsAmount || '0';
       creditDetail.usedReplenishingGoodsAmount =
-        creditParam.usedReplenishingGoodsAmount;
+        creditParam.usedReplenishingGoodsAmount || '0';
       creditDetail.payableVoucher = creditParam.payableVoucher;
       // 默认
       creditDetail.deleted = GlobalStatusEnum.NO;

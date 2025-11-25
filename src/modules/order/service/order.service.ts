@@ -697,6 +697,11 @@ export class OrderService {
 
     return req.orderId;
   }
+  /**
+   * 审批驳回订单
+   * @param req - 审批驳回请求参数，包含订单ID、驳回原因、创建人ID、操作人姓名等信息
+   * @returns 返回被驳回的订单ID
+   */
   async approvalReject(req: ApprovalRejectRequest): Promise<string> {
     const lastOperateProgram = 'OrderService.approvalReject';
     const orderMain = await this.orderCheckService.checkOrderExist(req.orderId);

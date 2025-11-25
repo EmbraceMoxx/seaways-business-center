@@ -129,12 +129,12 @@ export class OrderConvertHelper {
     const creditDetail = new CreditLimitDetailRequestDto();
     creditDetail.orderId = orderId;
     creditDetail.customerId = orderMain.customerId;
-    creditDetail.shippedAmount = orderMain.amount;
-    creditDetail.auxiliarySaleGoodsAmount = orderMain.auxiliarySalesAmount;
-    creditDetail.replenishingGoodsAmount = orderMain.replenishAmount;
+    creditDetail.shippedAmount = orderMain.amount || '0';
+    creditDetail.auxiliarySaleGoodsAmount = orderMain.auxiliarySalesAmount || '0';
+    creditDetail.replenishingGoodsAmount = orderMain.replenishAmount || '0';
     creditDetail.usedAuxiliarySaleGoodsAmount =
-      orderMain.usedAuxiliarySalesAmount;
-    creditDetail.usedReplenishingGoodsAmount = orderMain.usedReplenishAmount;
+      orderMain.usedAuxiliarySalesAmount || '0';
+    creditDetail.usedReplenishingGoodsAmount = orderMain.usedReplenishAmount || '0';
     return creditDetail;
   }
   /**
@@ -188,19 +188,18 @@ export class OrderConvertHelper {
     const creditAmount = calculateAmount.orderSubsidyAmount;
     orderMain.creditAmount = String(creditAmount);
 
-    orderMain.usedReplenishAmount =
-      String(calculateAmount.replenishAmount) || '0';
+    orderMain.usedReplenishAmount = String(calculateAmount.replenishAmount ?? '0');
     orderMain.usedAuxiliarySalesAmount =
-      String(calculateAmount.auxiliarySalesAmount) || '0';
+      String(calculateAmount.auxiliarySalesAmount??'0');
     orderMain.usedAuxiliarySalesRatio =
-      calculateAmount.auxiliarySalesRatio || '0';
-    orderMain.usedReplenishRatio = calculateAmount.replenishRatio || '0';
+      calculateAmount.auxiliarySalesRatio ?? '0';
+    orderMain.usedReplenishRatio = calculateAmount.replenishRatio ?? '0';
     const replenishAmount = orderItemList
       .filter((e) => OrderItemTypeEnum.FINISHED_PRODUCT === e.type)
       .map((e) => (e.replenishAmount ? parseFloat(e.replenishAmount) : 0))
       .reduce((sum, current) => sum + current, 0);
 
-    orderMain.replenishAmount = String(replenishAmount);
+    orderMain.replenishAmount = String(replenishAmount??0);
 
     const auxiliarySalesAmount = orderItemList
       .filter((e) => OrderItemTypeEnum.FINISHED_PRODUCT === e.type)
@@ -208,7 +207,7 @@ export class OrderConvertHelper {
         e.auxiliarySalesAmount ? parseFloat(e.auxiliarySalesAmount) : 0,
       )
       .reduce((sum, current) => sum + current, 0);
-    orderMain.auxiliarySalesAmount = String(auxiliarySalesAmount) || '0';
+    orderMain.auxiliarySalesAmount = String(auxiliarySalesAmount??'0');
 
     // 汇总商品下单数量信息
     orderMain.finishedProductBoxCount = orderItemList

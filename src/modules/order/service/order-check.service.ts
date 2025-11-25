@@ -90,7 +90,7 @@ export class OrderCheckService {
     const flag = user.userId === customerInfo.principalUserId;
     this.logger.log(`当前操作人是否为客户负责人：${flag}`);
     // 当比例小于3% +5% 时，免审批，进入待回款状态
-    if (auxiliarySalesRatio <= 0.003 && replenishRatio <= 0.05 && flag) {
+    if (auxiliarySalesRatio <= 0.003 && replenishRatio <= 0.05) {
       this.logger.log(
         `当前货补比例为:${replenishRatio},辅销比例为：${auxiliarySalesRatio},无需审批！`,
       );
@@ -155,14 +155,16 @@ export class OrderCheckService {
       finishGoods,
       true,
     );
-    response.orderSubsidyAmount = String(subsidyAmount);
+    response.orderSubsidyAmount = subsidyAmount?String(subsidyAmount):'0';
 
     // 计算使用货补金额及比例
     if (replenishGoods != null && replenishGoods.length > 0) {
       const replenishAmount = await this.calculateAmountWithQuery(
         replenishGoods,
       );
-      response.replenishAmount = String(replenishAmount);
+      console.log(`calculate replenishAmount：`,replenishAmount);
+      response.replenishAmount = replenishAmount?String(replenishAmount):'0';
+      console.log(`after calculate replenishAmount：`,response.replenishAmount);
       response.replenishRatio =
         subsidyAmount && subsidyAmount !== 0
           ? (replenishAmount / subsidyAmount).toFixed(4)
@@ -173,7 +175,7 @@ export class OrderCheckService {
       const auxiliaryAmount = await this.calculateAmountWithQuery(
         auxiliaryGoods,
       );
-      response.auxiliarySalesAmount = String(auxiliaryAmount);
+      response.auxiliarySalesAmount = auxiliaryAmount?String(auxiliaryAmount):'0';
       response.auxiliarySalesRatio =
         subsidyAmount && subsidyAmount !== 0
           ? (auxiliaryAmount / subsidyAmount).toFixed(4)
