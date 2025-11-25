@@ -331,19 +331,15 @@ export class CustomerCreditLimitDetailService {
       creditDetail.flowCode = IdUtil.generateFlowCode();
       creditDetail.orderId = creditParam.orderId;
       creditDetail.onlineOrderId = creditParam.onlineOrderId;
-      creditDetail.shippedAmount = creditParam.shippedAmount;
+      creditDetail.shippedAmount = creditParam.shippedAmount || '0';
       creditDetail.auxiliarySaleGoodsAmount =
-        creditParam.auxiliarySaleGoodsAmount;
+        creditParam.auxiliarySaleGoodsAmount || '0';
       creditDetail.replenishingGoodsAmount =
-        creditParam.replenishingGoodsAmount;
+        creditParam.replenishingGoodsAmount || '0';
       creditDetail.usedAuxiliarySaleGoodsAmount =
-        creditParam.usedAuxiliarySaleGoodsAmount;
-      creditDetail.remainAuxiliarySaleGoodsAmount =
-        creditParam.remainAuxiliarySaleGoodsAmount;
+        creditParam.usedAuxiliarySaleGoodsAmount || '0';
       creditDetail.usedReplenishingGoodsAmount =
-        creditParam.usedReplenishingGoodsAmount;
-      creditDetail.remainReplenishingGoodsAmount =
-        creditParam.remainReplenishingGoodsAmount;
+        creditParam.usedReplenishingGoodsAmount || '0';
       creditDetail.payableVoucher = creditParam.payableVoucher;
       // 默认
       creditDetail.deleted = GlobalStatusEnum.NO;
@@ -443,9 +439,7 @@ export class CustomerCreditLimitDetailService {
         'SUM(creditDetail.auxiliary_sale_goods_amount) as auxiliarySaleGoodsAmount',
         'SUM(creditDetail.replenishing_goods_amount) as replenishingGoodsAmount',
         'SUM(creditDetail.used_auxiliary_sale_goods_amount) as usedAuxiliarySaleGoodsAmount',
-        'SUM(creditDetail.remain_auxiliary_sale_goods_amount) as remainAuxiliarySaleGoodsAmount',
         'SUM(creditDetail.used_replenishing_goods_amount) as usedReplenishingGoodsAmount',
-        'SUM(creditDetail.remain_replenishing_goods_amount) as remainReplenishingGoodsAmount',
       ])
       .leftJoin(
         CustomerInfoEntity,

@@ -118,22 +118,10 @@ export class CreditLimitDetailResponseDto {
   usedAuxiliarySaleGoodsAmount: string;
 
   @ApiProperty({
-    description: '剩余辅销金额，元',
-    example: 150.0,
-  })
-  remainAuxiliarySaleGoodsAmount: string;
-
-  @ApiProperty({
     description: '已提货补金额，元',
     example: 500.0,
   })
   usedReplenishingGoodsAmount: string;
-
-  @ApiProperty({
-    description: '剩余货补金额，元',
-    example: 150.0,
-  })
-  remainReplenishingGoodsAmount: string;
 
   @ApiProperty({
     description: '回款凭证，预留用于记录回款截图',
@@ -249,22 +237,10 @@ export class CreditLimitDetailRequestDto {
   usedAuxiliarySaleGoodsAmount: string;
 
   @ApiProperty({
-    description: '剩余辅销金额，元',
-    example: 150.0,
-  })
-  remainAuxiliarySaleGoodsAmount: string;
-
-  @ApiProperty({
     description: '已提货补金额，元',
     example: 500.0,
   })
   usedReplenishingGoodsAmount: string;
-
-  @ApiProperty({
-    description: '剩余货补金额，元',
-    example: 150.0,
-  })
-  remainReplenishingGoodsAmount: string;
 
   @ApiProperty({
     description: '回款凭证，预留用于记录回款截图',
@@ -333,20 +309,8 @@ export class CreditToMonthResponseDto {
   usedAuxiliarySaleGoodsAmount: string;
 
   @ApiProperty({
-    description: '剩余辅销金额，元',
-    example: 150.0,
-  })
-  remainAuxiliarySaleGoodsAmount: string;
-
-  @ApiProperty({
     description: '已提货补金额，元',
     example: 500.0,
   })
   usedReplenishingGoodsAmount: string;
-
-  @ApiProperty({
-    description: '剩余货补金额，元',
-    example: 500.0,
-  })
-  remainReplenishingGoodsAmount: string;
 }

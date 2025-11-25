@@ -75,15 +75,6 @@ export class CustomerCreditLimitDetailEntity {
   usedAuxiliarySaleGoodsAmount: string | null;
 
   @Column('decimal', {
-    name: 'remain_auxiliary_sale_goods_amount',
-    nullable: true,
-    comment: '剩余辅销金额，元',
-    precision: 12,
-    scale: 2,
-  })
-  remainAuxiliarySaleGoodsAmount: string | null;
-
-  @Column('decimal', {
     name: 'used_replenishing_goods_amount',
     nullable: true,
     comment: '已提货补金额，元',
@@ -91,15 +82,6 @@ export class CustomerCreditLimitDetailEntity {
     scale: 2,
   })
   usedReplenishingGoodsAmount: string | null;
-
-  @Column('decimal', {
-    name: 'remain_replenishing_goods_amount',
-    nullable: true,
-    comment: '剩余货补金额，元',
-    precision: 12,
-    scale: 2,
-  })
-  remainReplenishingGoodsAmount: string | null;
 
   @Column('varchar', {
     name: 'payable_voucher',

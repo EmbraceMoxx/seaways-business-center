@@ -6,6 +6,7 @@ export type OperateCode =
   | 'CREATE'
   | 'UPDATE'
   | 'CANCEL'
+  | 'REJECT_ORDER'
   | 'CONFIRM_PAY'
   | 'PUSH_PAY'
   | 'REGION_APPR'
@@ -23,6 +24,7 @@ export const OrderOperateMap = {
   CREATE_ORDER: { code: 'CREATE', logTmpl: '%s创建订单' } satisfies OperateDef,
   UPDATE_ORDER: { code: 'UPDATE', logTmpl: '%s修改订单' } satisfies OperateDef,
   CANCEL_ORDER: { code: 'CANCEL', logTmpl: '%s取消订单' } satisfies OperateDef,
+  REJECT_ORDER: { code: 'REJECT_ORDER', logTmpl: '%s驳回审批' } satisfies OperateDef,
   CONFIRM_ORDER_PAYMENT: {
     code: 'CONFIRM_PAY',
     logTmpl: '%s确认回款',

@@ -106,6 +106,22 @@ export class CancelOrderRequest {
   cancelReason: string;
 }
 
+export class ApprovalRejectRequest {
+  @ApiProperty({ description: '订单ID', example: 1 })
+  @IsNotEmpty({ message: '订单ID不能为空' })
+  orderId: string;
+  @ApiProperty({ description: '驳回原因' })
+  rejectReason: string;
+}
+
+export class ApprovalAgreeRequest {
+  @ApiProperty({ description: '订单ID', example: 1 })
+  @IsNotEmpty({ message: '订单ID不能为空' })
+  orderId: string;
+  @ApiProperty({ description: '同意原因' })
+  agreeReason: string;
+}
+
 export class CheckOrderAmountResponse {
   @ApiProperty({ description: '客户ID' })
   customerId: string;
@@ -126,7 +142,7 @@ export class CheckOrderAmountResponse {
   @ApiProperty({ description: '校验结果' })
   message: string;
   @ApiProperty({ description: '是否需要审批' })
-  isNeedApproval: boolean = false;
+  isNeedApproval = false;
 }
 
 /**

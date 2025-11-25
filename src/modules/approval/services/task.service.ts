@@ -1,0 +1,320 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, MoreThan, EntityManager } from 'typeorm';
+import { ApprovalTaskEntity } from '../entities/approval-task.entity';
+import { ApprovalProcessNodeEntity } from '../entities/approval-process-node.entity';
+import { ApprovalInstanceEntity } from '../entities/approval-instance.entity';
+import { JwtUserPayload } from '@modules/auth/jwt.strategy';
+import {
+  ApprovalCommand,
+  CreateApprovalDto,
+} from '@src/dto/approval/approval.dto';
+import { BusinessException } from '@src/dto/common/common.dto';
+import {
+  ApprovalTaskStatusEnum,
+  AssigneeTypeEnum,
+  CustomerResponsibleTypeEnum,
+  ApprovalInstanceStatusEnum,
+} from '@src/enums/approval.enum';
+import { GlobalStatusEnum } from '@src/enums/global-status.enum';
+import { OrderMainEntity } from '@src/modules/order/entities/order.main.entity';
+import * as dayjs from 'dayjs';
+import { OrderService } from '@modules/order/service/order.service';
+import { OrderStatusEnum } from '@src/enums/order-status.enum';
+
+@Injectable()
+export class TaskService {
+  private readonly logger = new Logger(TaskService.name);
+
+  constructor(
+    @InjectRepository(ApprovalTaskEntity)
+    private taskRepository: Repository<ApprovalTaskEntity>,
+    @InjectRepository(ApprovalProcessNodeEntity)
+    private nodeRepository: Repository<ApprovalProcessNodeEntity>,
+    private entityManager: EntityManager,
+    private orderService: OrderService,
+  ) {}
+
+  /**
+   * 创建审批任务
+   */
+  async createTask(
+    instanceId: string,
+    node: ApprovalProcessNodeEntity,
+    createDto: CreateApprovalDto,
+    taskStep: number,
+  ): Promise<ApprovalTaskEntity> {
+    // 计算审批人和状态
+    const { approverUserId, status, autoApproved, remark } =
+      await this.calculateTaskDetails(node, createDto);
+
+    // Todo: 如果按ROLE或USER，要生成多个task
+    const task = this.taskRepository.create({
+      instanceId,
+      nodeId: node.id,
+      taskStep,
+      approverUserId,
+      status,
+      autoApproved,
+      remark,
+      creatorId: createDto.operatorId,
+      creatorName: createDto.operatorName,
+      reviserId: createDto.operatorId,
+      reviserName: createDto.operatorName,
+    });
+
+    return task;
+  }
+
+  /**
+   * 计算任务详情（审批人、状态、备注）
+   */
+  private async calculateTaskDetails(
+    node: ApprovalProcessNodeEntity,
+    createDto: CreateApprovalDto,
+  ): Promise<{
+    approverUserId: string | null;
+    status: string;
+    autoApproved: string;
+    remark: string;
+  }> {
+    switch (node.assigneeType) {
+      case AssigneeTypeEnum.CUSTOMER_RESPONSIBLE:
+        return this.handleCustomerResponsible(node, createDto);
+
+      case AssigneeTypeEnum.USER:
+        return this.handleUserAssignment(node, createDto);
+
+      default:
+        throw new BusinessException(`不支持的审批人类型: ${node.assigneeType}`);
+    }
+  }
+
+  /**
+   * 处理客户负责人审批
+   */
+  private handleCustomerResponsible(
+    node: ApprovalProcessNodeEntity,
+    createDto: CreateApprovalDto,
+  ): {
+    approverUserId: string | null;
+    status: string;
+    autoApproved: string;
+    remark: string;
+  } {
+    // 省区审批
+    if (node.assigneeValue === CustomerResponsibleTypeEnum.PROVINCIAL_HEAD) {
+      if (!createDto.provincialHeadId) {
+        return {
+          approverUserId: null,
+          status: ApprovalTaskStatusEnum.SKIPPED,
+          autoApproved: GlobalStatusEnum.YES,
+          remark: '客户无省区负责人，跳过审批',
+        };
+      }
+
+      const isSelfApproval = createDto.provincialHeadId === createDto.creatorId;
+      return {
+        approverUserId: createDto.provincialHeadId,
+        status: isSelfApproval
+          ? ApprovalTaskStatusEnum.APPROVED
+          : ApprovalTaskStatusEnum.PENDING,
+        autoApproved: isSelfApproval
+          ? GlobalStatusEnum.YES
+          : GlobalStatusEnum.NO,
+        remark: isSelfApproval ? '自动通过（自审批）' : '',
+      };
+    }
+
+    // 大区审批
+    if (node.assigneeValue === CustomerResponsibleTypeEnum.REGIONAL_HEAD) {
+      if (!createDto.regionalHeadId) {
+        throw new BusinessException('客户必须有大区负责人');
+      }
+      const isSelfApproval = createDto.regionalHeadId === createDto.creatorId;
+      return {
+        approverUserId: createDto.regionalHeadId,
+        status: isSelfApproval
+          ? ApprovalTaskStatusEnum.APPROVED
+          : ApprovalTaskStatusEnum.PENDING,
+        autoApproved: isSelfApproval
+          ? GlobalStatusEnum.YES
+          : GlobalStatusEnum.NO,
+        remark: isSelfApproval ? '自动通过（自审批）' : '',
+      };
+    }
+
+    throw new BusinessException(
+      `不支持的客户负责人类型: ${node.assigneeValue}`,
+    );
+  }
+
+  /**
+   * 处理指定用户审批
+   */
+  private handleUserAssignment(
+    node: ApprovalProcessNodeEntity,
+    createDto: CreateApprovalDto,
+  ): {
+    approverUserId: string | null;
+    status: string;
+    autoApproved: string;
+    remark: string;
+  } {
+    const isSelfApproval = node.assigneeValue === createDto.creatorId;
+    return {
+      approverUserId: node.assigneeValue,
+      status: isSelfApproval
+        ? ApprovalTaskStatusEnum.APPROVED
+        : ApprovalTaskStatusEnum.PENDING,
+      autoApproved: isSelfApproval ? GlobalStatusEnum.YES : GlobalStatusEnum.NO,
+      remark: isSelfApproval ? '自动通过（自审批）' : '',
+    };
+  }
+
+  /**
+   * 获取下一个订单状态
+   */
+  private async getNextOrderStatus(
+    nextTask: ApprovalTaskEntity,
+  ): Promise<OrderStatusEnum> {
+    const nextNode = await this.nodeRepository.findOneBy({
+      id: nextTask.nodeId,
+    });
+
+    const statusMap = {
+      [CustomerResponsibleTypeEnum.PROVINCIAL_HEAD]:
+        OrderStatusEnum.PROVINCE_REVIEWING,
+      [CustomerResponsibleTypeEnum.REGIONAL_HEAD]:
+        OrderStatusEnum.REGION_REVIEWING,
+      ['633192671120330752']: OrderStatusEnum.DIRECTOR_REVIEWING,
+    };
+
+    if (!statusMap[nextNode.assigneeValue]) {
+      throw new BusinessException('找不到对应的审批节点');
+    }
+
+    return statusMap[nextNode.assigneeValue];
+  }
+
+  /**
+   * 处理审批通过
+   */
+  async handleTaskApproval(
+    instance: ApprovalInstanceEntity,
+    task: ApprovalTaskEntity,
+    command: ApprovalCommand,
+    user: JwtUserPayload,
+  ): Promise<{ status: string; message: string }> {
+    // 更新任务状态
+    task.status = ApprovalTaskStatusEnum.APPROVED;
+    task.remark = command.remark;
+    task.reviserId = user.userId;
+    task.reviserName = user.nickName;
+
+    // 查找下一个任务
+    const nextTask = await this.taskRepository.findOne({
+      where: {
+        instanceId: task.instanceId,
+        taskStep: MoreThan(task.taskStep),
+        status: ApprovalTaskStatusEnum.PENDING,
+      },
+      order: { taskStep: 'ASC' },
+    });
+
+    // 获取下一个状态
+    const nextStatus: OrderStatusEnum = nextTask
+      ? await this.getNextOrderStatus(nextTask)
+      : OrderStatusEnum.PENDING_PAYMENT;
+
+    if (nextTask) {
+      // 推进到下一个任务
+      instance.status = ApprovalInstanceStatusEnum.IN_PROGRESS;
+      instance.currentNodeId = nextTask.nodeId;
+      instance.currentStep = nextTask.taskStep;
+      instance.reviserId = user.userId;
+      instance.reviserName = user.nickName;
+      // Todo: 操作日志
+      this.logger.log(
+        `推进到下一步: 任务 ${nextTask.id}, 审批人 ${nextTask.approverUserId}`,
+      );
+    } else {
+      // 流程完成
+      instance.status = ApprovalInstanceStatusEnum.APPROVED;
+      instance.reviserId = user.userId;
+      instance.reviserName = user.nickName;
+      this.logger.log(`审批流程完成: 实例 ${instance.id}`);
+    }
+
+    // 事务保存
+    await this.entityManager.transaction(async (manager) => {
+      await Promise.all([
+        manager.save(task),
+        manager.save(instance),
+        this.orderService.approvalAgree(
+          {
+            orderId: instance.orderId,
+            agreeReason: command.remark,
+          },
+          nextStatus,
+          user,
+          manager,
+        ),
+      ]);
+    });
+
+    return {
+      status: ApprovalTaskStatusEnum.APPROVED,
+      message: nextTask ? '审批通过，流程继续' : '审批完成',
+    };
+  }
+
+  /**
+   * 处理审批驳回
+   */
+  async handleTaskRejection(
+    instance: ApprovalInstanceEntity,
+    task: ApprovalTaskEntity,
+    command: ApprovalCommand,
+    user: JwtUserPayload,
+  ): Promise<{ status: string; message: string }> {
+    const { remark } = command;
+
+    if ((instance.status = ApprovalInstanceStatusEnum.REJECTED)) {
+      throw new BusinessException('订单已处于驳回状态无需再次操作！');
+    }
+
+    // 更新实例状态：审批驳回，终止流程
+    instance.status = ApprovalInstanceStatusEnum.REJECTED;
+    instance.reviserId = user.userId;
+    instance.reviserName = user.nickName;
+
+    // 更新任务状态
+    // Todo: 如果是ROLE，要更新多个task
+    task.status = ApprovalTaskStatusEnum.REJECTED;
+    task.remark = remark;
+    task.reviserId = user.userId;
+    task.reviserName = user.nickName;
+
+    // 事务处理
+    await this.entityManager.transaction(async (manager) => {
+      await Promise.all([
+        manager.save(task),
+        manager.save(instance),
+        this.orderService.approvalReject(
+          {
+            orderId: instance.orderId,
+            rejectReason: command.remark,
+          },
+          user,
+          manager,
+        ),
+      ]);
+    });
+
+    return {
+      status: ApprovalInstanceStatusEnum.REJECTED,
+      message: '审批已驳回，流程终止',
+    };
+  }
+}

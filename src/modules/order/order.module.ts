@@ -62,5 +62,6 @@ import { OrderPushEventExecutor } from './service/order-event/executors/order-pu
   ],
 
   controllers: [OrderController, OrderTaskController],
+  exports: [OrderCheckService],
 })
 export class OrderModule {}
