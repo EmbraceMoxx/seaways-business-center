@@ -105,10 +105,10 @@ export class OrderCheckService {
       return OrderStatusEnum.REGION_REVIEWING;
     }
     // 当客户不存在省区负责人，而存在大区负责人时
-    if (
-      customerInfo.regionalHeadId &&
-      customerInfo.provincialHeadId === undefined
-    ) {
+    if (customerInfo.regionalHeadId && !customerInfo.provincialHeadId) {
+      this.logger.log(
+        `当前客户仅存在大区负责人:${customerInfo.principalUserId}`,
+      );
       // 当客户存在大区负责人，则判断比例小于 10% + 3% 则免审批
       if (auxiliarySalesRatio <= 0.03 && replenishRatio <= 0.1) {
         return OrderStatusEnum.PENDING_PAYMENT;
@@ -165,14 +165,18 @@ export class OrderCheckService {
       response.replenishAmount = replenishAmount
         ? String(replenishAmount)
         : '0';
-      console.log(
-        `after calculate replenishAmount：`,
-        response.replenishAmount,
-      );
       response.replenishRatio =
         subsidyAmount && subsidyAmount !== 0
           ? (replenishAmount / subsidyAmount).toFixed(4)
           : '0';
+      // 修复后的逻辑
+      if (customerInfo.provincialHeadId) {
+        // 有大区负责人时，货补比例超过5%需要审批
+        response.isNeedApproval = parseFloat(response.replenishRatio) > 0.05;
+      } else {
+        // 没有大区负责人时，货补比例超过10%需要审批
+        response.isNeedApproval = parseFloat(response.replenishRatio) > 0.1;
+      }
     }
     // 3. 计算辅销商品金额及比例；
     if (auxiliaryGoods != null && auxiliaryGoods.length > 0) {
@@ -186,7 +190,12 @@ export class OrderCheckService {
         subsidyAmount && subsidyAmount !== 0
           ? (auxiliaryAmount / subsidyAmount).toFixed(4)
           : '0';
+
+      response.isNeedApproval = response.isNeedApproval
+        ? response.isNeedApproval
+        : parseFloat(response.auxiliarySalesRatio) > 0.03;
     }
+
     // 执行所有校验策略
     const messages: string[] = [];
     // 执行所有校验策略
@@ -201,7 +210,7 @@ export class OrderCheckService {
     }
     if (messages.length > 0) {
       response.isNeedApproval = true;
-      response.message = messages.join('，') + '即将进入审批流程';
+      response.message = messages.join('，') + ',即将进入审批流程';
     }
     return response;
   }
@@ -243,11 +252,6 @@ export class OrderCheckService {
       userResult.principalUserIds?.includes(orderMain.creatorId) ||
       user.userId === orderMain.creatorId;
 
-    console.log('hasPermission:', hasPermission, user.userId, user.nickName);
-    console.log('orderMain.orderStatus:', orderMain.orderStatus);
-    // 将字符串状态转换为枚举值进行判断
-    // const status = OrderStatusEnum[orderMain.orderStatus];
-    // console.log('status:',status);
     // 根据不同订单状态设置可操作按钮
     switch (orderMain.orderStatus) {
       case OrderStatusEnum.PENDING_PAYMENT:
@@ -271,7 +275,6 @@ export class OrderCheckService {
       case OrderStatusEnum.PUSHING:
       case OrderStatusEnum.PUSHED:
       case OrderStatusEnum.DELIVERED:
-        // 订单状态为 CLOSED、PUSHING、PUSHED、DELIVERED 不允许操作
         // 所有按钮保持 false
         break;
       case OrderStatusEnum.REJECTED:
@@ -285,7 +288,6 @@ export class OrderCheckService {
       case OrderStatusEnum.DIRECTOR_REVIEWING:
       case OrderStatusEnum.REGION_REVIEWING:
       case OrderStatusEnum.PROVINCE_REVIEWING:
-        // 订单状态为 DIRECTOR_REVIEWING、REGION_REVIEWING、PROVINCE_REVIEWING 允许修改订单
         // todo 1. 确认当前用户是否是客户的负责人，若为负责人，
         //  需要判断是否有审批记录，若存在审批通过记录，则不允许修改，若需要修改则需要审批驳回后回到驳回状态才允许修改
         if (hasPermission) {

@@ -21,7 +21,8 @@ export class ReplenishRatioValidationStrategy implements ValidationStrategy {
     const messages: string[] = [];
     if (
       response.replenishRatio &&
-      parseFloat(response.replenishRatio) >= 0.05
+      parseFloat(response.replenishRatio) >= 0.05 &&
+      response.isNeedApproval
     ) {
       messages.push(
         '当前货补使用比例为：' +
@@ -42,6 +43,7 @@ export class AuxiliarySalesRatioValidationStrategy
     const messages: string[] = [];
     if (
       response.auxiliarySalesRatio &&
+      response.isNeedApproval &&
       parseFloat(response.auxiliarySalesRatio) >= 0.03
     ) {
       messages.push(

@@ -687,12 +687,14 @@ export class OrderService {
       );
       // 修改订单
       await manager.update(OrderMainEntity, { id: orderMain.id }, updateOrder);
+      // 调用审批流程
       const approvalDto = new CancelApprovalDto();
       approvalDto.orderId = orderMain.id;
       approvalDto.operatorId = user.userId;
       approvalDto.operatorName = user.nickName;
       approvalDto.reason = req.cancelReason ? req.cancelReason.trim() : '';
       await this.approvalEngineService.cancelApprovalProcess(approvalDto);
+
       const result = OrderLogHelper.getOrderOperate(
         user,
         OrderOperateTemplateEnum.CANCEL_ORDER,
