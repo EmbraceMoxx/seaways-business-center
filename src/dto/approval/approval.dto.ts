@@ -2,11 +2,9 @@ import { ApprovalActionEnum } from '@src/enums/approval.enum';
 
 // 审批操作指令
 export class ApprovalCommand {
+  orderId: string;
   action: ApprovalActionEnum;
   remark: string;
-  orderId: string;
-  operatorId: string;
-  operatorName: string;
 }
 
 // 审批流程上下文

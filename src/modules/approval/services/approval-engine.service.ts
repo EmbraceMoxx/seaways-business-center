@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
+import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 // Dto
 import {
   ApprovalCommand,
@@ -27,7 +28,6 @@ export class ApprovalEngineService {
 
   // Todo: 各个环节加上异常处理
   // Todo: 各步骤写操作日志
-  // Todo: 加一个订单取消，也要更新审批实例（还是直接在订单取消的地方处理？）
   // Todo: 查询订单是否被驳回过
   constructor(
     @InjectRepository(ApprovalInstanceEntity)
@@ -48,7 +48,6 @@ export class ApprovalEngineService {
     // 查询并验证现有实例
     const existing = await this.instanceService.validateResubmission(
       createDto.orderId,
-      createDto.operatorId,
     );
 
     // 创建新的审批实例
@@ -60,6 +59,7 @@ export class ApprovalEngineService {
    */
   async processApproval(
     command: ApprovalCommand,
+    user: JwtUserPayload,
   ): Promise<{ status: string; message: string }> {
     const { orderId } = command;
     const instance = await this.instanceRepository.findOneBy({ orderId });
@@ -78,13 +78,13 @@ export class ApprovalEngineService {
 
     // 检查审批权限
     // 检查当前操作人是否是任务的审批人
-    if (task.approverUserId !== command.operatorId) {
+    if (task.approverUserId !== user.userId) {
       throw new BusinessException(
-        `当前操作人 ${command.operatorName} 不是此任务的指定审批人`,
+        `当前操作人 ${user.nickName} 不是此任务的指定审批人`,
       );
     }
 
-    const result = await this.handleCommand(instance, task, command);
+    const result = await this.handleCommand(instance, task, command, user);
 
     this.logger.log(
       `审批操作完成: 订单 ${command.orderId}, 操作 ${command.action}`,
@@ -95,12 +95,11 @@ export class ApprovalEngineService {
   /**
    * 取消审批流程
    */
-  async cancelApprovalProcess(cancelDto: CancelApprovalDto) {
-    // Todo: 未审批或已驳回才允许取消订单
+  async cancelApprovalProcess(cancelDto: CancelApprovalDto): Promise<void> {
     const { orderId, operatorId, operatorName, reason } = cancelDto;
 
-    const instance = await this.instanceRepository.findOneBy({ orderId });
-    if (!instance) throw new BusinessException('审批实例不存在');
+    // 未手动审批过或已驳回才允许取消订单
+    const instance = await this.instanceService.validateCancellation(orderId);
 
     instance.status = ApprovalInstanceStatusEnum.CANCELLED;
 
@@ -119,14 +118,12 @@ export class ApprovalEngineService {
         },
       );
       await manager.save(instance);
+      // Todo: 写入操作日志
     });
 
     this.logger.log(
       `审批流程取消成功: 订单 ${orderId}, 操作人 ${operatorName}`,
     );
-
-    // Todo: 写入操作日志，返回流程状态
-    return { instance };
   }
 
   /**
@@ -136,18 +133,35 @@ export class ApprovalEngineService {
     const instance = await this.instanceRepository.findOneBy({ orderId });
     if (!instance) throw new BusinessException('审批实例不存在');
 
-    const currentTask = await this.taskRepository.find({
+    const tasks = await this.taskRepository.find({
       where: {
         instanceId: instance.id,
-        status: ApprovalTaskStatusEnum.PENDING,
       },
       order: { taskStep: 'ASC' },
     });
 
+    const { id, currentNodeId, currentStep, status } = instance;
     return {
-      // Todo: 审批状态，当前步骤，当前审批人（数组）
-      instance,
-      currentTask,
+      instance: { id, currentNodeId, currentStep, status },
+      tasks: tasks.map(
+        ({
+          id,
+          nodeId,
+          taskStep,
+          approverUserId,
+          status,
+          autoApproved,
+          remark,
+        }) => ({
+          id,
+          nodeId,
+          taskStep,
+          approverUserId,
+          status,
+          autoApproved,
+          remark,
+        }),
+      ),
     };
   }
 
@@ -158,13 +172,24 @@ export class ApprovalEngineService {
     instance: ApprovalInstanceEntity,
     task: ApprovalTaskEntity,
     command: ApprovalCommand,
+    user: JwtUserPayload,
   ): Promise<{ status: string; message: string }> {
     switch (command.action) {
       case ApprovalActionEnum.AGREE:
-        return this.taskService.handleTaskApproval(instance, task, command);
+        return this.taskService.handleTaskApproval(
+          instance,
+          task,
+          command,
+          user,
+        );
 
       case ApprovalActionEnum.REFUSE:
-        return this.taskService.handleTaskRejection(instance, task, command);
+        return this.taskService.handleTaskRejection(
+          instance,
+          task,
+          command,
+          user,
+        );
 
       default:
         throw new BusinessException(`不支持的审批操作: ${command.action}`);
