@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
   AddOfflineOrderRequest,
+  ApprovalRejectRequest,
   CancelOrderRequest,
   CheckOrderAmountRequest,
   CheckOrderAmountResponse,
@@ -32,6 +33,7 @@ import { CustomerCreditLimitDetailService } from '@modules/customer/services/cus
 import { OrderCheckService } from '@src/modules/order/service/order-check.service';
 import { UserService } from '@modules/common/user/user.service';
 import { ApprovalEngineService } from '@modules/approval/services/approval-engine.service';
+import { CancelApprovalDto, CreateApprovalDto } from '@src/dto';
 
 @Injectable()
 export class OrderService {
@@ -389,17 +391,17 @@ export class OrderService {
       orderMain,
       req.receiverAddress,
     );
+    orderMain.remark = req.remark?.trim() ?? '';
 
     const finishGoodsList = req.finishGoods;
     const replenishGoodsList = req.replenishGoods;
     const auxiliaryGoodsList = req.auxiliaryGoods;
 
-    const { commodityInfos, commodityPriceMap } =
-      await this.getCommodityMapByOrderItems(
-        finishGoodsList,
-        replenishGoodsList,
-        auxiliaryGoodsList,
-      );
+    const { commodityPriceMap } = await this.getCommodityMapByOrderItems(
+      finishGoodsList,
+      replenishGoodsList,
+      auxiliaryGoodsList,
+    );
     const finalOrderItemList: OrderItemEntity[] = [
       ...OrderConvertHelper.buildOrderItems(
         orderId,
@@ -475,21 +477,8 @@ export class OrderService {
         user,
       );
       // todo 添加审批流,待验证
-      const approval = {
-        orderId,
-        creatorId: orderMain.creatorId,
-        customerId: orderMain.customerId,
-        regionalHeadId: orderMain.regionalHeadId || null,
-        provincialHeadId: orderMain.provincialHeadId || null,
-        usedReplenishRatio: parseFloat(orderMain.usedReplenishRatio ?? '0'),
-        usedAuxiliarySalesRatio: parseFloat(
-          orderMain.usedAuxiliarySalesRatio ?? '0',
-        ),
-        operatorId: user.userId,
-        operatorName: user.nickName,
-      };
-
-      await this.approvalEngineService.startApprovalProcess(approval);
+      const approvalDto = OrderConvertHelper.buildApprovalDto(orderMain, user);
+      await this.approvalEngineService.startApprovalProcess(approvalDto);
       // 写入操作日志
       const logInput = OrderLogHelper.getOrderOperate(
         user,
@@ -651,6 +640,8 @@ export class OrderService {
       logInput.params = req;
       await this.businessLogService.writeLog(logInput);
       // todo 确认审批流程
+      const approvalDto = OrderConvertHelper.buildApprovalDto(orderMain, user);
+      await this.approvalEngineService.startApprovalProcess(approvalDto);
     });
 
     return updateOrderMain.id;
@@ -685,7 +676,13 @@ export class OrderService {
         user,
       );
       // 修改订单
-      await manager.save(updateOrder);
+      await manager.update(OrderMainEntity, { id: orderMain.id }, updateOrder);
+      const approvalDto = new CancelApprovalDto();
+      approvalDto.orderId = orderMain.id;
+      approvalDto.operatorId = user.userId;
+      approvalDto.operatorName = user.nickName;
+      approvalDto.reason = req.cancelReason ? req.cancelReason.trim() : '';
+      await this.approvalEngineService.cancelApprovalProcess(approvalDto);
       const result = OrderLogHelper.getOrderOperate(
         user,
         OrderOperateTemplateEnum.CANCEL_ORDER,
@@ -695,7 +692,47 @@ export class OrderService {
       if (req.cancelReason !== undefined) {
         result.action = result.action + ';取消原因为:' + req.cancelReason;
       }
-      this.businessLogService.writeLog(result);
+      await this.businessLogService.writeLog(result);
+    });
+
+    return req.orderId;
+  }
+  async approvalReject(req: ApprovalRejectRequest): Promise<string> {
+    const lastOperateProgram = 'OrderService.approvalReject';
+    const orderMain = await this.orderCheckService.checkOrderExist(req.orderId);
+    if (OrderStatusEnum.REJECTED === orderMain.orderStatus) {
+      throw new BusinessException('订单已处于驳回状态无需再次操作！');
+    }
+    const updateOrder = new OrderMainEntity();
+    updateOrder.id = req.orderId;
+    updateOrder.approvalReason = req.rejectReason;
+    updateOrder.orderStatus = String(OrderStatusEnum.REJECTED);
+    updateOrder.auditTime = dayjs().toDate();
+    updateOrder.reviserId = req.creatorId;
+    updateOrder.reviserName = req.operatorName;
+    updateOrder.revisedTime = dayjs().toDate();
+    await this.dataSource.transaction(async (manager) => {
+      // 修改订单
+      await manager.update(OrderMainEntity, { id: orderMain.id }, updateOrder);
+      const user = {
+        userId: req.creatorId,
+        username: null,
+        nickName: req.operatorName,
+        ipAddress: null,
+        businessSystemId: null,
+        iat: null,
+        exp: null,
+      };
+      const result = OrderLogHelper.getOrderOperate(
+        user,
+        OrderOperateTemplateEnum.REJECT_ORDER,
+        lastOperateProgram,
+        req.orderId,
+      );
+      if (req.rejectReason !== undefined) {
+        result.action = result.action + ';驳回原因为:' + req.rejectReason;
+      }
+      await this.businessLogService.writeLog(result);
     });
 
     return req.orderId;

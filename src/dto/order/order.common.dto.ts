@@ -106,6 +106,19 @@ export class CancelOrderRequest {
   cancelReason: string;
 }
 
+export class ApprovalRejectRequest {
+  @ApiProperty({ description: '订单ID', example: 1 })
+  @IsNotEmpty({ message: '订单ID不能为空' })
+  orderId: string;
+  @ApiProperty({ description: '驳回原因' })
+  rejectReason: string;
+  @ApiProperty({ description: '用户ID' })
+  @IsNotEmpty({ message: '用户ID不能为空' })
+  creatorId : string;
+  @ApiProperty({ description: '用户昵称' })
+  operatorName :string;
+}
+
 export class CheckOrderAmountResponse {
   @ApiProperty({ description: '客户ID' })
   customerId: string;

@@ -1,5 +1,6 @@
 import {
   CheckOrderAmountResponse,
+  CreateApprovalDto,
   CreditLimitDetailRequestDto,
   OrderItem,
   ReceiverAddress,
@@ -224,5 +225,22 @@ export class OrderConvertHelper {
       .filter((e) => OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT === e.type)
       .map((good) => good.qty)
       .reduce((sum, current) => sum + current, 0);
+  }
+  static buildApprovalDto(orderMain: OrderMainEntity, user: JwtUserPayload) {
+    const approvalDto = new CreateApprovalDto();
+    approvalDto.orderId = orderMain.id;
+    approvalDto.creatorId = orderMain.creatorId;
+    approvalDto.customerId = orderMain.customerId;
+    approvalDto.regionalHeadId = orderMain.regionalHeadId || null;
+    approvalDto.provincialHeadId = orderMain.provincialHeadId || null;
+    approvalDto.usedReplenishRatio = parseFloat(
+      orderMain.usedReplenishRatio ?? '0',
+    );
+    approvalDto.usedAuxiliarySalesRatio = parseFloat(
+      orderMain.usedAuxiliarySalesRatio ?? '0',
+    );
+    approvalDto.operatorId = user.userId;
+    approvalDto.operatorName = user.nickName;
+    return approvalDto;
   }
 }
