@@ -87,7 +87,7 @@ export class CustomerMonthlyCreditLimitService {
     user: JwtUserPayload,
   ) {
     // 1、使用 MoneyUtil 进行金额累加计算
-    const updatedFields = {
+    const updatedFields: Partial<CustomerMonthlyCreditLimitEntity> = {
       contractMissionAmount: MoneyUtil.fromYuan(
         existingRecord.contractMissionAmount,
       )
@@ -111,31 +111,30 @@ export class CustomerMonthlyCreditLimitService {
       )
         .add(MoneyUtil.fromYuan(creditDetail.usedAuxiliarySaleGoodsAmount || 0))
         .toYuan(),
-      remainAuxiliarySaleGoodsAmount: MoneyUtil.fromYuan(
-        existingRecord.remainAuxiliarySaleGoodsAmount,
-      )
-        .add(
-          MoneyUtil.fromYuan(creditDetail.remainAuxiliarySaleGoodsAmount || 0),
-        )
-        .toYuan(),
+
       usedReplenishingGoodsAmount: MoneyUtil.fromYuan(
         existingRecord.usedReplenishingGoodsAmount,
       )
         .add(MoneyUtil.fromYuan(creditDetail.usedReplenishingGoodsAmount || 0))
-        .toYuan(),
-      remainReplenishingGoodsAmount: MoneyUtil.fromYuan(
-        existingRecord.remainReplenishingGoodsAmount,
-      )
-        .add(
-          MoneyUtil.fromYuan(creditDetail.remainReplenishingGoodsAmount || 0),
-        )
         .toYuan(),
       reviserId: user.userId,
       reviserName: user.nickName,
       revisedTime: dayjs().toDate(),
     };
 
-    // 2、更新
+    // 2、重新计算剩余额度
+    updatedFields.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
+      updatedFields.auxiliarySaleGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(updatedFields.usedAuxiliarySaleGoodsAmount))
+      .toYuan();
+    updatedFields.remainReplenishingGoodsAmount = MoneyUtil.fromYuan(
+      updatedFields.replenishingGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(updatedFields.usedReplenishingGoodsAmount))
+      .toYuan();
+
+    // 3、更新
     return await this.customerMonthlyCreditRepository.update(
       existingRecord.id,
       updatedFields,

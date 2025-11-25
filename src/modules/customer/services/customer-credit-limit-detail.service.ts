@@ -338,12 +338,8 @@ export class CustomerCreditLimitDetailService {
         creditParam.replenishingGoodsAmount;
       creditDetail.usedAuxiliarySaleGoodsAmount =
         creditParam.usedAuxiliarySaleGoodsAmount;
-      creditDetail.remainAuxiliarySaleGoodsAmount =
-        creditParam.remainAuxiliarySaleGoodsAmount;
       creditDetail.usedReplenishingGoodsAmount =
         creditParam.usedReplenishingGoodsAmount;
-      creditDetail.remainReplenishingGoodsAmount =
-        creditParam.remainReplenishingGoodsAmount;
       creditDetail.payableVoucher = creditParam.payableVoucher;
       // 默认
       creditDetail.deleted = GlobalStatusEnum.NO;
@@ -443,9 +439,7 @@ export class CustomerCreditLimitDetailService {
         'SUM(creditDetail.auxiliary_sale_goods_amount) as auxiliarySaleGoodsAmount',
         'SUM(creditDetail.replenishing_goods_amount) as replenishingGoodsAmount',
         'SUM(creditDetail.used_auxiliary_sale_goods_amount) as usedAuxiliarySaleGoodsAmount',
-        'SUM(creditDetail.remain_auxiliary_sale_goods_amount) as remainAuxiliarySaleGoodsAmount',
         'SUM(creditDetail.used_replenishing_goods_amount) as usedReplenishingGoodsAmount',
-        'SUM(creditDetail.remain_replenishing_goods_amount) as remainReplenishingGoodsAmount',
       ])
       .leftJoin(
         CustomerInfoEntity,
