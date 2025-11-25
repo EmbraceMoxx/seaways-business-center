@@ -42,7 +42,7 @@ export class AuxiliarySalesRatioValidationStrategy
     const messages: string[] = [];
     if (
       response.auxiliarySalesRatio &&
-      parseFloat(response.auxiliarySalesRatio) >= 0.003
+      parseFloat(response.auxiliarySalesRatio) >= 0.03
     ) {
       messages.push(
         '当前辅销使用比例为：' +

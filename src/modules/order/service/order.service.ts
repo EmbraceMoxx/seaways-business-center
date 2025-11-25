@@ -514,7 +514,7 @@ export class OrderService {
     const orderId = req.orderId;
     // 判断是否存在订单
     const orderMain = await this.orderCheckService.checkOrderExist(orderId);
-    this.logger.log(`开始修改订单：before: ${orderMain}`);
+    this.logger.log(`开始修改订单：before: ${JSON.stringify(orderMain)}`);
     const updateOrderMain = new OrderMainEntity();
     updateOrderMain.id = orderMain.id;
     updateOrderMain.customerId = orderMain.customerId;
@@ -580,6 +580,16 @@ export class OrderService {
       updateOrderMain,
       calculateAmount,
     );
+    // 修改订单需要重新计算订单状态
+    const orderStatus = await this.orderCheckService.calculateOrderStatus(
+      calculateAmount,
+      user,
+      customerInfo,
+    );
+    this.logger.log('orderStatus:', orderStatus);
+    if (orderMain.orderStatus !== orderStatus) {
+      updateOrderMain.orderStatus = orderStatus;
+    }
 
     await this.dataSource.transaction(async (manage) => {
       // 修改订单

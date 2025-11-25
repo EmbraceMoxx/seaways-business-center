@@ -90,7 +90,7 @@ export class OrderCheckService {
     const flag = user.userId === customerInfo.principalUserId;
     this.logger.log(`当前操作人是否为客户负责人：${flag}`);
     // 当比例小于3% +5% 时，免审批，进入待回款状态
-    if (auxiliarySalesRatio <= 0.003 && replenishRatio <= 0.05) {
+    if (auxiliarySalesRatio <= 0.03 && replenishRatio <= 0.05) {
       this.logger.log(
         `当前货补比例为:${replenishRatio},辅销比例为：${auxiliarySalesRatio},无需审批！`,
       );
@@ -110,7 +110,7 @@ export class OrderCheckService {
       customerInfo.provincialHeadId === undefined
     ) {
       // 当客户存在大区负责人，则判断比例小于 10% + 3% 则免审批
-      if (auxiliarySalesRatio <= 0.003 && replenishRatio <= 0.1) {
+      if (auxiliarySalesRatio <= 0.03 && replenishRatio <= 0.1) {
         return OrderStatusEnum.PENDING_PAYMENT;
       } else {
         this.logger.log(
@@ -155,16 +155,20 @@ export class OrderCheckService {
       finishGoods,
       true,
     );
-    response.orderSubsidyAmount = subsidyAmount?String(subsidyAmount):'0';
+    response.orderSubsidyAmount = subsidyAmount ? String(subsidyAmount) : '0';
 
     // 计算使用货补金额及比例
     if (replenishGoods != null && replenishGoods.length > 0) {
       const replenishAmount = await this.calculateAmountWithQuery(
         replenishGoods,
       );
-      console.log(`calculate replenishAmount：`,replenishAmount);
-      response.replenishAmount = replenishAmount?String(replenishAmount):'0';
-      console.log(`after calculate replenishAmount：`,response.replenishAmount);
+      response.replenishAmount = replenishAmount
+        ? String(replenishAmount)
+        : '0';
+      console.log(
+        `after calculate replenishAmount：`,
+        response.replenishAmount,
+      );
       response.replenishRatio =
         subsidyAmount && subsidyAmount !== 0
           ? (replenishAmount / subsidyAmount).toFixed(4)
@@ -175,7 +179,9 @@ export class OrderCheckService {
       const auxiliaryAmount = await this.calculateAmountWithQuery(
         auxiliaryGoods,
       );
-      response.auxiliarySalesAmount = auxiliaryAmount?String(auxiliaryAmount):'0';
+      response.auxiliarySalesAmount = auxiliaryAmount
+        ? String(auxiliaryAmount)
+        : '0';
       response.auxiliarySalesRatio =
         subsidyAmount && subsidyAmount !== 0
           ? (auxiliaryAmount / subsidyAmount).toFixed(4)
@@ -187,7 +193,7 @@ export class OrderCheckService {
     const validationStrategies: ValidationStrategy[] = [
       new ReplenishRatioValidationStrategy(),
       new AuxiliarySalesRatioValidationStrategy(),
-      new RegionQuotaValidationStrategy(this.creditAmountInfoRepository),
+      // new RegionQuotaValidationStrategy(this.creditAmountInfoRepository),
     ];
     for (const strategy of validationStrategies) {
       const strategyMessages = await strategy.validate(response, customerInfo);
