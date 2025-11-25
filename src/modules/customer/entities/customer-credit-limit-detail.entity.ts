@@ -27,7 +27,7 @@ export class CustomerCreditLimitDetailEntity {
   @Column('varchar', { name: 'flow_code', comment: '流水编号', length: 128 })
   flowCode: string;
 
-  @Column('varchar', { name: 'order_id', comment: '内部订单ID', length: 128 })
+  @Column('bigint', { name: 'order_id', comment: '内部订单ID' })
   orderId: string;
 
   @Column('varchar', {

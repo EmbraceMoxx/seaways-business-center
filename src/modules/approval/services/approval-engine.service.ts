@@ -18,6 +18,7 @@ import {
   ApprovalTaskStatusEnum,
   ApprovalActionEnum,
 } from '@src/enums/approval.enum';
+import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 // Service
 import { InstanceService } from './instance.service';
 import { TaskService } from './task.service';
@@ -133,15 +134,22 @@ export class ApprovalEngineService {
     const instance = await this.instanceRepository.findOneBy({ orderId });
     if (!instance) throw new BusinessException('审批实例不存在');
 
+    // 获取所有任务并按步骤排序
     const tasks = await this.taskRepository.find({
-      where: {
-        instanceId: instance.id,
-      },
+      where: { instanceId: instance.id },
       order: { taskStep: 'ASC' },
     });
 
+    // 检查是否存在手动审批过的任务
+    const hasManualApproval = tasks.some(
+      (task) =>
+        task.status === ApprovalTaskStatusEnum.APPROVED &&
+        task.autoApproved === GlobalStatusEnum.NO,
+    );
+
     const { id, currentNodeId, currentStep, status } = instance;
     return {
+      canCancel: !hasManualApproval,
       instance: { id, currentNodeId, currentStep, status },
       tasks: tasks.map(
         ({

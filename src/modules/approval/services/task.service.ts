@@ -19,8 +19,10 @@ import {
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { OrderMainEntity } from '@src/modules/order/entities/order.main.entity';
 import * as dayjs from 'dayjs';
-import { OrderService } from '@modules/order/service/order.service';
 import { OrderStatusEnum } from '@src/enums/order-status.enum';
+import { OrderOperateTemplateEnum } from '@src/enums/order-operate-template.enum';
+import { OrderLogHelper } from '@modules/order/helper/order.log.helper';
+import { BusinessLogService } from '@modules/common/business-log/business-log.service';
 
 @Injectable()
 export class TaskService {
@@ -32,7 +34,7 @@ export class TaskService {
     @InjectRepository(ApprovalProcessNodeEntity)
     private nodeRepository: Repository<ApprovalProcessNodeEntity>,
     private entityManager: EntityManager,
-    private orderService: OrderService,
+    private businessLogService: BusinessLogService,
   ) {}
 
   /**
@@ -206,6 +208,14 @@ export class TaskService {
     command: ApprovalCommand,
     user: JwtUserPayload,
   ): Promise<{ status: string; message: string }> {
+    const orderMain = await this.entityManager.findOne(OrderMainEntity, {
+      where: { id: instance.orderId, deleted: GlobalStatusEnum.NO },
+    });
+    if (!orderMain) throw new BusinessException('订单不存在或已被删除');
+
+    // 获取日志操作类型
+    const operate = this.getOperateType(orderMain.orderStatus);
+
     // 更新任务状态
     task.status = ApprovalTaskStatusEnum.APPROVED;
     task.remark = command.remark;
@@ -213,6 +223,7 @@ export class TaskService {
     task.reviserName = user.nickName;
 
     // 查找下一个任务
+    // Todo: 这里要考虑如果审批类型是ROLE，会有多个任务
     const nextTask = await this.taskRepository.findOne({
       where: {
         instanceId: task.instanceId,
@@ -246,20 +257,40 @@ export class TaskService {
       this.logger.log(`审批流程完成: 实例 ${instance.id}`);
     }
 
+    const updateOrder = Object.assign(new OrderMainEntity(), {
+      id: instance.orderId,
+      approvalReason: command.remark,
+      orderStatus: String(nextStatus),
+      auditTime: dayjs().toDate(),
+      reviserId: user.userId,
+      reviserName: user.username,
+      revisedTime: dayjs().toDate(),
+    });
+
+    const lastOperateProgram = 'TaskService.handleTaskApproval';
+    // Todo: 写入日志重写一份到审批模块
+    const result = OrderLogHelper.getOrderOperate(
+      user,
+      operate,
+      lastOperateProgram,
+      instance.orderId,
+    );
+
+    if (command.remark) {
+      result.action = `${result.action};同意原因为:${command.remark}`;
+    }
+
     // 事务保存
     await this.entityManager.transaction(async (manager) => {
       await Promise.all([
+        // 更新审批步骤
         manager.save(task),
+        // 更新实例
         manager.save(instance),
-        this.orderService.approvalAgree(
-          {
-            orderId: instance.orderId,
-            agreeReason: command.remark,
-          },
-          nextStatus,
-          user,
-          manager,
-        ),
+        // 更新订单
+        manager.update(OrderMainEntity, { id: instance.orderId }, updateOrder),
+        // 写入日志
+        this.businessLogService.writeLog(result, manager),
       ]);
     });
 
@@ -267,6 +298,25 @@ export class TaskService {
       status: ApprovalTaskStatusEnum.APPROVED,
       message: nextTask ? '审批通过，流程继续' : '审批完成',
     };
+  }
+
+  /**
+   * 获取操作类型
+   */
+  private getOperateType(orderStatus: string): OrderOperateTemplateEnum {
+    const operateMap = {
+      [OrderStatusEnum.PROVINCE_REVIEWING]:
+        OrderOperateTemplateEnum.PROVINCE_APPROVAL_ORDER,
+      [OrderStatusEnum.REGION_REVIEWING]:
+        OrderOperateTemplateEnum.REGION_APPROVAL_ORDER,
+      [OrderStatusEnum.DIRECTOR_REVIEWING]:
+        OrderOperateTemplateEnum.DIRECTOR_APPROVAL_ORDER,
+    };
+
+    const operate = operateMap[orderStatus];
+    if (!operate) throw new BusinessException('找不到对应的审批节点');
+
+    return operate;
   }
 
   /**
@@ -284,6 +334,15 @@ export class TaskService {
       throw new BusinessException('订单已处于驳回状态无需再次操作！');
     }
 
+    const orderMain = await this.entityManager.findOne(OrderMainEntity, {
+      where: { id: instance.orderId, deleted: GlobalStatusEnum.NO },
+    });
+    if (!orderMain) throw new BusinessException('订单不存在或已被删除');
+
+    if (OrderStatusEnum.REJECTED === orderMain.orderStatus) {
+      throw new BusinessException('订单已处于驳回状态无需再次操作！');
+    }
+
     // 更新实例状态：审批驳回，终止流程
     instance.status = ApprovalInstanceStatusEnum.REJECTED;
     instance.reviserId = user.userId;
@@ -296,19 +355,35 @@ export class TaskService {
     task.reviserId = user.userId;
     task.reviserName = user.nickName;
 
+    const lastOperateProgram = 'OrderService.approvalReject';
+
+    const updateOrder = Object.assign(new OrderMainEntity(), {
+      id: instance.orderId,
+      approvalReason: remark,
+      orderStatus: String(OrderStatusEnum.REJECTED),
+      auditTime: dayjs().toDate(),
+      reviserId: user.userId,
+      reviserName: user.username,
+      revisedTime: dayjs().toDate(),
+    });
+
+    const result = OrderLogHelper.getOrderOperate(
+      user,
+      OrderOperateTemplateEnum.REJECT_ORDER,
+      lastOperateProgram,
+      instance.orderId,
+    );
+    if (command.remark) {
+      result.action = result.action + ';驳回原因为:' + command.remark;
+    }
+
     // 事务处理
     await this.entityManager.transaction(async (manager) => {
       await Promise.all([
         manager.save(task),
         manager.save(instance),
-        this.orderService.approvalReject(
-          {
-            orderId: instance.orderId,
-            rejectReason: command.remark,
-          },
-          user,
-          manager,
-        ),
+        manager.update(OrderMainEntity, { id: orderMain.id }, updateOrder),
+        this.businessLogService.writeLog(result, manager),
       ]);
     });
 
