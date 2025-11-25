@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { OrderEventTaskService } from '../service/order-event-task.service';
+import { OrderEventTaskService } from '../service/order-event/order-event-task.service';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SuccessResponseDto } from '@src/dto';
 import { ProcessedResult } from '../interface/order-event-task.interface';

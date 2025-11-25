@@ -1,21 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { OrderEventEntity } from '../entities/order.event.entity';
+import { OrderEventEntity } from '../../entities/order.event.entity';
 import { DataSource } from 'typeorm';
 import {
   OrderEventStatusEnum,
   OrderEventTypeEnum,
 } from './order-event.constant';
 import { BusinessException } from '@src/dto';
-import { OrderMainEntity } from '../entities/order.main.entity';
+import { OrderMainEntity } from '../../entities/order.main.entity';
 import { generateId } from '@src/utils';
 import * as dayjs from 'dayjs';
 import { OrderStatusEnum } from '@src/enums/order-status.enum';
 import { JwtUserPayload } from '@src/modules/auth/jwt.strategy';
-import { OrderLogHelper } from '../helper/order.log.helper';
+import { OrderLogHelper } from '../../helper/order.log.helper';
 import { OrderOperateTemplateEnum } from '@src/enums/order-operate-template.enum';
 import { BusinessLogService } from '@src/modules/common/business-log/business-log.service';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
-import { UpdateEventStatusDto } from '../interface/order-event.interface';
+import { UpdateEventStatusDto } from '../../interface/order-event.interface';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
 @Injectable()
@@ -89,7 +89,8 @@ export class OrderEventService {
           throw new BusinessException(`订单状态不允许推送`);
         }
 
-        const title = `线上订单号：${orderMain.onlineOrderCode}，客户：${orderMain.customerName}`;
+        // 线上订单号使用唯一编码 orderMain.orderCode
+        const title = `线上订单号：${orderMain.orderCode}，客户：${orderMain.customerName}`;
         const newEvent = orderEventRepo.create({
           id: generateId(),
           eventType: OrderEventTypeEnum.ORDER_PUSH,

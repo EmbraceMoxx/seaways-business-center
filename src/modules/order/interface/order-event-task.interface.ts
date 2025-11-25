@@ -13,7 +13,7 @@ export interface OrderEventMainInfo {
   businessId: string;
 }
 
-export interface BusinessResult {
+export interface EventExecuteResult {
   success: boolean;
   message: string; // 用于 event.eventMessage
   businessStatus?: string; // 业务状态，如订单状态

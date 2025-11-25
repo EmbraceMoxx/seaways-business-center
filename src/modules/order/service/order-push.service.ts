@@ -8,18 +8,21 @@ import {
   ERP_JST_API,
   ERP_JST_CODE,
 } from '@src/modules/erp/jushuitan/jst-http.constant';
-import { OrderEventService } from './order-event.service';
+import { OrderEventService } from './order-event/order-event.service';
 import { JwtUserPayload } from '@src/modules/auth/jwt.strategy';
 import { BusinessException } from '@src/dto';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import * as dayjs from 'dayjs';
-import { JST_ORDER_STATUS, OrderEventStatusEnum } from './order-event.constant';
+import {
+  JST_ORDER_STATUS,
+  OrderEventStatusEnum,
+} from './order-event/order-event.constant';
 import { OrderItemTypeEnum } from '@src/enums/order-item-type.enum';
 import { JstOrderPostDataItem } from '../interface/order-push.interface';
 import { OrderEventEntity } from '../entities/order.event.entity';
 import { OrderStatusEnum } from '@src/enums/order-status.enum';
 import {
-  BusinessResult,
+  EventExecuteResult,
   OrderEventMainInfo,
 } from '../interface/order-event-task.interface';
 import { OrderLogHelper } from '../helper/order.log.helper';
@@ -397,15 +400,14 @@ export class OrderPushService {
   }
 
   /**
-   * 处理订单推送事件并更新状态
+   * 处理订单推送事件
    * @param eventInfo
    * @param user
-   * @returns BusinessResult 业务结果
    */
   async handleOrderPushEvent(
     eventInfo: OrderEventMainInfo,
     user: JwtUserPayload,
-  ): Promise<BusinessResult> {
+  ): Promise<EventExecuteResult> {
     const thisContext = `${this.constructor.name}.handleOrderPushEvent`;
     const orderId = eventInfo.businessId;
 

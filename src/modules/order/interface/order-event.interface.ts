@@ -1,5 +1,5 @@
 import { EntityManager } from 'typeorm';
-import { OrderEventStatusEnum } from '../service/order-event.constant';
+import { OrderEventStatusEnum } from '../service/order-event/order-event.constant';
 
 export interface UpdateEventStatusDto {
   eventId: string;
