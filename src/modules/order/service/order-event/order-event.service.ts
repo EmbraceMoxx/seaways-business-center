@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OrderEventEntity } from '../../entities/order.event.entity';
 import { DataSource } from 'typeorm';
 import {
+  ORDER_EVENT_USER,
   OrderEventStatusEnum,
   OrderEventTypeEnum,
 } from './order-event.constant';
@@ -31,10 +32,7 @@ export class OrderEventService {
    * 创建订单推送事件
    * @param orderId 订单ID
    */
-  async createOrderPushEvent(
-    orderId: string,
-    user: JwtUserPayload,
-  ): Promise<OrderEventEntity> {
+  async createOrderPushEvent(orderId: string): Promise<OrderEventEntity> {
     const thisContext = `${this.constructor.name}.createOrderPushEvent`;
 
     const queryRunner = this._dataSource.createQueryRunner();
@@ -42,6 +40,11 @@ export class OrderEventService {
     await queryRunner.startTransaction();
     try {
       // 先查询该订单是否已有未处理的推送事件
+      const user = {
+        userId: ORDER_EVENT_USER.USER_ID,
+        username: ORDER_EVENT_USER.USERNAME,
+        nickName: ORDER_EVENT_USER.NICK_NAME,
+      } as JwtUserPayload;
       const orderEventRepo =
         queryRunner.manager.getRepository(OrderEventEntity);
       const existingEvent = await orderEventRepo.findOne({
@@ -77,7 +80,7 @@ export class OrderEventService {
           throw new BusinessException(`未找到订单`);
         }
 
-        // 检查订单状态，待推送或推送中(推送出错重新创建)才允许创建推送事件
+        // 检查订单状态，待推单或推单中(推送出错重新创建)才允许创建推送事件
         if (
           orderMain.orderStatus !== String(OrderStatusEnum.PENDING_PUSH) &&
           orderMain.orderStatus !== String(OrderStatusEnum.PUSHING)
@@ -97,7 +100,6 @@ export class OrderEventService {
           eventStatus: OrderEventStatusEnum.PENDING,
           eventMessage: '待推送订单',
           businessId: orderId,
-          // 其他必要字段赋值
           businessTitle: title,
           businessStatus: orderMain.orderStatus, // 创建时业务状态为订单当前状态
           businessMessage: orderMain.remark,

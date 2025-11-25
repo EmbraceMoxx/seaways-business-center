@@ -17,3 +17,9 @@ export enum OrderEventStatusEnum {
 export const JST_ORDER_STATUS = {
   WAIT_SELLER_SEND_GOODS: 'WAIT_SELLER_SEND_GOODS',
 };
+
+export const ORDER_EVENT_USER = {
+  USER_ID: '1',
+  USERNAME: 'admin',
+  NICK_NAME: '系统自动任务',
+};

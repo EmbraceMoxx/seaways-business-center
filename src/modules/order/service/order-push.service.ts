@@ -28,6 +28,7 @@ import {
 import { OrderLogHelper } from '../helper/order.log.helper';
 import { OrderOperateTemplateEnum } from '@src/enums/order-operate-template.enum';
 import { BusinessLogService } from '@src/modules/common/business-log/business-log.service';
+import { CustomerCreditLimitDetailEntity } from '@src/modules/customer/entities/customer-credit-limit-detail.entity';
 
 @Injectable()
 export class OrderPushService {
@@ -187,7 +188,7 @@ export class OrderPushService {
     return postData;
   }
 
-  async updateSuccessfulPush(
+  async updateOrderPushEvent(
     event: OrderEventEntity,
     oriInnerOrderCode: string,
     user: JwtUserPayload,
@@ -200,11 +201,19 @@ export class OrderPushService {
     await queryRunner.startTransaction();
     try {
       // 更新订单状态为已推送
-      await this.updatePushedOrder(
+      await this._updatePushedOrder(
         event.businessId,
         oriInnerOrderCode,
         user,
         context,
+        queryRunner.manager,
+      );
+
+      // 更新订单额度流水记录
+      await this._updateCreditLimitFlowAfterPush(
+        event.businessId,
+        oriInnerOrderCode,
+        user,
         queryRunner.manager,
       );
 
@@ -255,7 +264,7 @@ export class OrderPushService {
       this._logger.warn(
         `Push order error: orderId=${orderId}, code=${response.code}, message=${response?.msg}`,
       );
-      throw new BusinessException('推送订单出错');
+      throw new BusinessException('推送订单返回错误');
     }
 
     const orderData = response?.data?.datas;
@@ -271,32 +280,61 @@ export class OrderPushService {
     return innerOrderCode;
   }
 
-  async checkOrderPushAble(orderId: string): Promise<void> {
-    const thisContext = `${this.constructor.name}.checkOrderPushAble`;
+  /**
+   * 检查推送订单的条件并锁定订单
+   * @param orderId
+   * @param user
+   */
+  async checkOrderPushable(
+    orderId: string,
+    user: JwtUserPayload,
+  ): Promise<void> {
+    const thisContext = `${this.constructor.name}.checkOrderPushable`;
 
-    const orderMain = await this._orderRepository.findOne({
-      where: { id: orderId, deleted: GlobalStatusEnum.NO },
-    });
+    await this._dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(OrderMainEntity);
+      const orderMain = await repo.findOne({
+        where: { id: orderId, deleted: GlobalStatusEnum.NO },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!orderMain) {
+        this._logger.warn(`Order not found, id=${orderId}`, thisContext);
+        throw new BusinessException(`未找到订单`);
+      }
 
-    if (!orderMain) {
-      this._logger.warn(`Order not found, id=${orderId}`, thisContext);
-      throw new BusinessException(`未找到订单`);
-    }
+      // 如果已推送则直接返回
+      if (orderMain.orderStatus === String(OrderStatusEnum.PUSHED)) {
+        this._logger.log(`Order already pushed, id=${orderId}`, thisContext);
+        return;
+      }
 
-    // 检查订单状态，待推送或推送中(出错重新推送)才允许推送
-    if (
-      orderMain.orderStatus !== String(OrderStatusEnum.PENDING_PUSH) &&
-      orderMain.orderStatus !== String(OrderStatusEnum.PUSHING)
-    ) {
-      this._logger.warn(
-        `Order status invalid, id=${orderId}, status=${orderMain.orderStatus}`,
-        thisContext,
+      // 检查订单状态，待推送才允许推送
+      if (orderMain.orderStatus !== String(OrderStatusEnum.PENDING_PUSH)) {
+        this._logger.warn(
+          `Order status invalid, id=${orderId}, status=${orderMain.orderStatus}`,
+          thisContext,
+        );
+        throw new BusinessException(`订单状态不允许推送`);
+      }
+
+      // 更新订单状态为推送中
+      await repo.update(
+        { id: orderId, deleted: GlobalStatusEnum.NO },
+        {
+          orderStatus: String(OrderStatusEnum.PUSHING),
+          reviserId: user.userId,
+          reviserName: user.nickName,
+          revisedTime: dayjs().toDate(),
+          lastOperateProgram: thisContext,
+        },
       );
-      throw new BusinessException(`订单状态不允许推送`);
-    }
+    });
   }
 
-  async updatePushedOrder(
+  /**
+   * 更新已推送订单信息
+   */
+  async _updatePushedOrder(
     orderId: string,
     innerOrderCode: string,
     user: JwtUserPayload,
@@ -337,6 +375,33 @@ export class OrderPushService {
   }
 
   /**
+   * 更新推送后订单额度流水信息
+   */
+  async _updateCreditLimitFlowAfterPush(
+    orderId: string,
+    innerOrderCode: string,
+    user: JwtUserPayload,
+    manager?: EntityManager,
+  ): Promise<void> {
+    const now = dayjs().toDate();
+
+    const repo = manager
+      ? manager.getRepository(CustomerCreditLimitDetailEntity)
+      : this._dataSource.getRepository(CustomerCreditLimitDetailEntity);
+
+    // 更新订单额度流水的线上订单编号
+    await repo.update(
+      { orderId: orderId, deleted: GlobalStatusEnum.NO },
+      {
+        onlineOrderId: innerOrderCode, // 聚水潭线上订单编号
+        reviserId: user.userId,
+        reviserName: user.nickName,
+        revisedTime: now,
+      },
+    );
+  }
+
+  /**
    * 推送订单到ERP系统
    * @param orderId
    * @param user
@@ -350,7 +415,7 @@ export class OrderPushService {
     this._logger.log(`Pushing order id=${orderId}`, thisContext);
 
     // 检查推送条件
-    await this.checkOrderPushAble(orderId);
+    await this.checkOrderPushable(orderId, user);
 
     // 记录操作日志
     const logInput = OrderLogHelper.getOrderOperate(
@@ -362,23 +427,30 @@ export class OrderPushService {
     logInput.params = { orderId: orderId };
     await this._businessLogService.writeLog(logInput);
 
+    // 检查是否已推送成功
+    const exist = await this._orderRepository.findOne({
+      where: { id: orderId, deleted: GlobalStatusEnum.NO },
+    });
+    if (exist.orderStatus === String(OrderStatusEnum.PUSHED)) {
+      this._logger.log(`Order already pushed, skip uploading.`, thisContext);
+      return exist.oriInnerOrderCode;
+    }
+
+    // 组装订单数据并推送
     let erpOrderCode: string | null = null;
     try {
       const orderData = await this.assembleOrderData(orderId);
       erpOrderCode = await this.uploadOrder(orderId, orderData);
-      await this.updatePushedOrder(orderId, erpOrderCode, user, thisContext);
-      this._logger.log(`Pushed order ${orderId} to ERP.`, thisContext);
-      return erpOrderCode;
     } catch (err) {
       this._logger.error(
-        `Failed to push order ${orderId} to ERP: ${err?.message}`,
+        `Push order ${orderId} error: ${err?.message}`,
         err?.stack,
         thisContext,
       );
 
-      // 实时推送异常，登记事件等待后续任务处理
+      // 实时推送异常，登记事件由事件处理重试
       try {
-        await this._orderEventService.createOrderPushEvent(orderId, user);
+        await this._orderEventService.createOrderPushEvent(orderId);
       } catch (eventErr) {
         this._logger.error(
           `Failed to create order push event for orderId=${orderId}: ${eventErr.message}`,
@@ -397,6 +469,35 @@ export class OrderPushService {
       }
       throw new BusinessException('推送订单到ERP系统异常');
     }
+
+    // 推送成功, 更新订单状态和额度流水记录
+    try {
+      await this._dataSource.transaction(async (manager) => {
+        await this._updatePushedOrder(
+          orderId,
+          erpOrderCode,
+          user,
+          thisContext,
+          manager,
+        );
+        await this._updateCreditLimitFlowAfterPush(
+          orderId,
+          erpOrderCode,
+          user,
+          manager,
+        );
+      });
+    } catch (err) {
+      this._logger.error(
+        `Failed to update info after push for orderId=${orderId}: ${err?.message}`,
+        err?.stack,
+        thisContext,
+      );
+      throw new BusinessException('推送订单成功，但更新订单状态出错');
+    }
+
+    this._logger.log(`Pushed order ${orderId} to ERP.`, thisContext);
+    return erpOrderCode;
   }
 
   /**
@@ -440,6 +541,7 @@ export class OrderPushService {
       };
     }
 
+    // 订单状态必须为推送中才能重试推送
     if (order.orderStatus !== String(OrderStatusEnum.PUSHING)) {
       this._logger.warn(
         `Order status error, id=${orderId}, status=${order.orderStatus}`,
@@ -477,7 +579,7 @@ export class OrderPushService {
 
       const innerOrderCode = orderData[0]?.o_id || null;
 
-      await this.updateSuccessfulPush(event, innerOrderCode, user, thisContext);
+      await this.updateOrderPushEvent(event, innerOrderCode, user, thisContext);
 
       this._logger.log(
         `Push id=${orderId} to ERP, innerOrderCode=${innerOrderCode}.`,
