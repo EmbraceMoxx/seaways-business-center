@@ -1,7 +1,8 @@
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Body, Controller, Param, Post } from '@nestjs/common';
 import {
-  AddOfflineOrderRequest, ApprovalRejectRequest,
+  AddOfflineOrderRequest,
+  ApprovalRejectRequest,
   CancelOrderRequest,
   CheckOrderAmountRequest,
   CheckOrderAmountResponse,
@@ -174,9 +175,9 @@ export class OrderController {
     const reject = new ApprovalRejectRequest();
     reject.orderId = '648056041950547968';
     reject.rejectReason = '测试驳回';
-    reject.creatorId = '633192658931683328';
-    reject.operatorName = '张坤坤';
-    await this.orderService.approvalReject(reject);
+    // reject.creatorId = '633192658931683328';
+    // reject.operatorName = '张坤坤';
+    // await this.orderService.approvalReject(reject);
     // 测试取消订单
     // return await this.orderCheckService.calculateOrderStatus(
     //   req,

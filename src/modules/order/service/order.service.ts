@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
   AddOfflineOrderRequest,
+  ApprovalAgreeRequest,
   ApprovalRejectRequest,
   CancelOrderRequest,
   CheckOrderAmountRequest,
@@ -14,7 +15,7 @@ import {
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { TimeFormatterUtil } from '@utils/time-formatter.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import { OrderMainEntity } from '../entities/order.main.entity';
@@ -33,7 +34,7 @@ import { CustomerCreditLimitDetailService } from '@modules/customer/services/cus
 import { OrderCheckService } from '@src/modules/order/service/order-check.service';
 import { UserService } from '@modules/common/user/user.service';
 import { ApprovalEngineService } from '@modules/approval/services/approval-engine.service';
-import { CancelApprovalDto, CreateApprovalDto } from '@src/dto';
+import { CancelApprovalDto } from '@src/dto';
 
 @Injectable()
 export class OrderService {
@@ -711,10 +712,16 @@ export class OrderService {
   }
   /**
    * 审批驳回订单
-   * @param req - 审批驳回请求参数，包含订单ID、驳回原因、创建人ID、操作人姓名等信息
+   * @param req - 审批驳回请求参数，包含订单ID、驳回原因等信息
+   * @param user - 当前操作用户的身份信息，用于权限控制和日志记录
+   * @param manager EntityManager，用于事务操作
    * @returns 返回被驳回的订单ID
    */
-  async approvalReject(req: ApprovalRejectRequest): Promise<string> {
+  async approvalReject(
+    req: ApprovalRejectRequest,
+    user: JwtUserPayload,
+    manager: EntityManager,
+  ): Promise<string> {
     const lastOperateProgram = 'OrderService.approvalReject';
     const orderMain = await this.orderCheckService.checkOrderExist(req.orderId);
     if (OrderStatusEnum.REJECTED === orderMain.orderStatus) {
@@ -725,33 +732,80 @@ export class OrderService {
     updateOrder.approvalReason = req.rejectReason;
     updateOrder.orderStatus = String(OrderStatusEnum.REJECTED);
     updateOrder.auditTime = dayjs().toDate();
-    updateOrder.reviserId = req.creatorId;
-    updateOrder.reviserName = req.operatorName;
+    updateOrder.reviserId = user.userId;
+    updateOrder.reviserName = user.username;
     updateOrder.revisedTime = dayjs().toDate();
-    await this.dataSource.transaction(async (manager) => {
-      // 修改订单
-      await manager.update(OrderMainEntity, { id: orderMain.id }, updateOrder);
-      const user = {
-        userId: req.creatorId,
-        username: null,
-        nickName: req.operatorName,
-        ipAddress: null,
-        businessSystemId: null,
-        iat: null,
-        exp: null,
-      };
-      const result = OrderLogHelper.getOrderOperate(
-        user,
-        OrderOperateTemplateEnum.REJECT_ORDER,
-        lastOperateProgram,
-        req.orderId,
-      );
-      if (req.rejectReason !== undefined) {
-        result.action = result.action + ';驳回原因为:' + req.rejectReason;
-      }
-      await this.businessLogService.writeLog(result);
+    // 修改订单
+    await manager.update(OrderMainEntity, { id: orderMain.id }, updateOrder);
+    const result = OrderLogHelper.getOrderOperate(
+      user,
+      OrderOperateTemplateEnum.REJECT_ORDER,
+      lastOperateProgram,
+      req.orderId,
+    );
+    if (req.rejectReason !== undefined) {
+      result.action = result.action + ';驳回原因为:' + req.rejectReason;
+    }
+    await this.businessLogService.writeLog(result, manager);
+
+    return req.orderId;
+  }
+
+  /**
+   * 审批同意订单
+   * @param req - 审批同意请求参数，包含订单ID、同意原因等信息
+   * @param nextStatus - 下一步订单状态
+   * @param user - 当前操作用户的身份信息，用于权限控制和日志记录
+   * @param manager EntityManager，用于事务操作
+   * @returns 返回同意的订单ID
+   */
+  async approvalAgree(
+    req: ApprovalAgreeRequest,
+    nextStatus: OrderStatusEnum,
+    user: JwtUserPayload,
+    manager: EntityManager,
+  ): Promise<string> {
+    const lastOperateProgram = 'OrderService.approvalAgree';
+    const orderMain = await this.orderCheckService.checkOrderExist(req.orderId);
+
+    // 记录操作日志
+    const operateMap = {
+      [OrderStatusEnum.PROVINCE_REVIEWING]:
+        OrderOperateTemplateEnum.PROVINCE_APPROVAL_ORDER,
+      [OrderStatusEnum.REGION_REVIEWING]:
+        OrderOperateTemplateEnum.REGION_APPROVAL_ORDER,
+      [OrderStatusEnum.DIRECTOR_REVIEWING]:
+        OrderOperateTemplateEnum.DIRECTOR_APPROVAL_ORDER,
+    };
+
+    const operate = operateMap[orderMain.orderStatus];
+    if (!operate) throw new BusinessException('找不到对应的审批节点');
+
+    const updateOrder = Object.assign(new OrderMainEntity(), {
+      id: req.orderId,
+      approvalReason: req.agreeReason,
+      orderStatus: String(nextStatus),
+      auditTime: dayjs().toDate(),
+      reviserId: user.userId,
+      reviserName: user.username,
+      revisedTime: dayjs().toDate(),
     });
 
+    // 更新订单
+    await manager.update(OrderMainEntity, { id: req.orderId }, updateOrder);
+
+    const result = OrderLogHelper.getOrderOperate(
+      user,
+      operate,
+      lastOperateProgram,
+      req.orderId,
+    );
+
+    if (req.agreeReason) {
+      result.action = result.action + ';同意原因为:' + req.agreeReason;
+    }
+
+    await this.businessLogService.writeLog(result, manager);
     return req.orderId;
   }
 

@@ -1,8 +1,13 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SuccessResponseDto } from '@src/dto';
 import { ApprovalEngineService } from '../services/approval-engine.service';
-import { CreateApprovalDto } from '@src/dto/approval/approval.dto';
+import { CurrentUser } from '@src/decorators/current-user.decorator';
+import { JwtUserPayload } from '@modules/auth/jwt.strategy';
+import {
+  CreateApprovalDto,
+  ApprovalCommand,
+} from '@src/dto/approval/approval.dto';
 
 @ApiTags('审批管理')
 @ApiBearerAuth()
@@ -15,6 +20,26 @@ export class ApprovalController {
   async start(@Body() createDto: CreateApprovalDto) {
     const result = await this.approvalEngineService.startApprovalProcess(
       createDto,
+    );
+    return new SuccessResponseDto(result);
+  }
+
+  @ApiOperation({ summary: '查看审批状态' })
+  @Get('status/:orderId')
+  async getApprovalStatus(@Param('orderId') orderId: string) {
+    const result = await this.approvalEngineService.getApprovalStatus(orderId);
+    return new SuccessResponseDto(result);
+  }
+
+  @ApiOperation({ summary: '订单审批' })
+  @Post('process')
+  async processApproval(
+    @Body() command: ApprovalCommand,
+    @CurrentUser() user: JwtUserPayload,
+  ) {
+    const result = await this.approvalEngineService.processApproval(
+      command,
+      user,
     );
     return new SuccessResponseDto(result);
   }

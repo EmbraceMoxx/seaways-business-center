@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ApprovalController } from '@modules/approval/controllers/approval.controller';
+import { OrderModule } from '@modules/order/order.module';
 // Entity
 import { ApprovalInstanceEntity } from './entities/approval-instance.entity';
 import { ApprovalProcessDefinitionEntity } from './entities/approval-process-definition.entity';
@@ -24,6 +25,7 @@ import { TaskService } from '@modules/approval/services/task.service';
       ApprovalProcessRouterEntity,
       ApprovalTaskEntity,
     ]),
+    OrderModule,
   ],
   providers: [
     ApprovalEngineService,

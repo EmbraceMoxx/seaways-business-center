@@ -4,6 +4,7 @@ import { Repository, MoreThan, EntityManager } from 'typeorm';
 import { ApprovalTaskEntity } from '../entities/approval-task.entity';
 import { ApprovalProcessNodeEntity } from '../entities/approval-process-node.entity';
 import { ApprovalInstanceEntity } from '../entities/approval-instance.entity';
+import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import {
   ApprovalCommand,
   CreateApprovalDto,
@@ -16,6 +17,10 @@ import {
   ApprovalInstanceStatusEnum,
 } from '@src/enums/approval.enum';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
+import { OrderMainEntity } from '@src/modules/order/entities/order.main.entity';
+import * as dayjs from 'dayjs';
+import { OrderService } from '@modules/order/service/order.service';
+import { OrderStatusEnum } from '@src/enums/order-status.enum';
 
 @Injectable()
 export class TaskService {
@@ -24,7 +29,10 @@ export class TaskService {
   constructor(
     @InjectRepository(ApprovalTaskEntity)
     private taskRepository: Repository<ApprovalTaskEntity>,
+    @InjectRepository(ApprovalProcessNodeEntity)
+    private nodeRepository: Repository<ApprovalProcessNodeEntity>,
     private entityManager: EntityManager,
+    private orderService: OrderService,
   ) {}
 
   /**
@@ -165,18 +173,44 @@ export class TaskService {
   }
 
   /**
+   * 获取下一个订单状态
+   */
+  private async getNextOrderStatus(
+    nextTask: ApprovalTaskEntity,
+  ): Promise<OrderStatusEnum> {
+    const nextNode = await this.nodeRepository.findOneBy({
+      id: nextTask.nodeId,
+    });
+
+    const statusMap = {
+      [CustomerResponsibleTypeEnum.PROVINCIAL_HEAD]:
+        OrderStatusEnum.PROVINCE_REVIEWING,
+      [CustomerResponsibleTypeEnum.REGIONAL_HEAD]:
+        OrderStatusEnum.REGION_REVIEWING,
+      ['633192671120330752']: OrderStatusEnum.DIRECTOR_REVIEWING,
+    };
+
+    if (!statusMap[nextNode.assigneeValue]) {
+      throw new BusinessException('找不到对应的审批节点');
+    }
+
+    return statusMap[nextNode.assigneeValue];
+  }
+
+  /**
    * 处理审批通过
    */
   async handleTaskApproval(
     instance: ApprovalInstanceEntity,
     task: ApprovalTaskEntity,
     command: ApprovalCommand,
+    user: JwtUserPayload,
   ): Promise<{ status: string; message: string }> {
     // 更新任务状态
     task.status = ApprovalTaskStatusEnum.APPROVED;
     task.remark = command.remark;
-    task.reviserId = command.operatorId;
-    task.reviserName = command.operatorName;
+    task.reviserId = user.userId;
+    task.reviserName = user.nickName;
 
     // 查找下一个任务
     const nextTask = await this.taskRepository.findOne({
@@ -188,25 +222,45 @@ export class TaskService {
       order: { taskStep: 'ASC' },
     });
 
+    // 获取下一个状态
+    const nextStatus: OrderStatusEnum = nextTask
+      ? await this.getNextOrderStatus(nextTask)
+      : OrderStatusEnum.PENDING_PAYMENT;
+
     if (nextTask) {
       // 推进到下一个任务
+      instance.status = ApprovalInstanceStatusEnum.IN_PROGRESS;
       instance.currentNodeId = nextTask.nodeId;
       instance.currentStep = nextTask.taskStep;
-      instance.reviserId = command.operatorId;
-      instance.reviserName = command.operatorName;
-      // Todo: 通知
+      instance.reviserId = user.userId;
+      instance.reviserName = user.nickName;
+      // Todo: 操作日志
       this.logger.log(
         `推进到下一步: 任务 ${nextTask.id}, 审批人 ${nextTask.approverUserId}`,
       );
     } else {
       // 流程完成
       instance.status = ApprovalInstanceStatusEnum.APPROVED;
-      instance.reviserId = command.operatorId;
-      instance.reviserName = command.operatorName;
+      instance.reviserId = user.userId;
+      instance.reviserName = user.nickName;
       this.logger.log(`审批流程完成: 实例 ${instance.id}`);
     }
+
+    // 事务保存
     await this.entityManager.transaction(async (manager) => {
-      await Promise.all([manager.save(task), manager.save(instance)]);
+      await Promise.all([
+        manager.save(task),
+        manager.save(instance),
+        this.orderService.approvalAgree(
+          {
+            orderId: instance.orderId,
+            agreeReason: command.remark,
+          },
+          nextStatus,
+          user,
+          manager,
+        ),
+      ]);
     });
 
     return {
@@ -222,19 +276,40 @@ export class TaskService {
     instance: ApprovalInstanceEntity,
     task: ApprovalTaskEntity,
     command: ApprovalCommand,
+    user: JwtUserPayload,
   ): Promise<{ status: string; message: string }> {
+    const { remark } = command;
+
+    if ((instance.status = ApprovalInstanceStatusEnum.REJECTED)) {
+      throw new BusinessException('订单已处于驳回状态无需再次操作！');
+    }
+
+    // 更新实例状态：审批驳回，终止流程
+    instance.status = ApprovalInstanceStatusEnum.REJECTED;
+    instance.reviserId = user.userId;
+    instance.reviserName = user.nickName;
+
     // 更新任务状态
     // Todo: 如果是ROLE，要更新多个task
     task.status = ApprovalTaskStatusEnum.REJECTED;
-    task.remark = command.remark;
-    task.reviserId = command.operatorId;
-    task.reviserName = command.operatorName;
-    // 审批驳回，终止流程
-    instance.status = ApprovalInstanceStatusEnum.REJECTED;
-    instance.reviserId = command.operatorId;
-    instance.reviserName = command.operatorName;
+    task.remark = remark;
+    task.reviserId = user.userId;
+    task.reviserName = user.nickName;
+
+    // 事务处理
     await this.entityManager.transaction(async (manager) => {
-      await Promise.all([manager.save(task), manager.save(instance)]);
+      await Promise.all([
+        manager.save(task),
+        manager.save(instance),
+        this.orderService.approvalReject(
+          {
+            orderId: instance.orderId,
+            rejectReason: command.remark,
+          },
+          user,
+          manager,
+        ),
+      ]);
     });
 
     return {

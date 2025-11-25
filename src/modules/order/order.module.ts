@@ -50,5 +50,6 @@ import { CustomerCreditAmountInfoEntity } from '@modules/customer/entities/custo
   ],
 
   controllers: [OrderController, OrderTaskController],
+  exports: [OrderCheckService],
 })
 export class OrderModule {}

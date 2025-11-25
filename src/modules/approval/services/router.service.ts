@@ -84,6 +84,7 @@ export class RouterService {
           createDto,
         );
         if (conditionMet) {
+          // Todo: node放到nodeService
           nextNode = await this.nodeRepository.findOneBy({
             id: router.targetNodeId,
             nodeType: ApprovalNodeTypeEnum.APPROVAL,

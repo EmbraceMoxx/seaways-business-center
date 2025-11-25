@@ -109,7 +109,6 @@ export class InstanceService {
    */
   async validateResubmission(
     orderId: string,
-    operatorName: string,
   ): Promise<ApprovalInstanceEntity | null> {
     // 查询现有实例
     const instance = await this.instanceRepository.findOneBy({ orderId });
@@ -139,10 +138,39 @@ export class InstanceService {
       throw new BusinessException('流程已被审批过，无法重新提交');
     }
 
-    // Todo: 写到操作日志
-    this.logger.log(
-      `允许重新提交: 实例 ${instance.id}, 操作人 ${operatorName}`,
-    );
+    return instance;
+  }
+
+  /**
+   * 验证是否可以取消订单
+   */
+  async validateCancellation(
+    orderId: string,
+  ): Promise<ApprovalInstanceEntity | null> {
+    // 查询现有实例
+    const instance = await this.instanceRepository.findOneBy({ orderId });
+    if (!instance) throw new BusinessException('审批实例不存在');
+
+    // 检查订单状态
+    // Todo: 订单判断从orderCheckService拿
+    const currentOrder = await this.entityManager.findOneBy(OrderMainEntity, {
+      id: orderId,
+    });
+    if (!currentOrder) throw new BusinessException('未找到关联的订单');
+
+    const instanceStatus = instance.status;
+    // 流程已驳回，可以取消审批
+    if (instanceStatus === ApprovalInstanceStatusEnum.REJECTED) {
+      return instance;
+    }
+
+    // 检查任务审批状态
+    const task = await this.taskRepository.findOneBy({
+      instanceId: instance.id,
+      status: ApprovalTaskStatusEnum.APPROVED,
+      autoApproved: GlobalStatusEnum.NO, // 非自动审批
+    });
+    if (task) throw new BusinessException('流程已被审批过，请先驳回申请');
 
     return instance;
   }
