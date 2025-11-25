@@ -278,6 +278,7 @@ export class OrderCheckService {
         // 订单状态为 REJECTED 允许修改订单
         if (hasPermission) {
           buttons.find((btn) => btn.buttonCode === 'MODIFY').isOperate = true;
+          buttons.find((btn) => btn.buttonCode === 'CANCEL').isOperate = true;
         }
         break;
 
@@ -289,6 +290,7 @@ export class OrderCheckService {
         //  需要判断是否有审批记录，若存在审批通过记录，则不允许修改，若需要修改则需要审批驳回后回到驳回状态才允许修改
         if (hasPermission) {
           buttons.find((btn) => btn.buttonCode === 'MODIFY').isOperate = true;
+          buttons.find((btn) => btn.buttonCode === 'CANCEL').isOperate = true;
         }
         break;
 
