@@ -91,6 +91,7 @@ export class OrderPushService {
             );
           }
         }
+        // 成功或其他非重试错误，直接返回结果，上层调用处理
         return res.data;
       } catch (err) {
         // 网络错误重试
@@ -113,7 +114,7 @@ export class OrderPushService {
           thisContext,
         );
 
-        throw new Error(`未能上传订单到 JST`);
+        throw new Error(`未能上传订单到 JST, 错误信息: ${err?.message}`);
       }
     }
 
@@ -127,34 +128,36 @@ export class OrderPushService {
     orderMain: OrderMainEntity,
     orderItems: OrderItemEntity[],
   ): JstOrderPostDataItem[] {
-    const postData: JstOrderPostDataItem = {} as JstOrderPostDataItem;
-    postData['shop_id'] = Number(orderMain.customerJstId); // 客户聚水潭ID作为店铺ID
-    postData['so_id'] = orderMain.orderCode; // 订单编号, 全局唯一，作为聚水潭线上订单号
-    postData['order_date'] = dayjs().format('YYYY-MM-DD HH:mm:ss'); // 推送订单日期
-    postData['shop_status'] = JST_ORDER_STATUS.WAIT_SELLER_SEND_GOODS; // 订单状态，待发货
-    postData['pay_amount'] = Number(orderMain.amount); // 订单总金额
-    postData['freight'] = 0; // 运费
-    postData['remark'] = orderMain.remark || ''; // 订单备注
-    postData['buyer_message'] = '线下下单推单'; // 买家留言
-    postData['shop_buyer_id'] = orderMain.receiverName || ''; // 买家ID, 实际填写收货人姓名
+    const postDataItem: JstOrderPostDataItem = {} as JstOrderPostDataItem;
+    postDataItem['shop_id'] = Number(orderMain.customerJstId); // 客户聚水潭ID作为店铺ID
+    postDataItem['so_id'] = orderMain.orderCode; // 订单编号, 全局唯一，作为聚水潭线上订单号
 
-    postData['receiver_state'] = orderMain.receiverProvince || ''; // 收货人省份
-    postData['receiver_city'] = orderMain.receiverCity || ''; // 收货人城市
-    postData['receiver_district'] = orderMain.receiverDistrict || ''; // 收货人区县
-    postData['receiver_address'] = orderMain.receiverAddress || ''; // 收货人详细地址
-    postData['receiver_name'] = orderMain.receiverName || ''; // 收货人姓名
-    postData['receiver_phone'] = orderMain.receiverPhone || ''; // 收货人电话
+    // 聚水潭显示的下单日期，格式YYYY-MM-DD HH:MM:SS
+    postDataItem['order_date'] = dayjs().format('YYYY-MM-DD HH:mm:ss'); // 使用推送订单日期
 
-    postData['pay'] = {
+    postDataItem['shop_status'] = JST_ORDER_STATUS.WAIT_SELLER_SEND_GOODS; // 订单状态，待发货
+    postDataItem['pay_amount'] = Number(orderMain.amount); // 订单总金额
+    postDataItem['freight'] = 0; // 运费
+    postDataItem['remark'] = orderMain.remark || ''; // 订单备注
+    postDataItem['buyer_message'] = '线下下单推单'; // 买家留言
+    postDataItem['shop_buyer_id'] = orderMain.receiverName || ''; // 买家ID, 实际填写收货人姓名
+    postDataItem['receiver_state'] = orderMain.receiverProvince || ''; // 收货人省份
+    postDataItem['receiver_city'] = orderMain.receiverCity || ''; // 收货人城市
+    postDataItem['receiver_district'] = orderMain.receiverDistrict || ''; // 收货人区县
+    postDataItem['receiver_address'] = orderMain.receiverAddress || ''; // 收货人详细地址
+    postDataItem['receiver_name'] = orderMain.receiverName || ''; // 收货人姓名
+    postDataItem['receiver_phone'] = orderMain.receiverPhone || ''; // 收货人电话
+
+    postDataItem['pay'] = {
       outer_pay_id: '-', // 外部支付编号，若无可填'-'
-      pay_date: dayjs().format('YYYY-MM-DD HH:mm:ss'), // 支付时间
+      pay_date: postDataItem['order_date'], // 付款时间, 无特别要求可与下单时间相同
       payment: '-', // 支付方式，若无可填'-'
       seller_account: '-', // 收款账号，若无可填'-'
       buyer_account: '-', // 付款账号，若无可填'-'
       amount: Number(orderMain.amount), // 支付金额
     };
 
-    postData['items'] = orderItems.map((item) => ({
+    postDataItem['items'] = orderItems.map((item) => ({
       sku_id: item.internalCode || '', // 商品SKU编码
       shop_sku_id: item.internalCode || '', // 店铺商品SKU编码
       amount: Number(item.amount), // 商品总价
@@ -169,7 +172,7 @@ export class OrderPushService {
       ].includes(item.type), // 是否为赠品
     }));
 
-    return [postData];
+    return [postDataItem];
   }
 
   /**
@@ -189,6 +192,7 @@ export class OrderPushService {
 
     // 组装订单数据结构，具体字段根据聚水潭API要求进行映射
     const postData = this._assembleJstPostData(orderMain, orderItems);
+
     this._logger.debug(
       `Assembled JST post data for orderId=${orderId}: ${JSON.stringify(
         postData,
@@ -224,7 +228,7 @@ export class OrderPushService {
       // 更新订单额度流水记录
       await this._updateCreditLimitFlowAfterPush(
         event.businessId,
-        order.onlineOrderCode,
+        order.orderCode,
         user,
         queryRunner.manager,
       );
@@ -316,8 +320,8 @@ export class OrderPushService {
 
       // 如果已推送则直接返回
       if (orderMain.orderStatus === String(OrderStatusEnum.PUSHED)) {
-        this._logger.log(`Order already pushed, id=${orderId}`, thisContext);
-        return;
+        this._logger.warn(`Order already pushed, id=${orderId}`, thisContext);
+        throw new BusinessException(`订单已推送`);
       }
 
       // 如果订单状态为推送中，说明有其他进程正在推送此订单
@@ -339,8 +343,12 @@ export class OrderPushService {
       }
 
       // 更新订单状态为推送中
-      await repo.update(
-        { id: orderId, deleted: GlobalStatusEnum.NO },
+      const result = await repo.update(
+        {
+          id: orderId,
+          deleted: GlobalStatusEnum.NO,
+          orderStatus: String(OrderStatusEnum.PENDING_PUSH),
+        },
         {
           orderStatus: String(OrderStatusEnum.PUSHING),
           reviserId: user.userId,
@@ -349,6 +357,10 @@ export class OrderPushService {
           lastOperateProgram: thisContext,
         },
       );
+
+      if (result.affected !== 1) {
+        throw new BusinessException(`订单状态异常，无法推送`);
+      }
     });
   }
 
@@ -381,7 +393,7 @@ export class OrderPushService {
     }
 
     await repo.update(
-      { id: order.id },
+      { id: order.id, deleted: GlobalStatusEnum.NO },
       {
         orderStatus: String(OrderStatusEnum.PUSHED),
         onlineOrderCode: order.orderCode, // 推送后线上订单号即为订单编号
@@ -450,15 +462,6 @@ export class OrderPushService {
     logInput.params = { orderId: orderId };
     await this._businessLogService.writeLog(logInput);
 
-    // 检查是否已推送成功
-    const exist = await this._orderRepository.findOne({
-      where: { id: orderId, deleted: GlobalStatusEnum.NO },
-    });
-    if (exist.orderStatus === String(OrderStatusEnum.PUSHED)) {
-      this._logger.log(`Order already pushed, skip uploading.`, thisContext);
-      return exist.oriInnerOrderCode;
-    }
-
     // 组装订单数据并推送
     let erpOrderCode: string | null = null;
     try {
@@ -506,7 +509,7 @@ export class OrderPushService {
 
         await this._updateCreditLimitFlowAfterPush(
           orderId,
-          order.onlineOrderCode,
+          order.orderCode,
           user,
           manager,
         );
