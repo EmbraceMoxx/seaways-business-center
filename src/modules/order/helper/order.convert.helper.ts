@@ -68,7 +68,7 @@ export class OrderConvertHelper {
       } else {
         orderItem.id = IdUtil.generateId();
         orderItem.creatorId = user.userId;
-        orderItem.creatorName = user.username;
+        orderItem.creatorName = user.nickName;
         orderItem.createdTime = dayjs().toDate();
       }
 
@@ -94,7 +94,7 @@ export class OrderConvertHelper {
           break;
       }
       orderItem.reviserId = user.userId;
-      orderItem.reviserName = user.username;
+      orderItem.reviserName = user.nickName;
       orderItem.revisedTime = dayjs().toDate();
       return orderItem;
     });
