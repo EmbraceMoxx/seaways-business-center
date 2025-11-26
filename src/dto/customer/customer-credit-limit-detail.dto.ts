@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsNumber, IsOptional, IsString } from 'class-validator';
 import { PageRequestDto } from '@src/dto/common/common.dto';
 
 /**
@@ -260,6 +260,14 @@ export class QueryCreditToMonthDto {
   @IsOptional()
   @IsString({ message: '时间必须是字符串' })
   saveTime?: string;
+
+  @ApiProperty({
+    description: '客户ID',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '时间必须是字符串' })
+  customerId?: string;
 }
 
 /**

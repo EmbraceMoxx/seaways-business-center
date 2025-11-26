@@ -28,7 +28,7 @@ export class TimeFormatterUtil {
    */
   static formatToStandard(timeString: string, type: 'start' | 'end'): Date {
     if (!timeString) {
-      return new Date();
+      return dayjs().toDate();
     }
 
     // 使用dayjs解析时间，支持多种格式和严格模式
@@ -186,5 +186,35 @@ export class TimeFormatterUtil {
     const start = this.parseTime(startTime);
     const end = this.parseTime(endTime);
     return end.diff(start, unit);
+  }
+  /**
+   * 根据年月获取月份的第一天和最后一天
+   * @param yearMonth 年月字符串，格式如 '202511'
+   * @returns 包含月份第一天和最后一天的对象
+   */
+  static getMonthRange(yearMonth: string): { startTime: Date; endTime: Date } {
+    if (!yearMonth || yearMonth.length !== 6) {
+      throw new Error('无效的年月格式，应为6位数字，如202511');
+    }
+
+    const year = parseInt(yearMonth.substring(0, 4), 10);
+    const month = parseInt(yearMonth.substring(4, 6), 10) - 1; // month是0-indexed
+
+    if (isNaN(year) || isNaN(month) || month < 0 || month > 11) {
+      throw new Error('无效的年月数值');
+    }
+
+    const startTime = dayjs(new Date(year, month, 1)).startOf('day').toDate();
+    const endTime = dayjs(new Date(year, month + 1, 0))
+      .endOf('day')
+      .toDate();
+
+    this.logger.debug(
+      `月份范围计算: "${yearMonth}" -> 第一天: "${dayjs(startTime).format(
+        'YYYY-MM-DD HH:mm:ss.SSS',
+      )}", 最后一天: "${dayjs(endTime).format('YYYY-MM-DD HH:mm:ss.SSS')}"`,
+    );
+
+    return { startTime, endTime };
   }
 }

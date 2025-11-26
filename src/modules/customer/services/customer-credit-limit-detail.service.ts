@@ -431,9 +431,11 @@ export class CustomerCreditLimitDetailService {
    * 获取获取大于等于该时间的流水明细列表，根据客户id分组
    */
   async getCreditDetailListByCustomerIdAndTime(
-    saveTime: Date,
+    startTime: Date,
+    endTime: Date,
+    customerId: string,
   ): Promise<CreditToMonthResponseDto[]> {
-    const creditDetailList = this.creditDetailRepository
+    let queryBuilder = this.creditDetailRepository
       .createQueryBuilder('creditDetail')
       .select([
         'creditDetail.customer_id as customerId',
@@ -450,43 +452,75 @@ export class CustomerCreditLimitDetailService {
         'customer',
         'customer.id = creditDetail.customerId',
       )
-      .where('creditDetail.created_time >= :saveTime', { saveTime: saveTime })
-      .andWhere('creditDetail.status = :status', { status: 1 })
+      .where('creditDetail.status = :status', { status: 1 })
       .andWhere('creditDetail.deleted = :deleted', {
         deleted: GlobalStatusEnum.NO,
       })
-      .groupBy('creditDetail.customerId')
-      .getRawMany();
-
-    return creditDetailList;
+      .groupBy('creditDetail.customerId');
+    // 根据 startTime 进行条件查询
+    if (startTime) {
+      queryBuilder = queryBuilder.andWhere(
+        'creditDetail.created_time >= :startTime',
+        {
+          startTime: startTime,
+        },
+      );
+    }
+    if (endTime) {
+      queryBuilder = queryBuilder.andWhere(
+        'creditDetail.created_time <= :endTime',
+        {
+          endTime: endTime,
+        },
+      );
+    }
+    if (customerId) {
+      queryBuilder = queryBuilder.andWhere('customer.id = :customerId', {
+        customerId: customerId,
+      });
+    }
+    this.logger.log('querySql :', queryBuilder.getSql());
+    return queryBuilder.getRawMany();
   }
 
   /**
    * 把客户额度流水明细存入月度额度
    */
   async saveCreditDetailToMonth(
-    { saveTime }: QueryCreditToMonthDto,
+    query: QueryCreditToMonthDto,
     user: JwtUserPayload,
   ): Promise<CreditToMonthResponseDto[]> {
     try {
+      const saveTime = query.saveTime;
       // 1、获取操作存入的时间(不传入就默认当天)
       const dateStr = saveTime ? saveTime : dayjs().format('YYYY-MM-DD');
 
       // 2、转换为 dayjs 对象进行处理
       const dateObj = dayjs(dateStr);
-
-      // 3、格式化时间
-      const newSaveTime = TimeFormatterUtil.formatToStandard(dateStr, 'start');
+      let startTime = TimeFormatterUtil.formatToStandard(dateStr, 'start');
+      let endTime;
+      // 判断是否传入了年月查询条件，若传入了年月查询条件，则查询当月1号到当月月末的数据
+      if (saveTime) {
+        const formatResult = TimeFormatterUtil.getMonthRange(
+          String(query.saveTime),
+        );
+        startTime = formatResult.startTime;
+        endTime = formatResult.endTime;
+      }
 
       // 4、提取年月信息
       const bizYear = dateObj.year(); // 例如: 2025
       const bizMonth = dateObj.month() + 1; // month() 返回 0-11，所以需要 +1
-      const bizYearMonth = parseInt(dateObj.format('YYYYMM')); // 格式化为 YYMM，例如: 2510
-
+      let bizYearMonth = parseInt(dateObj.format('YYYYMM')); // 格式化为 YYMM，例如: 2510
+      bizYearMonth = parseInt(saveTime) ?? bizYearMonth;
       // 5、获取大于等于该时间的流水明细列表
       const creditDetailList =
-        await this.getCreditDetailListByCustomerIdAndTime(newSaveTime);
-
+        await this.getCreditDetailListByCustomerIdAndTime(
+          startTime,
+          endTime,
+          query.customerId,
+        );
+      this.logger.log('creditDetailList:', JSON.stringify(creditDetailList));
       // 6、根据流水明细列表【客户ID+年月】以此查询月度表是否存在，不存在则新增后再修改金额
       for (const item of creditDetailList) {
         let monthlyCredit =
