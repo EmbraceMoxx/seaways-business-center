@@ -3,8 +3,10 @@ import { OrderEventTaskService } from '../service/order-event/order-event-task.s
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { SuccessResponseDto } from '@src/dto';
 import { ProcessedResult } from '../interface/order-event-task.interface';
+import { Public } from '@src/modules/auth/public.decorator';
 
 @ApiTags('订单任务处理')
+@Public()
 @Controller('order/task')
 export class OrderTaskController {
   constructor(private orderEventTaskService: OrderEventTaskService) {}
