@@ -47,6 +47,9 @@ export class OrderPushService {
     private readonly _businessLogService: BusinessLogService,
   ) {}
 
+  /**
+   * 上传订单到聚水潭
+   */
   async _uploadOrderToJst(postData: any): Promise<any> {
     const thisContext = `${this.constructor.name}._uploadOrderToJst`;
     const api = ERP_JST_API.UPLOAD_ORDER;
@@ -117,6 +120,9 @@ export class OrderPushService {
     throw new Error('超过最大重试次数，未能上传订单');
   }
 
+  /**
+   * 组装聚水潭订单推送数据
+   */
   _assembleJstPostData(
     orderMain: OrderMainEntity,
     orderItems: OrderItemEntity[],
@@ -166,6 +172,9 @@ export class OrderPushService {
     return [postData];
   }
 
+  /**
+   * 组装订单推送数据
+   */
   async assembleOrderData(orderId: string): Promise<any> {
     const orderMain = await this._orderRepository.findOne({
       where: { id: orderId, deleted: GlobalStatusEnum.NO },
@@ -188,6 +197,9 @@ export class OrderPushService {
     return postData;
   }
 
+  /**
+   * 处理订单推送事件成功后的更新
+   */
   async updateOrderPushEvent(
     event: OrderEventEntity,
     oriInnerOrderCode: string,
@@ -201,7 +213,7 @@ export class OrderPushService {
     await queryRunner.startTransaction();
     try {
       // 更新订单状态为已推送
-      await this._updatePushedOrder(
+      const order = await this._updatePushedOrder(
         event.businessId,
         oriInnerOrderCode,
         user,
@@ -212,7 +224,7 @@ export class OrderPushService {
       // 更新订单额度流水记录
       await this._updateCreditLimitFlowAfterPush(
         event.businessId,
-        oriInnerOrderCode,
+        order.onlineOrderCode,
         user,
         queryRunner.manager,
       );
@@ -243,13 +255,15 @@ export class OrderPushService {
     }
   }
 
+  /**
+   * 上传订单
+   */
   async uploadOrder(orderId: string, postData: any): Promise<string | null> {
     const thisContext = `${this.constructor.name}.uploadOrder`;
 
     let innerOrderCode: string | null = null;
     let response: any;
     try {
-      // 推送订单到聚水潭
       response = await this._uploadOrderToJst(postData);
     } catch (err) {
       this._logger.error(
@@ -282,8 +296,6 @@ export class OrderPushService {
 
   /**
    * 检查推送订单的条件并锁定订单
-   * @param orderId
-   * @param user
    */
   async checkOrderPushable(
     orderId: string,
@@ -306,6 +318,15 @@ export class OrderPushService {
       if (orderMain.orderStatus === String(OrderStatusEnum.PUSHED)) {
         this._logger.log(`Order already pushed, id=${orderId}`, thisContext);
         return;
+      }
+
+      // 如果订单状态为推送中，说明有其他进程正在推送此订单
+      if (orderMain.orderStatus === String(OrderStatusEnum.PUSHING)) {
+        this._logger.warn(
+          `Order is being pushed by another process, id=${orderId}`,
+          thisContext,
+        );
+        throw new BusinessException(`订单正在推送中`);
       }
 
       // 检查订单状态，待推送才允许推送
@@ -340,7 +361,7 @@ export class OrderPushService {
     user: JwtUserPayload,
     context: string,
     manager?: EntityManager,
-  ): Promise<void> {
+  ): Promise<OrderMainEntity> {
     const now = dayjs().toDate();
 
     const repo = manager
@@ -372,6 +393,8 @@ export class OrderPushService {
         lastOperateProgram: context,
       },
     );
+
+    return order;
   }
 
   /**
@@ -379,7 +402,7 @@ export class OrderPushService {
    */
   async _updateCreditLimitFlowAfterPush(
     orderId: string,
-    innerOrderCode: string,
+    onlineOrderCode: string,
     user: JwtUserPayload,
     manager?: EntityManager,
   ): Promise<void> {
@@ -393,7 +416,7 @@ export class OrderPushService {
     await repo.update(
       { orderId: orderId, deleted: GlobalStatusEnum.NO },
       {
-        onlineOrderId: innerOrderCode, // 聚水潭线上订单编号
+        onlineOrderId: onlineOrderCode, // 聚水潭线上订单编号
         reviserId: user.userId,
         reviserName: user.nickName,
         revisedTime: now,
@@ -473,16 +496,17 @@ export class OrderPushService {
     // 推送成功, 更新订单状态和额度流水记录
     try {
       await this._dataSource.transaction(async (manager) => {
-        await this._updatePushedOrder(
+        const order = await this._updatePushedOrder(
           orderId,
           erpOrderCode,
           user,
           thisContext,
           manager,
         );
+
         await this._updateCreditLimitFlowAfterPush(
           orderId,
-          erpOrderCode,
+          order.onlineOrderCode,
           user,
           manager,
         );
