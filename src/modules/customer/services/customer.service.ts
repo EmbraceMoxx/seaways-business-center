@@ -181,9 +181,10 @@ export class CustomerService {
         .andWhere('customer.enabled = :enabled', {
           enabled: GlobalStatusEnum.YES,
         })
-        .andWhere('customer.is_contract = :isContract', {
-          isContract: 1,
-        })
+        // todo 未签订合同，但是属于合作状态，目前允许下单
+        // .andWhere('customer.is_contract = :isContract', {
+        //   isContract: 1,
+        // })
         .andWhere('customer.co_status = :coStatus', {
           coStatus: '1',
         });
@@ -193,7 +194,6 @@ export class CustomerService {
         token,
         user.userId,
       );
-
       if (checkResult) {
         if (checkResult.isQueryAll == false) {
           if (checkResult?.principalUserIds?.length > 0) {
@@ -204,6 +204,7 @@ export class CustomerService {
               },
             );
           } else {
+            console.log('进入了else');
             return { items: [], total: 0 };
           }
         }
@@ -265,7 +266,6 @@ export class CustomerService {
         .orderBy('customer.id', 'DESC')
         .limit(pageSize)
         .offset((page - 1) * pageSize);
-
       const items = await queryBuilder.getRawMany();
 
       return { items, total };
