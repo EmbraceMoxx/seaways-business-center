@@ -16,6 +16,7 @@ export class CreateApprovalDto {
   provincialHeadId?: string;
   usedReplenishRatio: number;
   usedAuxiliarySalesRatio: number;
+  isNeedDirectorApproval: boolean;
   operatorId: string;
   operatorName: string;
 }

@@ -245,6 +245,13 @@ export class OrderConvertHelper {
     );
     approvalDto.operatorId = user.userId;
     approvalDto.operatorName = user.nickName;
+    if (
+      parseFloat(orderMain.creditAmount ?? '0') <= 0 &&
+      (parseFloat(orderMain.usedReplenishAmount ?? '0') > 0 ||
+        parseFloat(orderMain.usedAuxiliarySalesAmount ?? '0') > 0)
+    ) {
+      approvalDto.isNeedDirectorApproval = true;
+    }
     return approvalDto;
   }
 }
