@@ -274,11 +274,19 @@ export class OrderInfoResponseDto {
 
   @ApiProperty({
     description: '审核原因',
-    example: '审核拒绝原因',
+    example: '进入审批流程的原因',
     required: false,
   })
   @IsOptional()
   approvalReason?: string;
+
+  @ApiProperty({
+    description: '审核备注',
+    example: '审批通过/驳回的原因',
+    required: false,
+  })
+  @IsOptional()
+  approvalRemark?: string;
 
   @ApiProperty({
     description: '创建时间(下单时间)',

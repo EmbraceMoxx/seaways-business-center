@@ -56,6 +56,14 @@ export class OrderMainEntity {
   approvalReason: string | null;
 
   @Column('varchar', {
+    name: 'approval_remark',
+    nullable: true,
+    comment: '审核备注',
+    length: 128,
+  })
+  approvalRemark: string | null;
+
+  @Column('varchar', {
     name: 'cancelled_message',
     nullable: true,
     comment: '订单取消原因',

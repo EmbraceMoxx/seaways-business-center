@@ -259,11 +259,11 @@ export class TaskService {
 
     const updateOrder = Object.assign(new OrderMainEntity(), {
       id: instance.orderId,
-      approvalReason: command.remark,
+      approvalRemark: command.remark,
       orderStatus: String(nextStatus),
       auditTime: dayjs().toDate(),
       reviserId: user.userId,
-      reviserName: user.username,
+      reviserName: user.nickName,
       revisedTime: dayjs().toDate(),
     });
 
@@ -359,11 +359,11 @@ export class TaskService {
 
     const updateOrder = Object.assign(new OrderMainEntity(), {
       id: instance.orderId,
-      approvalReason: remark,
+      approvalRemark: remark,
       orderStatus: String(OrderStatusEnum.REJECTED),
       auditTime: dayjs().toDate(),
       reviserId: user.userId,
-      reviserName: user.username,
+      reviserName: user.nickName,
       revisedTime: dayjs().toDate(),
     });
 

@@ -240,6 +240,7 @@ export class OrderService {
           'order.used_replenish_ratio as usedReplenishRatio',
           'order.used_auxiliary_sales_ratio as usedAuxiliarySalesRatio',
           'order.approval_reason as approvalReason',
+          'order.approval_remark as approvalRemark',
           'order.contact_phone as contactPhone',
           'order.created_time as createdTime',
         ])
