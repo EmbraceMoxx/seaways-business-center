@@ -666,7 +666,6 @@ export class OrderService {
   async cancel(req: CancelOrderRequest, user: JwtUserPayload): Promise<string> {
     const lastOperateProgram = 'OrderService.cancel';
     const orderMain = await this.orderCheckService.checkOrderExist(req.orderId);
-    // todo 待完善对审批的校验
     const flag = await this.orderCheckService.checkIsCloseOrder(orderMain);
     if (!flag) {
       throw new BusinessException('当前订单不允许取消！');
@@ -725,6 +724,9 @@ export class OrderService {
     const updateOrder = new OrderMainEntity();
     updateOrder.id = orderId;
     updateOrder.orderStatus = String(OrderStatusEnum.PENDING_PUSH);
+    updateOrder.reviserId = user.userId;
+    updateOrder.receiverName = user.nickName;
+    updateOrder.revisedTime = dayjs().toDate();
     await this.dataSource.transaction(async (manager) => {
       // 修改订单信息
       await manager.update(OrderMainEntity, { id: orderMain.id }, updateOrder);

@@ -27,6 +27,7 @@ import {
   ReplenishRatioValidationStrategy,
   ValidationStrategy,
 } from '@modules/order/strategy/order-validation.interface';
+import { ApprovalEngineService } from '@modules/approval/services/approval-engine.service';
 
 @Injectable()
 export class OrderCheckService {
@@ -40,6 +41,7 @@ export class OrderCheckService {
     private creditAmountInfoRepository: Repository<CustomerCreditAmountInfoEntity>,
     private customerService: CustomerService,
     private commodityService: CommodityService,
+    private approvalEngineService: ApprovalEngineService,
   ) {}
   async checkOrderExist(orderId: string) {
     const orderMain = await this.orderRepository.findOne({
@@ -236,6 +238,15 @@ export class OrderCheckService {
       user.userId,
     );
 
+    // 获取审批明细
+    const approvalResult = await this.approvalEngineService.getApprovalStatus(
+      orderId,
+    );
+    this.logger.log(
+      `根据订单号${orderId},得到的审批结果为：${JSON.stringify(
+        approvalResult,
+      )}`,
+    );
     const buttons: OrderOperateButton[] = [
       { buttonCode: 'MODIFY', buttonName: '修改订单', isOperate: false },
       { buttonCode: 'CONFIRM_PUSH', buttonName: '确认推单', isOperate: false },
@@ -260,6 +271,9 @@ export class OrderCheckService {
           buttons.find(
             (btn) => btn.buttonCode === 'CONFIRM_PAYMENT',
           ).isOperate = true;
+          if (approvalResult.canCancel) {
+            buttons.find((btn) => btn.buttonCode === 'MODIFY').isOperate = true;
+          }
         }
         break;
 
@@ -288,9 +302,9 @@ export class OrderCheckService {
       case OrderStatusEnum.DIRECTOR_REVIEWING:
       case OrderStatusEnum.REGION_REVIEWING:
       case OrderStatusEnum.PROVINCE_REVIEWING:
-        // todo 1. 确认当前用户是否是客户的负责人，若为负责人，
+        // 1. 确认当前用户是否是客户的负责人，若为负责人，
         //  需要判断是否有审批记录，若存在审批通过记录，则不允许修改，若需要修改则需要审批驳回后回到驳回状态才允许修改
-        if (hasPermission) {
+        if (hasPermission && approvalResult.canCancel) {
           buttons.find((btn) => btn.buttonCode === 'MODIFY').isOperate = true;
           buttons.find((btn) => btn.buttonCode === 'CANCEL').isOperate = true;
         }
@@ -307,8 +321,16 @@ export class OrderCheckService {
   async checkIsCloseOrder(orderMain: OrderMainEntity): Promise<boolean> {
     // 校验是否被驳回，驳回后才可以关闭订单
     if (orderMain.orderStatus.includes('20001')) {
-      // todo 校验是否有审批，有上级审批同意的情况需要驳回后再关闭订单,现在默认允许
-      return true;
+      // 校验是否有审批，有上级审批同意的情况需要驳回后再关闭订单,审批结果返回true表示允许取消
+      const approvalResult = await this.approvalEngineService.getApprovalStatus(
+        orderMain.id,
+      );
+      this.logger.log(
+        `根据订单号${orderMain.id},得到的审批结果为：${JSON.stringify(
+          approvalResult,
+        )}`,
+      );
+      return approvalResult.canCancel;
     }
     // 校验是否有审批，有上级审批同意的情况需要驳回后再关闭订单
     return OrderStatusEnum.REJECTED == orderMain.orderStatus;
