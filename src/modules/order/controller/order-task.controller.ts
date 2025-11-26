@@ -11,7 +11,7 @@ import { Public } from '@src/modules/auth/public.decorator';
 export class OrderTaskController {
   constructor(private orderEventTaskService: OrderEventTaskService) {}
 
-  @Get('processOrderEvents')
+  @Get('process-order-event')
   @ApiOperation({ summary: '处理订单事件任务' })
   async processOrderEvents(): Promise<SuccessResponseDto<ProcessedResult>> {
     const result = await this.orderEventTaskService.orderEventTaskProcess();
