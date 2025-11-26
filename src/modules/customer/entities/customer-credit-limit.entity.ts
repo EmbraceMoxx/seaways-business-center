@@ -50,6 +50,16 @@ export class CustomerCreditAmountInfoEntity {
   shippedAmount: string;
 
   @Column({
+    name: 'frozen_shipped_amount',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    comment: '冻结订单发货金额，元',
+  })
+  frozenShippedAmount: string;
+
+  @Column({
     name: 'repayment_amount',
     type: 'decimal',
     precision: 12,

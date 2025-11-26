@@ -58,6 +58,12 @@ export class CreditLimitResponseDto {
   shippedAmount: string;
 
   @ApiProperty({
+    description: '冻结发货金额，元',
+    example: 10000.0,
+  })
+  frozenShippedAmount: string;
+
+  @ApiProperty({
     description: '回款金额，元',
     example: 8000.0,
   })

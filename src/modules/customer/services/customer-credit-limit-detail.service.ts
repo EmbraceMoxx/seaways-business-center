@@ -192,6 +192,10 @@ export class CustomerCreditLimitDetailService {
 
       // 2. 计算各字段差额（新 - 旧）
       const delta = {
+        shipped: MoneyUtil.fromYuan(creditParam.shippedAmount)
+          .sub(MoneyUtil.fromYuan(oldFlow.shippedAmount))
+          .toNumber(),
+
         auxiliary: MoneyUtil.fromYuan(creditParam.auxiliarySaleGoodsAmount)
           .sub(MoneyUtil.fromYuan(oldFlow.auxiliarySaleGoodsAmount))
           .toNumber(),

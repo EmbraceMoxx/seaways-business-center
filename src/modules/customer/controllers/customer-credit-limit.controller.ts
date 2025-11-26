@@ -9,7 +9,7 @@ import { CustomerCreditLimitService } from '../services/customer-credit-limit.se
 
 @ApiTags('客户额度')
 @ApiBearerAuth()
-@Controller('customerCreditLimit')
+@Controller('customer/credit')
 export class CustomerCreditLimitController {
   constructor(private CreditLimitService: CustomerCreditLimitService) {}
 
