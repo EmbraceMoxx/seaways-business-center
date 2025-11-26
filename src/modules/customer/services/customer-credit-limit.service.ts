@@ -72,14 +72,21 @@ export class CustomerCreditLimitService {
     customerInfo: CustomerInfoEntity,
     user: JwtUserPayload,
   ) {
-    let creditInfo = new CustomerCreditAmountInfoEntity();
     // 获取客户额度信息
-    creditInfo = await this.getCreditInfoByCustomerId(creditParam?.customerId);
+    let creditInfo = await this.getCreditInfoByCustomerId(
+      creditParam?.customerId,
+    );
     if (!creditInfo) {
       // 若客户首次合作下单，则可能不存在额度记录，则初始化记录
       creditInfo = await this.initCustomerCredit(customerInfo, user);
     }
     this.logger.log('额度汇总操作前数据:', JSON.stringify(creditInfo));
+    // 发货金额冻结
+    creditInfo.frozenShippedAmount = MoneyUtil.fromYuan(
+      creditInfo.frozenShippedAmount,
+    )
+      .add(MoneyUtil.fromYuan(creditParam.shippedAmount || '0'))
+      .toYuan();
     // 辅销金额
     creditInfo.frozenSaleGoodsAmount = MoneyUtil.fromYuan(
       creditInfo.frozenSaleGoodsAmount,
@@ -188,6 +195,7 @@ export class CustomerCreditLimitService {
       .clone()
       .select([
         'SUM(credit.shippedAmount) as shippedAmount',
+        'SUM(credit.frozen_shipped_amount) as frozenShippedAmount',
         'SUM(credit.repaymentAmount) as repaymentAmount',
         'SUM(credit.auxiliarySaleGoodsAmount) as auxiliarySaleGoodsAmount',
         'SUM(credit.usedAuxiliarySaleGoodsAmount) as usedAuxiliarySaleGoodsAmount',
@@ -435,6 +443,7 @@ export class CustomerCreditLimitService {
       auxiliary: number;
       replenishingUsed: number;
       auxiliaryUsed: number;
+      shipped?: number; // 新增发货差额
     },
     user: JwtUserPayload,
   ) {
@@ -447,6 +456,14 @@ export class CustomerCreditLimitService {
       throw new BusinessException('客户额度信息不存在');
     }
     // 4.1 调整冻结额度
+    // 发货冻结金额调整
+    if (delta.shipped !== undefined) {
+      credit.frozenShippedAmount = MoneyUtil.fromYuan(
+        credit.frozenShippedAmount,
+      )
+        .add(delta.shipped)
+        .toYuan();
+    }
     credit.frozenSaleGoodsAmount = MoneyUtil.fromYuan(
       credit.frozenSaleGoodsAmount,
     )
@@ -522,7 +539,10 @@ export class CustomerCreditLimitService {
     if (!credit) {
       throw new BusinessException('客户额度不存在');
     }
-
+    // 1. 释放发货冻结金额
+    credit.frozenShippedAmount = MoneyUtil.fromYuan(credit.frozenShippedAmount)
+      .sub(MoneyUtil.fromYuan(flow.shippedAmount))
+      .toYuan();
     //  2. 释放冻结金额
     credit.frozenSaleGoodsAmount = MoneyUtil.fromYuan(
       credit.frozenSaleGoodsAmount,
