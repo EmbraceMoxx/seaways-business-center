@@ -11,13 +11,13 @@ export class CustomerLogHelper {
   ): BusinessLogInput {
     const businessType = 'CUSTOMER';
     // 具体日志内容
-    const action = `${user.username}更新客户【${customerName}】信息`;
+    const action = `${user.nickName}更新客户【${customerName}】信息`;
     const ipAddress = user.ipAddress || '';
     return {
       businessId: customerId,
       businessType: businessType,
       creatorId: user.userId,
-      creatorName: user.username,
+      creatorName: user.nickName,
       action: action,
       operateProgram: lastOperateProgram,
       ipAddress: ipAddress,
