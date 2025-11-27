@@ -181,6 +181,7 @@ export class OrderService {
         user.userId,
       );
       if (checkResult) {
+        this.logger.log(`user checkResult: ${JSON.stringify(checkResult)}`)
         if (checkResult.isQueryAll == false) {
           queryBuilder = queryBuilder.andWhere(
             'order.creator_id IN (:userIds)',
@@ -213,6 +214,8 @@ export class OrderService {
    */
   async getUnReviewOrderList(
     params: QueryOrderDto,
+    user:JwtUserPayload,
+    token:string
   ): Promise<{ items: OrderInfoResponseDto[]; total: number }> {
     try {
       const {
@@ -313,6 +316,26 @@ export class OrderService {
         }
       }
 
+      // 获取权限
+      const checkResult = await this.userService.getRangeOfOrderQueryUser(
+        token,
+        user.userId,
+      );
+      if (checkResult) {
+        if (checkResult.isQueryAll == false) {
+          if (checkResult?.principalUserIds?.length > 0) {
+            queryBuilder = queryBuilder.andWhere(
+              'order.creator_id IN (:userIds)',
+              {
+                userIds: checkResult.principalUserIds,
+              },
+            );
+          } else {
+            console.log('进入了else');
+            return { items: [], total: 0 };
+          }
+        }
+      }
       // 执行计数查询
       const countQueryBuilder = queryBuilder.clone();
       const total = await countQueryBuilder.getCount();
