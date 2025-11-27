@@ -188,7 +188,7 @@ export class TaskService {
       id: nextTask.nodeId,
     });
 
-    return OrderStatusEnum[nextNode.orderStatus];
+    return nextNode.orderStatus as OrderStatusEnum;
   }
 
   /**
@@ -229,6 +229,7 @@ export class TaskService {
     const nextStatus: OrderStatusEnum = nextTask
       ? await this.getNextOrderStatus(nextTask)
       : OrderStatusEnum.PENDING_PAYMENT;
+    if (!nextStatus) throw new BusinessException('获取下一个状态失败');
 
     if (nextTask) {
       // 推进到下一个任务
