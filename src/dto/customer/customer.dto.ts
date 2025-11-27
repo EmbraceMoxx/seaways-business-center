@@ -378,29 +378,12 @@ export class CustomerInfoCreditResponseDto {
  */
 export class CustomerInfoUpdateDto {
   @ApiProperty({
-    description: '大区负责人',
-    example: '张三',
-  })
-  @IsNotEmpty()
-  @IsString({ message: '大区负责人必须是字符串' })
-  regionalHead: string;
-
-  @ApiProperty({
     description: '大区负责人Id',
     example: '123456789012346',
   })
   @IsNotEmpty()
   @IsString({ message: '大区负责人Id必须是字符串' })
   regionalHeadId: string;
-
-  @ApiProperty({
-    description: '省区负责人',
-    example: '李四',
-    required: false,
-  })
-  @IsOptional()
-  @IsString({ message: '省区负责人必须是字符串' })
-  provincialHead?: string;
 
   @ApiProperty({
     description: '省区负责人Id',

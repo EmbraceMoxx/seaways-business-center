@@ -16,6 +16,8 @@ import { CustomerCreditLimitService } from '../services/customer-credit-limit.se
 import { CustomerLogHelper } from '../helper/customer.log.helper';
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
 import { UserService } from '@modules/common/user/user.service';
+import { HttpProxyService } from '@shared/http-proxy.service';
+import { UserEndpoints } from '@src/constants/index';
 
 @Injectable()
 export class CustomerService {
@@ -25,6 +27,7 @@ export class CustomerService {
     private customerCreditLimitService: CustomerCreditLimitService,
     private businessLogService: BusinessLogService,
     private userService: UserService,
+    private httpProxyServices: HttpProxyService,
   ) {}
 
   /**
@@ -316,6 +319,7 @@ export class CustomerService {
     customerId: string,
     customerData: CustomerInfoUpdateDto,
     user: JwtUserPayload,
+    token: string,
   ) {
     try {
       // 1、获判断客户是否存在
@@ -326,10 +330,36 @@ export class CustomerService {
       // 2、更新客户信息
       const customer = new CustomerInfoEntity();
       customer.id = customerId;
-      customer.regionalHead = customerData?.regionalHead;
-      customer.regionalHeadId = customerData?.regionalHeadId;
-      customer.provincialHead = customerData?.provincialHead;
-      customer.provincialHeadId = customerData?.provincialHeadId;
+      // 3、大区负责人
+      if (customerData?.regionalHeadId) {
+        // 3.1、判断大区负责人id是否有效
+        const userExit = await this.httpProxyServices.get(
+          UserEndpoints.USER_by_id(customerData?.regionalHeadId),
+          token,
+        );
+
+        if (!userExit) {
+          throw new BusinessException('大区负责人无效');
+        }
+        customer.regionalHead = userExit?.nickName;
+        customer.regionalHeadId = customerData?.regionalHeadId;
+      }
+
+      // 4、省区负责人
+      if (customerData?.provincialHeadId) {
+        // 4.1、判断省区负责人id是否有效
+        const userExit = await this.httpProxyServices.get(
+          UserEndpoints.USER_by_id(customerData?.provincialHeadId),
+          token,
+        );
+
+        if (!userExit) {
+          throw new BusinessException('省区负责人无效');
+        }
+        customer.provincialHead = userExit?.nickName;
+        customer.provincialHeadId = customerData?.provincialHeadId;
+      }
+
       customer.distributorType = customerData?.distributorType;
       customer.contractValidityPeriod = customerData?.contractValidityPeriod;
       customer.contractAmount = customerData?.contractAmount
@@ -338,15 +368,15 @@ export class CustomerService {
       customer.reconciliationMail = customerData?.reconciliationMail;
       customer.coStatus = customerData?.coStatus;
 
-      // 3、当前更新人信息
+      // 5、当前更新人信息
       customer.reviserId = user.userId;
       customer.reviserName = user.nickName;
       customer.revisedTime = dayjs().toDate();
 
-      // 4、执行更新
+      // 6、执行更新
       await this.customerRepository.update(customerId, customer);
 
-      // 5、写入操作日志
+      // 7、写入操作日志
       const logInput = CustomerLogHelper.getCustomerOperate(
         user,
         'CustomerService.updateCustomerInfo',
