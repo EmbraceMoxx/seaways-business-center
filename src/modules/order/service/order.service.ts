@@ -178,21 +178,26 @@ export class OrderService {
         }
       }
 
+      // 获取权限
       const checkResult = await this.userService.getRangeOfOrderQueryUser(
         token,
         user.userId,
       );
-      if (checkResult) {
-        this.logger.log(`user checkResult: ${JSON.stringify(checkResult)}`);
-        if (checkResult.isQueryAll == false) {
-          queryBuilder = queryBuilder.andWhere(
-            'order.creator_id IN (:userIds)',
-            {
-              userIds: checkResult.principalUserIds,
-            },
-          );
-        }
+      if (!checkResult || checkResult.isQueryAll) {
+        // 不限制客户范围，继续查询
+      } else if (!checkResult.principalUserIds?.length) {
+        return { items: [], total: 0 };
+      } else {
+        // 收集所有人负责的客户ID，去查询订单对应的客户ID
+        const customerIds = await this.customerService.getManagedCustomerIds(
+          checkResult.principalUserIds,
+        );
+        queryBuilder = queryBuilder.andWhere(
+          'order.customer_id IN (:customerIds)',
+          { customerIds },
+        );
       }
+
       // 执行计数查询
       const countQueryBuilder = queryBuilder.clone();
       const total = await countQueryBuilder.getCount();
