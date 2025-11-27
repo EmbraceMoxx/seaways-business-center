@@ -83,7 +83,6 @@ export class ApprovalEngineService {
         `当前操作人 ${user.nickName} 不是此任务的指定审批人`,
       );
     }
-
     const result = await this.handleCommand(instance, task, command, user);
 
     this.logger.log(
