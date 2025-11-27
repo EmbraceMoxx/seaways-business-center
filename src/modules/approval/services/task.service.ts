@@ -196,7 +196,8 @@ export class TaskService {
    */
   async handleTaskApproval(
     instance: ApprovalInstanceEntity,
-    task: ApprovalTaskEntity,
+    assignedTask: ApprovalTaskEntity,
+    nodeTasks: ApprovalTaskEntity[],
     command: ApprovalCommand,
     user: JwtUserPayload,
   ): Promise<{ status: string; message: string }> {
@@ -208,18 +209,29 @@ export class TaskService {
     // 获取日志操作类型
     const operate = this.getOperateType(orderMain.orderStatus);
 
-    // 更新任务状态
-    task.status = ApprovalTaskStatusEnum.APPROVED;
-    task.remark = command.remark;
-    task.reviserId = user.userId;
-    task.reviserName = user.nickName;
+    assignedTask.status = ApprovalTaskStatusEnum.APPROVED;
+    assignedTask.remark = command.remark;
+    assignedTask.reviserId = user.userId;
+    assignedTask.reviserName = user.nickName;
+
+    const otherTasks = nodeTasks.filter(
+      (t) =>
+        t.approverUserId !== user.userId &&
+        t.status === ApprovalTaskStatusEnum.PENDING,
+    );
+    otherTasks.forEach((otherTask) => {
+      otherTask.status = ApprovalTaskStatusEnum.SKIPPED;
+      otherTask.remark = otherTask.remark || '同级审批人已处理，该任务被跳过';
+      otherTask.reviserId = user.userId;
+      otherTask.reviserName = user.nickName;
+    });
 
     // 查找下一个任务
-    // Todo: 这里要考虑如果审批类型是ROLE，会有多个任务
+    // Todo: 其实这里是查下一个节点，如果是任务的话，可能有多个
     const nextTask = await this.taskRepository.findOne({
       where: {
-        instanceId: task.instanceId,
-        taskStep: MoreThan(task.taskStep),
+        instanceId: assignedTask.instanceId,
+        taskStep: MoreThan(assignedTask.taskStep),
         status: ApprovalTaskStatusEnum.PENDING,
       },
       order: { taskStep: 'ASC' },
@@ -232,7 +244,7 @@ export class TaskService {
     if (!nextStatus) throw new BusinessException('获取下一个状态失败');
 
     if (nextTask) {
-      // 推进到下一个任务
+      // 推进到下一个节点
       instance.status = ApprovalInstanceStatusEnum.IN_PROGRESS;
       instance.currentNodeId = nextTask.nodeId;
       instance.currentStep = nextTask.taskStep;
@@ -273,11 +285,13 @@ export class TaskService {
       result.action = `${result.action};同意原因为:${command.remark}`;
     }
 
+    const tasksToSave = [assignedTask, ...otherTasks];
+
     // 事务保存
     await this.entityManager.transaction(async (manager) => {
       await Promise.all([
         // 更新审批步骤
-        manager.save(task),
+        manager.save(tasksToSave),
         // 更新实例
         manager.save(instance),
         // 更新订单
@@ -317,7 +331,8 @@ export class TaskService {
    */
   async handleTaskRejection(
     instance: ApprovalInstanceEntity,
-    task: ApprovalTaskEntity,
+    assignedTask: ApprovalTaskEntity,
+    nodeTasks: ApprovalTaskEntity[],
     command: ApprovalCommand,
     user: JwtUserPayload,
   ): Promise<{ status: string; message: string }> {
@@ -341,12 +356,22 @@ export class TaskService {
     instance.reviserId = user.userId;
     instance.reviserName = user.nickName;
 
-    // 更新任务状态
-    // Todo: 如果是ROLE，要更新多个task
-    task.status = ApprovalTaskStatusEnum.REJECTED;
-    task.remark = remark;
-    task.reviserId = user.userId;
-    task.reviserName = user.nickName;
+    assignedTask.status = ApprovalTaskStatusEnum.REJECTED;
+    assignedTask.remark = command.remark;
+    assignedTask.reviserId = user.userId;
+    assignedTask.reviserName = user.nickName;
+
+    const otherTasks = nodeTasks.filter(
+      (t) =>
+        t.approverUserId !== user.userId &&
+        t.status === ApprovalTaskStatusEnum.PENDING,
+    );
+    otherTasks.forEach((otherTask) => {
+      otherTask.status = ApprovalTaskStatusEnum.SKIPPED;
+      otherTask.remark = otherTask.remark || '同级审批人已驳回，该任务被跳过';
+      otherTask.reviserId = user.userId;
+      otherTask.reviserName = user.nickName;
+    });
 
     const lastOperateProgram = 'TaskService.handleTaskRejection';
 
@@ -370,10 +395,12 @@ export class TaskService {
       result.action = result.action + ';驳回原因为:' + command.remark;
     }
 
+    const tasksToSave = [assignedTask, ...otherTasks];
+
     // 事务处理
     await this.entityManager.transaction(async (manager) => {
       await Promise.all([
-        manager.save(task),
+        manager.save(tasksToSave),
         manager.save(instance),
         manager.update(OrderMainEntity, { id: orderMain.id }, updateOrder),
         this.businessLogService.writeLog(result, manager),

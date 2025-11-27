@@ -27,8 +27,6 @@ import { TaskService } from './task.service';
 export class ApprovalEngineService {
   private readonly logger = new Logger(ApprovalEngineService.name);
 
-  // Todo: 各个环节加上异常处理
-  // Todo: 各步骤写操作日志
   constructor(
     @InjectRepository(ApprovalInstanceEntity)
     private instanceRepository: Repository<ApprovalInstanceEntity>,
@@ -41,6 +39,8 @@ export class ApprovalEngineService {
 
   /**
    * 启动审批流程
+   * @param createDto - 审批创建数据传输对象
+   * @returns 审批实例实体
    */
   async startApprovalProcess(
     createDto: CreateApprovalDto,
@@ -51,39 +51,56 @@ export class ApprovalEngineService {
     );
 
     // 创建新的审批实例
-    return await this.instanceService.createInstance(createDto, existing);
+    return this.instanceService.createInstance(createDto, existing);
   }
 
   /**
    * 处理审批操作
+   * @param command 审批指令，包含订单ID和审批动作等信息
+   * @param user 当前用户信息
    */
   async processApproval(
     command: ApprovalCommand,
     user: JwtUserPayload,
   ): Promise<{ status: string; message: string }> {
-    const { orderId } = command;
+    const { orderId, action } = command;
+    if (!orderId) throw new BusinessException('订单ID不能为空');
+    if (!action) throw new BusinessException('审批动作不能为空');
+
     const instance = await this.instanceRepository.findOneBy({ orderId });
     if (!instance) throw new BusinessException('审批实例不存在');
 
-    // 获取当前待处理任务
-    // Todo: 当前同一步骤，可能有多个任务的
-    // Todo: 当前步骤的所有任务查出来
-    // Todo: 其中没有操作人是当前操作人的，就报错
-    const task = await this.taskRepository.findOneBy({
+    // 获取当前节点下所有待处理任务
+    // Todo: ROLE的话，后面特殊处理
+    const nodeTasks = await this.taskRepository.findBy({
       instanceId: instance.id,
       nodeId: instance.currentNodeId,
-      status: ApprovalTaskStatusEnum.PENDING,
     });
-    if (!task) throw new BusinessException('当前无待审批任务');
+    if (!nodeTasks.length) throw new BusinessException('当前无待审批任务');
 
-    // 检查审批权限
-    // 检查当前操作人是否是任务的审批人
-    if (task.approverUserId !== user.userId) {
+    // Todo: 如果是ROLE的话，是通过角色验证，还是分多个Task？
+    // 检查是否存在分配给当前用户的任务
+    const assignedTask = nodeTasks.find(
+      (x) => x.approverUserId === user.userId,
+    );
+    if (!assignedTask) {
       throw new BusinessException(
         `当前操作人 ${user.nickName} 不是此任务的指定审批人`,
       );
     }
-    const result = await this.handleCommand(instance, task, command, user);
+    if (assignedTask.status !== ApprovalTaskStatusEnum.PENDING) {
+      throw new BusinessException('当前任务状态不是待处理，请勿重复操作');
+    }
+
+    // Todo: 所有当前步骤的Task都要处理
+    // 审批命令处理逻辑
+    const result = await this.handleCommand(
+      instance,
+      assignedTask,
+      nodeTasks,
+      command,
+      user,
+    );
 
     this.logger.log(
       `审批操作完成: 订单 ${command.orderId}, 操作 ${command.action}`,
@@ -97,11 +114,15 @@ export class ApprovalEngineService {
   async cancelApprovalProcess(cancelDto: CancelApprovalDto): Promise<void> {
     const { orderId, operatorId, operatorName, reason } = cancelDto;
 
-    // 未手动审批过或已驳回才允许取消订单
+    if (!orderId) throw new BusinessException('订单ID不能为空');
+    if (!operatorId) throw new BusinessException('操作人ID不能为空');
+
+    // 验证订单是否可以取消（未手动审批过或已驳回的订单才允许取消）
     const instance = await this.instanceService.validateCancellation(orderId);
 
     instance.status = ApprovalInstanceStatusEnum.CANCELLED;
 
+    // 更新审批任务状态、保存审批实例
     await this.entityManager.transaction(async (manager) => {
       await manager.update(
         ApprovalTaskEntity,
@@ -113,14 +134,14 @@ export class ApprovalEngineService {
           status: ApprovalTaskStatusEnum.CANCELLED,
           remark: `流程取消: ${reason}`,
           reviserId: operatorId,
-          reviserName: operatorName,
+          reviserName: operatorName || '',
         },
       );
       await manager.save(instance);
     });
 
     this.logger.log(
-      `审批流程取消成功: 订单 ${orderId}, 操作人 ${operatorName}`,
+      `审批流程取消成功: 订单 ${orderId}, 操作人 ${operatorName || ''}`,
     );
   }
 
@@ -172,10 +193,15 @@ export class ApprovalEngineService {
 
   /**
    * 处理审批动作
+   * @param instance 审批实例
+   * @param nodeTasks 当前节点下所有的审批任务
+   * @param command 审批指令，包含订单ID和审批动作等信息
+   * @param user 当前用户信息
    */
   private async handleCommand(
     instance: ApprovalInstanceEntity,
-    task: ApprovalTaskEntity,
+    assignedTask: ApprovalTaskEntity,
+    nodeTasks: ApprovalTaskEntity[],
     command: ApprovalCommand,
     user: JwtUserPayload,
   ): Promise<{ status: string; message: string }> {
@@ -183,7 +209,8 @@ export class ApprovalEngineService {
       case ApprovalActionEnum.AGREE:
         return this.taskService.handleTaskApproval(
           instance,
-          task,
+          assignedTask,
+          nodeTasks,
           command,
           user,
         );
@@ -191,7 +218,8 @@ export class ApprovalEngineService {
       case ApprovalActionEnum.REFUSE:
         return this.taskService.handleTaskRejection(
           instance,
-          task,
+          assignedTask,
+          nodeTasks,
           command,
           user,
         );

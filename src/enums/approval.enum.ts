@@ -29,7 +29,7 @@ export const enum ApprovalInstanceStatusEnum {
 }
 
 /**
- * 审批操作枚举
+ * 审批动作枚举
  */
 export enum ApprovalActionEnum {
   /** 同意 */
