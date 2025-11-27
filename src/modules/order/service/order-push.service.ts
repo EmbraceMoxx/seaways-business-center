@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { OrderMainEntity } from '../entities/order.main.entity';
 import { OrderItemEntity } from '../entities/order.item.entity';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, Or, Repository } from 'typeorm';
 import { JstHttpService } from '@src/modules/erp/jushuitan/jst-http.service';
 import {
   ERP_JST_API,
@@ -15,6 +15,7 @@ import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import * as dayjs from 'dayjs';
 import {
   JST_ORDER_STATUS,
+  ORDER_SERVICE_USER,
   OrderEventStatusEnum,
 } from './order-event/order-event.constant';
 import { OrderItemTypeEnum } from '@src/enums/order-item-type.enum';
@@ -244,6 +245,16 @@ export class OrderPushService {
         manager: queryRunner.manager,
       });
 
+      // 记录操作日志--推单完成
+      const logInput = OrderLogHelper.getOrderOperate(
+        user,
+        OrderOperateTemplateEnum.PUSH_ORDER_COMPLETION,
+        thisContext,
+        event.businessId,
+      );
+      logInput.params = { orderId: event.businessId };
+      await this._businessLogService.writeLog(logInput, queryRunner.manager);
+
       await queryRunner.commitTransaction();
     } catch (err) {
       await queryRunner.rollbackTransaction();
@@ -299,14 +310,10 @@ export class OrderPushService {
   }
 
   /**
-   * 检查推送订单的条件并锁定订单
+   * 设置推送订单为推送中
    */
-  async checkOrderPushable(
-    orderId: string,
-    user: JwtUserPayload,
-  ): Promise<void> {
-    const thisContext = `${this.constructor.name}.checkOrderPushable`;
-
+  async _setOrderPushing(orderId: string, user: JwtUserPayload): Promise<void> {
+    const thisContext = `${this.constructor.name}._setOrderPushing`;
     await this._dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(OrderMainEntity);
       const orderMain = await repo.findOne({
@@ -361,6 +368,16 @@ export class OrderPushService {
       if (result.affected !== 1) {
         throw new BusinessException(`订单状态异常，无法推送`);
       }
+
+      // 记录操作日志--确认推单
+      const logInput = OrderLogHelper.getOrderOperate(
+        user,
+        OrderOperateTemplateEnum.PUSH_ORDER_PAYMENT,
+        thisContext,
+        orderId,
+      );
+      logInput.params = { orderId: orderId };
+      await this._businessLogService.writeLog(logInput, manager);
     });
   }
 
@@ -449,18 +466,8 @@ export class OrderPushService {
     const thisContext = `${this.constructor.name}.pushOrderToErp`;
     this._logger.log(`Pushing order id=${orderId}`, thisContext);
 
-    // 检查推送条件
-    await this.checkOrderPushable(orderId, user);
-
-    // 记录操作日志
-    const logInput = OrderLogHelper.getOrderOperate(
-      user,
-      OrderOperateTemplateEnum.PUSH_ORDER_PAYMENT,
-      thisContext,
-      orderId,
-    );
-    logInput.params = { orderId: orderId };
-    await this._businessLogService.writeLog(logInput);
+    // 设置订单为推送中
+    await this._setOrderPushing(orderId, user);
 
     // 组装订单数据并推送
     let erpOrderCode: string | null = null;
@@ -474,7 +481,7 @@ export class OrderPushService {
         thisContext,
       );
 
-      // 实时推送异常，登记事件由事件处理重试
+      // 实时推送异常，登记事件由事件处理任务重试
       try {
         await this._orderEventService.createOrderPushEvent(orderId);
       } catch (eventErr) {
@@ -496,7 +503,7 @@ export class OrderPushService {
       throw new BusinessException('推送订单到ERP系统异常');
     }
 
-    // 推送成功, 更新订单状态和额度流水记录
+    // 推送成功, 更新订单状态和额度流水记录, 记录操作日志
     try {
       await this._dataSource.transaction(async (manager) => {
         const order = await this._updatePushedOrder(
@@ -513,6 +520,22 @@ export class OrderPushService {
           user,
           manager,
         );
+
+        // 记录操作日志--推单完成
+        const sysUser: JwtUserPayload = {
+          userId: ORDER_SERVICE_USER.USER_ID,
+          username: ORDER_SERVICE_USER.USERNAME,
+          nickName: ORDER_SERVICE_USER.NICK_NAME,
+          ipAddress: ORDER_SERVICE_USER.IP_ADDRESS,
+        };
+        const logInput = OrderLogHelper.getOrderOperate(
+          sysUser,
+          OrderOperateTemplateEnum.PUSH_ORDER_COMPLETION,
+          thisContext,
+          orderId,
+        );
+        logInput.params = { orderId: orderId };
+        await this._businessLogService.writeLog(logInput, manager);
       });
     } catch (err) {
       this._logger.error(

@@ -9,7 +9,7 @@ import {
   ProcessedResult,
 } from '../../interface/order-event-task.interface';
 import { OrderEventEntity } from '../../entities/order.event.entity';
-import { OrderEventStatusEnum } from './order-event.constant';
+import { ORDER_EVENT_USER, OrderEventStatusEnum } from './order-event.constant';
 import { BusinessException } from '@src/dto';
 import { JwtUserPayload } from '@src/modules/auth/jwt.strategy';
 import { OrderEventService } from './order-event.service';
@@ -194,9 +194,10 @@ export class OrderEventTaskService {
     eventInfo: OrderEventMainInfo,
   ): Promise<EventExecuteResult> {
     const user: JwtUserPayload = {
-      userId: '1',
-      username: 'admin',
-      nickName: '系统自动任务',
+      userId: ORDER_EVENT_USER.USER_ID,
+      username: ORDER_EVENT_USER.USERNAME,
+      nickName: ORDER_EVENT_USER.NICK_NAME,
+      ipAddress: ORDER_EVENT_USER.IP_ADDRESS,
     };
 
     try {

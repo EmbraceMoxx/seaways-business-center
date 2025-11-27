@@ -59,7 +59,7 @@ export class BusinessLogService {
   async findLogsByBusinessId(businessId: string): Promise<BusinessLogEntity[]> {
     return this.logRepo.find({
       where: { businessId },
-      order: { createdTime: 'DESC' },
+      order: { createdTime: 'DESC', id: 'DESC' },
     });
   }
 }
