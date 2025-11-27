@@ -322,7 +322,7 @@ export class TaskService {
   ): Promise<{ status: string; message: string }> {
     const { remark } = command;
 
-    if ((instance.status = ApprovalInstanceStatusEnum.REJECTED)) {
+    if (instance.status === ApprovalInstanceStatusEnum.REJECTED) {
       throw new BusinessException('订单已处于驳回状态无需再次操作！');
     }
 

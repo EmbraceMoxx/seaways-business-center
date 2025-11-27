@@ -94,7 +94,7 @@ export class TimeFormatterUtil {
    */
   static formatTime(
     timeString: string,
-    format: string = 'YYYY-MM-DD HH:mm:ss',
+    format = 'YYYY-MM-DD HH:mm:ss',
   ): string {
     const dayjsTime = this.parseTime(timeString);
     return dayjsTime.format(format);

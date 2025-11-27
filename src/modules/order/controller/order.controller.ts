@@ -139,10 +139,16 @@ export class OrderController {
   @Post('unReviewList')
   async getUnReviewOrderList(
     @Body() body: QueryOrderDto,
+    @CurrentUser() user: JwtUserPayload,
+    @CurrentToken() token: string,
   ): Promise<
     SuccessResponseDto<{ items: OrderInfoResponseDto[]; total: number }>
   > {
-    const list = await this.orderService.getUnReviewOrderList(body);
+    const list = await this.orderService.getUnReviewOrderList(
+      body,
+      user,
+      token,
+    );
     return new SuccessResponseDto(list, '获取待审核订单列表成功');
   }
 

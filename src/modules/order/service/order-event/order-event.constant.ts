@@ -22,4 +22,12 @@ export const ORDER_EVENT_USER = {
   USER_ID: '1',
   USERNAME: 'admin',
   NICK_NAME: '系统自动任务',
+  IP_ADDRESS: '127.0.0.1',
+};
+
+export const ORDER_SERVICE_USER = {
+  USER_ID: '1',
+  USERNAME: 'admin',
+  NICK_NAME: '系统服务',
+  IP_ADDRESS: '127.0.0.1',
 };
