@@ -1,11 +1,15 @@
 // 定义校验策略接口
 import { CheckOrderAmountResponse } from '@src/dto';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CustomerCreditAmountInfoEntity } from '@modules/customer/entities/customer-credit-limit.entity';
 import { Repository } from 'typeorm';
+import {
+  AUX_THRESHOLD_TOKEN,
+  REP_THRESHOLD_TOKEN,
+} from '@modules/order/constant';
 
 export interface ValidationStrategy {
   validate(
@@ -13,21 +17,29 @@ export interface ValidationStrategy {
     customerInfo: CustomerInfoEntity,
   ): Promise<string[]>;
 }
-
+/** 把 0.14  → "14.00" ；安全、无误差 */
+export const toPercent = (ratioStr: string | undefined): string => {
+  const n = Math.round(parseFloat(ratioStr || '0') * 100 * 100) / 100; // 先放大 10000 再缩回去
+  return n.toFixed(2); // 此时 n 已是两位小数级别的 Number
+};
 // 货补比例校验策略
 @Injectable()
 export class ReplenishRatioValidationStrategy implements ValidationStrategy {
+  // 把阈值通过构造器注入，保持策略类无静态依赖
+  constructor(
+    @Inject(REP_THRESHOLD_TOKEN)
+    private readonly replenishThreshold: number, // 默认 5%，业务层传入
+  ) {}
   async validate(response: CheckOrderAmountResponse): Promise<string[]> {
     const messages: string[] = [];
-    if (
-      response.replenishRatio &&
-      parseFloat(response.replenishRatio) >= 0.05 &&
-      response.isNeedApproval
-    ) {
+    const actual = parseFloat(response.replenishRatio || '0');
+    console.log('ReplenishRatioValidationStrategy actual ', actual);
+    console.log('this.replenishThreshold ', this.replenishThreshold);
+    if (actual > this.replenishThreshold) {
       messages.push(
-        '当前货补使用比例为：' +
-          (parseFloat(response.replenishRatio) * 100).toFixed(2) +
-          '%',
+        `货补比例 ${toPercent(response.replenishRatio)}% 超过上限 ${(
+          this.replenishThreshold * 100
+        ).toFixed(0)}%，需审批`,
       );
     }
     return messages;
@@ -39,17 +51,20 @@ export class ReplenishRatioValidationStrategy implements ValidationStrategy {
 export class AuxiliarySalesRatioValidationStrategy
   implements ValidationStrategy
 {
+  constructor(
+    @Inject(AUX_THRESHOLD_TOKEN)
+    private readonly auxiliaryThreshold: number, // 默认 3%，业务层传入
+  ) {}
   async validate(response: CheckOrderAmountResponse): Promise<string[]> {
     const messages: string[] = [];
-    if (
-      response.auxiliarySalesRatio &&
-      response.isNeedApproval &&
-      parseFloat(response.auxiliarySalesRatio) >= 0.03
-    ) {
+    const actual = parseFloat(response.auxiliarySalesRatio || '0');
+    console.log('AuxiliarySalesRatioValidationStrategy actual ', actual);
+    console.log('this.auxiliaryThreshold ', this.auxiliaryThreshold);
+    if (actual > this.auxiliaryThreshold) {
       messages.push(
-        '当前辅销使用比例为：' +
-          (parseFloat(response.auxiliarySalesRatio) * 100).toFixed(2) +
-          '%',
+        `辅销比例 ${toPercent(response.auxiliarySalesRatio)}% 超过上限 ${(
+          this.auxiliaryThreshold * 100
+        ).toFixed(0)}%，需审批`,
       );
     }
     return messages;
@@ -69,23 +84,28 @@ export class RegionQuotaValidationStrategy implements ValidationStrategy {
     customerInfo: CustomerInfoEntity,
   ): Promise<string[]> {
     const messages: string[] = [];
-    if (response.auxiliarySalesRatio || response.replenishRatio) {
-      console.log('进入区域统计逻辑：', customerInfo.region);
-      // 使用一条SQL查询同时获取两个总和
-      const result = await this.creditAmountInfoRepository
-        .createQueryBuilder('credit')
-        .where('credit.region = :region', { region: customerInfo.region })
-        .andWhere('credit.deleted = :deleted', { deleted: GlobalStatusEnum.NO })
-        .select([
-          'SUM(credit.remain_auxiliary_sale_goods_amount) as totalAuxiliarySales',
-          'SUM(credit.remain_replenishing_goods_amount) as totalReplenishing',
-        ])
-        .getRawOne();
-      if (result.totalAuxiliarySales < 0 || result.totalReplenishing < 0) {
-        messages.push(
-          `当前区域剩余货补额度${result.totalReplenishing},辅销剩余额度：${result.totalAuxiliarySales};区域额度已超限；`,
-        );
-      }
+    // 只有用了货补或辅销才查区域额度
+    if (!response.replenishRatio && !response.auxiliarySalesRatio) {
+      return messages;
+    }
+    const result = await this.creditAmountInfoRepository
+      .createQueryBuilder('credit')
+      .where('credit.region = :region', { region: customerInfo.region })
+      .andWhere('credit.deleted = :deleted', { deleted: GlobalStatusEnum.NO })
+      .select([
+        'SUM(credit.remain_auxiliary_sale_goods_amount) as totalAux',
+        'SUM(credit.remain_replenishing_goods_amount) as totalRep',
+      ])
+      .getRawOne();
+
+    const totalAux = parseFloat(result.totalAux || 0);
+    const totalRep = parseFloat(result.totalRep || 0);
+
+    if (totalRep < 0) {
+      messages.push(`区域货补额度已超限（剩余 ${totalRep.toFixed(2)}）`);
+    }
+    if (totalAux < 0) {
+      messages.push(`区域辅销额度已超限（剩余 ${totalAux.toFixed(2)}）`);
     }
     return messages;
   }

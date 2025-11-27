@@ -28,11 +28,15 @@ import {
   ValidationStrategy,
 } from '@modules/order/strategy/order-validation.interface';
 import { ApprovalEngineService } from '@modules/approval/services/approval-engine.service';
+import { plainToInstance } from 'class-transformer';
+import { MoneyUtil } from '@utils/MoneyUtil';
 
 @Injectable()
 export class OrderCheckService {
   private readonly logger = new Logger(OrderCheckService.name);
-
+  static readonly AUX_FREE_RATIO = 0.03; // 辅销免审批比例
+  static readonly REP_FREE_RATIO = 0.05; // 有省区时货补免审批比例
+  static readonly REP_FREE_RATIO_NO_PROV = 0.1; // 无省区时货补免审批比
   constructor(
     private userService: UserService,
     @InjectRepository(OrderMainEntity)
@@ -42,6 +46,8 @@ export class OrderCheckService {
     private customerService: CustomerService,
     private commodityService: CommodityService,
     private approvalEngineService: ApprovalEngineService,
+    private readonly replenishStrategy: ReplenishRatioValidationStrategy,
+    private readonly auxiliaryStrategy: AuxiliarySalesRatioValidationStrategy,
   ) {}
   async checkOrderExist(orderId: string) {
     const orderMain = await this.orderRepository.findOne({
@@ -85,41 +91,34 @@ export class OrderCheckService {
     user: JwtUserPayload,
     customerInfo: CustomerInfoEntity,
   ): Promise<string> {
-    // 获取金额额度，若额度过低则无需审批进入待确认回款
-    const auxiliarySalesRatio = Number(response.auxiliarySalesRatio) || 0;
-    const replenishRatio = Number(response.replenishRatio) || 0;
-    // 当前操作人是否为客户负责人
-    const flag = user.userId === customerInfo.principalUserId;
-    this.logger.log(`当前操作人是否为客户负责人：${flag}`);
-    // 当比例小于3% +5% 时，免审批，进入待回款状态
-    if (auxiliarySalesRatio <= 0.03 && replenishRatio <= 0.05) {
-      this.logger.log(
-        `当前货补比例为:${replenishRatio},辅销比例为：${auxiliarySalesRatio},无需审批！`,
-      );
+    // 1. 计算比例
+    const auxRatio = Number(response.auxiliarySalesRatio) || 0;
+    const repRatio = Number(response.replenishRatio) || 0;
+
+    // 2. 是否免审批
+    if (this.isFreeApproval(customerInfo, auxRatio, repRatio)) {
+      this.logger.log(`免审批：auxRatio=${auxRatio}, repRatio=${repRatio}`);
       return OrderStatusEnum.PENDING_PAYMENT;
     }
-    // 判断客户负责人，当前客户若存在省区负责人
+    // 3. 需要审批：按人岗关系决定第一站
+    const isCreator = user.userId === customerInfo.principalUserId;
+    this.logger.log(
+      `需审批：auxRatio=${auxRatio}, repRatio=${repRatio}, ` +
+        `isCreator=${isCreator}, provincialHeadId=${customerInfo.provincialHeadId}, ` +
+        `regionalHeadId=${customerInfo.regionalHeadId}`,
+    );
+    // 3.1 省区存在
     if (customerInfo.provincialHeadId) {
-      this.logger.log(
-        `当前货补比例为:${replenishRatio},辅销比例为：${auxiliarySalesRatio},省区负责人为：${customerInfo.provincialHeadId},需要审批！`,
-      );
-      // 当省区负责人不为空，比例校验不通过，则需要逐级审批，下一级为大区审批
-      return OrderStatusEnum.REGION_REVIEWING;
+      return isCreator
+        ? OrderStatusEnum.REGION_REVIEWING //  其他人提交→先到大区
+        : OrderStatusEnum.PROVINCE_REVIEWING; //  creator 自己就是省区
     }
-    // 当客户不存在省区负责人，而存在大区负责人时
-    if (customerInfo.regionalHeadId && !customerInfo.provincialHeadId) {
-      this.logger.log(
-        `当前客户仅存在大区负责人:${customerInfo.principalUserId}`,
-      );
-      // 当客户存在大区负责人，则判断比例小于 10% + 3% 则免审批
-      if (auxiliarySalesRatio <= 0.03 && replenishRatio <= 0.1) {
-        return OrderStatusEnum.PENDING_PAYMENT;
-      } else {
-        this.logger.log(
-          `当前货补比例为:${replenishRatio},辅销比例为：${auxiliarySalesRatio},大区负责人为：${customerInfo.regionalHeadId},需要审批！`,
-        );
-        return OrderStatusEnum.DIRECTOR_REVIEWING;
-      }
+
+    // 3.2 仅大区存在
+    if (customerInfo.regionalHeadId) {
+      return isCreator
+        ? OrderStatusEnum.DIRECTOR_REVIEWING
+        : OrderStatusEnum.REGION_REVIEWING;
     }
     // 默认流程： 省区审批
     return OrderStatusEnum.PROVINCE_REVIEWING;
@@ -132,89 +131,78 @@ export class OrderCheckService {
    * 并进一步计算补货与辅销商品的金额及其占补贴金额的比例。最后执行一系列校验策略，
    * 汇总校验消息并返回完整的响应对象。
    *
-   * @param customerInfo 客户信息实体，包含客户名称和ID等基本信息
+   * @param customer
    * @param finishGoods 成品商品列表，参与订单金额的主要计算
    * @param replenishGoods 补货商品列表，用于计算补货金额及比例
    * @param auxiliaryGoods 辅销商品列表，用于计算辅销金额及比例
    * @returns 返回封装了各项金额、比例以及校验消息的 CheckOrderAmountResponse 对象
    */
   async calculateCheckAmountResult(
-    customerInfo: CustomerInfoEntity,
+    customer: CustomerInfoEntity,
     finishGoods: OrderItem[],
     replenishGoods: OrderItem[],
     auxiliaryGoods: OrderItem[],
   ) {
-    const response = new CheckOrderAmountResponse();
-    response.customerName = customerInfo.customerName;
-    response.customerId = customerInfo.id;
     // 计算订单金额 = 商品数量 * 出厂价相加
-    const orderAmount = await this.calculateAmountWithQuery(finishGoods);
-    // 订单金额
-    response.orderAmount = String(orderAmount);
-
-    // 额度计算订单总额
-    const subsidyAmount = await this.calculateAmountWithQuery(
-      finishGoods,
-      true,
+    /* ---------- 1. 金额计算 ---------- */
+    const [orderAmount, subsidyAmount] = await Promise.all([
+      this.calculateAmountWithQuery(finishGoods, false),
+      this.calculateAmountWithQuery(finishGoods, true),
+    ]);
+    const replenishAmount = await this.calculateAmountWithQuery(
+      replenishGoods,
+      false,
     );
-    response.orderSubsidyAmount = subsidyAmount ? String(subsidyAmount) : '0';
+    const auxiliaryAmount = await this.calculateAmountWithQuery(
+      auxiliaryGoods,
+      false,
+    );
 
-    // 计算使用货补金额及比例
-    if (replenishGoods != null && replenishGoods.length > 0) {
-      const replenishAmount = await this.calculateAmountWithQuery(
-        replenishGoods,
-      );
-      response.replenishAmount = replenishAmount
-        ? String(replenishAmount)
-        : '0';
-      response.replenishRatio =
-        subsidyAmount && subsidyAmount !== 0
-          ? (replenishAmount / subsidyAmount).toFixed(4)
-          : '0';
-      // 修复后的逻辑
-      if (customerInfo.provincialHeadId) {
-        // 有大区负责人时，货补比例超过5%需要审批
-        response.isNeedApproval = parseFloat(response.replenishRatio) > 0.05;
-      } else {
-        // 没有大区负责人时，货补比例超过10%需要审批
-        response.isNeedApproval = parseFloat(response.replenishRatio) > 0.1;
-      }
-    }
-    // 3. 计算辅销商品金额及比例；
-    if (auxiliaryGoods != null && auxiliaryGoods.length > 0) {
-      const auxiliaryAmount = await this.calculateAmountWithQuery(
-        auxiliaryGoods,
-      );
-      response.auxiliarySalesAmount = auxiliaryAmount
-        ? String(auxiliaryAmount)
-        : '0';
-      response.auxiliarySalesRatio =
-        subsidyAmount && subsidyAmount !== 0
-          ? (auxiliaryAmount / subsidyAmount).toFixed(4)
-          : '0';
-
-      response.isNeedApproval = response.isNeedApproval
-        ? response.isNeedApproval
-        : parseFloat(response.auxiliarySalesRatio) > 0.03;
-    }
-
-    // 执行所有校验策略
-    const messages: string[] = [];
-    // 执行所有校验策略
-    const validationStrategies: ValidationStrategy[] = [
-      new ReplenishRatioValidationStrategy(),
-      new AuxiliarySalesRatioValidationStrategy(),
+    /* ---------- 2. 比例 & 审批标志 ---------- */
+    const replenishRatio = MoneyUtil.safeDivide(replenishAmount, subsidyAmount);
+    const auxiliarySalesRatio = MoneyUtil.safeDivide(
+      auxiliaryAmount,
+      subsidyAmount,
+    );
+    const needApproval = this.needApproval(
+      customer,
+      replenishRatio,
+      auxiliarySalesRatio,
+    );
+    /* ---------- 3. 校验策略插件 ---------- */
+    const strategies: ValidationStrategy[] = [
+      this.replenishStrategy,
+      this.auxiliaryStrategy,
       // new RegionQuotaValidationStrategy(this.creditAmountInfoRepository),
     ];
-    for (const strategy of validationStrategies) {
-      const strategyMessages = await strategy.validate(response, customerInfo);
-      messages.push(...strategyMessages);
-    }
-    if (messages.length > 0) {
-      response.isNeedApproval = true;
-      response.message = messages.join('，') + ',即将进入审批流程';
-    }
-    return response;
+    console.log('repRatio,', replenishRatio);
+    console.log('auxiliarySalesRatio,', auxiliarySalesRatio);
+    console.log('needApproval,', needApproval);
+    const messages = (
+      await Promise.all(
+        strategies.map((s) =>
+          s.validate(
+            { replenishRatio, auxiliarySalesRatio, needApproval } as any,
+            customer,
+          ),
+        ),
+      )
+    ).flat();
+    const message = messages.length
+      ? `${messages.join('，')}，即将进入审批流程`
+      : '';
+    return plainToInstance(CheckOrderAmountResponse, {
+      customerName: customer.customerName,
+      customerId: customer.id,
+      orderAmount: orderAmount.toFixed(2),
+      orderSubsidyAmount: subsidyAmount.toFixed(2),
+      replenishAmount: replenishAmount.toFixed(2),
+      replenishRatio: replenishRatio.toFixed(4),
+      auxiliarySalesAmount: auxiliaryAmount.toFixed(2),
+      auxiliarySalesRatio: auxiliarySalesRatio.toFixed(4),
+      isNeedApproval: needApproval || messages.length > 0,
+      message,
+    });
   }
 
   /**
@@ -354,5 +342,35 @@ export class OrderCheckService {
       commodityInfos,
       onlySubsidyInvolved,
     );
+  }
+
+  /** 唯一一份比例规则 */
+  private getApprovalThresholds(customer: CustomerInfoEntity) {
+    return {
+      aux: OrderCheckService.AUX_FREE_RATIO,
+      rep: customer.provincialHeadId
+        ? OrderCheckService.REP_FREE_RATIO
+        : OrderCheckService.REP_FREE_RATIO_NO_PROV,
+    };
+  }
+
+  /** 免审批 = 两个比例都不超阈值 */
+  private isFreeApproval(
+    c: CustomerInfoEntity,
+    aux: number,
+    rep: number,
+  ): boolean {
+    const t = this.getApprovalThresholds(c);
+    return aux <= t.aux && rep <= t.rep;
+  }
+
+  /** 需审批 = 任一比例超过阈值 */
+  private needApproval(
+    c: CustomerInfoEntity,
+    aux: number,
+    rep: number,
+  ): boolean {
+    const t = this.getApprovalThresholds(c);
+    return aux > t.aux || rep > t.rep;
   }
 }

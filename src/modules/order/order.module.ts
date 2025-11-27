@@ -24,6 +24,10 @@ import {
 import { CustomerCreditAmountInfoEntity } from '@modules/customer/entities/customer-credit-limit.entity';
 import { EventExecutorRegistry } from './service/order-event/event-executor.registry';
 import { OrderPushEventExecutor } from './service/order-event/executors/order-push-event.executor';
+import {
+  AUX_THRESHOLD_TOKEN,
+  REP_THRESHOLD_TOKEN,
+} from '@modules/order/constant';
 
 @Module({
   imports: [
@@ -52,16 +56,28 @@ import { OrderPushEventExecutor } from './service/order-event/executors/order-pu
       },
       inject: [OrderPushEventExecutor],
     },
-
-    BusinessLogService,
-    OrderCheckService,
-    UserService,
+    {
+      provide: REP_THRESHOLD_TOKEN,
+      inject: [],
+      useFactory: () => OrderCheckService.REP_FREE_RATIO, // 读静态字段
+    },
+    {
+      provide: AUX_THRESHOLD_TOKEN,
+      useFactory: () => OrderCheckService.AUX_FREE_RATIO,
+    },
     ReplenishRatioValidationStrategy,
     AuxiliarySalesRatioValidationStrategy,
     RegionQuotaValidationStrategy,
+    BusinessLogService,
+    OrderCheckService,
+    UserService,
   ],
 
   controllers: [OrderController, OrderTaskController],
-  exports: [OrderCheckService],
+  exports: [
+    OrderCheckService,
+    AuxiliarySalesRatioValidationStrategy,
+    ReplenishRatioValidationStrategy,
+  ],
 })
 export class OrderModule {}

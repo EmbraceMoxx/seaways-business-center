@@ -26,6 +26,18 @@ export class MoneyUtil {
       typeof other === 'number' ? Math.round(other * 100) : other.cents;
     return new MoneyUtil(this.cents - otherCent);
   }
+  /**
+   * 安全除法
+   * @returns 除数为 0 时返回 0，否则返回 numerator / denominator
+   */
+  static safeDivide = (
+    numerator: number,
+    denominator: number,
+    precision = 4,
+  ): number => {
+    if (!denominator) return 0;
+    return Number((numerator / denominator).toFixed(precision));
+  };
 
   /* =============== 输出 =============== */
   toYuan(): string {
