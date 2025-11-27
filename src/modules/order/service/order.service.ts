@@ -491,24 +491,28 @@ export class OrderService {
     this.logger.log(`计算后订单状态为：${orderMain.orderStatus}`);
     try {
       await this.dataSource.transaction(async (manager) => {
-        this.logger.log(`开始事务处理，orderId: ${orderId}`);
         await Promise.all([
           manager.save(orderMain),
           manager.save(finalOrderItemList),
         ]);
+        // 锁定额度
+        const creditDetail = OrderConvertHelper.buildCreditDetailParam(
+          orderId,
+          orderMain,
+        );
+
+        await this.creditLimitDetailService.addCustomerOrderCredit(
+          creditDetail,
+          user,
+        );
+        // 调用审批流程
+        const approvalDto = OrderConvertHelper.buildApprovalDto(
+          orderMain,
+          user,
+        );
+        await this.approvalEngineService.startApprovalProcess(approvalDto);
       });
-      // 锁定额度
-      const creditDetail = OrderConvertHelper.buildCreditDetailParam(
-        orderId,
-        orderMain,
-      );
-      await this.creditLimitDetailService.addCustomerOrderCredit(
-        creditDetail,
-        user,
-      );
-      // todo 添加审批流,待验证
-      const approvalDto = OrderConvertHelper.buildApprovalDto(orderMain, user);
-      await this.approvalEngineService.startApprovalProcess(approvalDto);
+
       // 写入操作日志
       const logInput = OrderLogHelper.getOrderOperate(
         user,
@@ -524,7 +528,6 @@ export class OrderService {
         `创建订单失败，orderId: ${orderId}, error: ${error.message}`,
         error.stack,
       );
-      this.logger.log(error);
       throw new BusinessException('创建失败，请查看日志！');
     }
   }
@@ -621,13 +624,13 @@ export class OrderService {
       updateOrderMain.orderStatus = orderStatus;
     }
 
-    await this.dataSource.transaction(async (manage) => {
+    await this.dataSource.transaction(async (manager) => {
       // 修改订单
-      await manage.save(updateOrderMain);
+      await manager.save(updateOrderMain);
       // 保存最新数据
-      await manage.save(finalOrderItemList);
+      await manager.save(finalOrderItemList);
       // 2. 取出库中旧明细（事务内读，避免幻读）
-      const oldItems = await manage.findBy(OrderItemEntity, {
+      const oldItems = await manager.findBy(OrderItemEntity, {
         orderId,
         deleted: GlobalStatusEnum.NO,
       });
@@ -640,7 +643,7 @@ export class OrderService {
 
       // 4. 软删除（批量）
       if (deletedIds.length) {
-        await manage.update(
+        await manager.update(
           OrderItemEntity,
           { id: In(deletedIds) },
           { deleted: GlobalStatusEnum.YES },
@@ -666,24 +669,26 @@ export class OrderService {
         await this.creditLimitDetailService.editCustomerOrderCredit(
           OrderConvertHelper.buildCreditDetailParam(orderId, updateOrderMain),
           user,
+          manager,
         );
       }
-      this.logger.log('开始写入日志：');
 
-      // 写入操作日志
-      const logInput = OrderLogHelper.getOrderOperate(
-        user,
-        OrderOperateTemplateEnum.UPDATE_ORDER,
-        lastOperateProgram,
-        orderId,
-      );
-      logInput.params = req;
-      await this.businessLogService.writeLog(logInput);
-      // todo 确认审批流程
+      // 调用审批流程
       const approvalDto = OrderConvertHelper.buildApprovalDto(orderMain, user);
       await this.approvalEngineService.startApprovalProcess(approvalDto);
     });
 
+    this.logger.log('开始写入日志：');
+
+    // 写入操作日志
+    const logInput = OrderLogHelper.getOrderOperate(
+      user,
+      OrderOperateTemplateEnum.UPDATE_ORDER,
+      lastOperateProgram,
+      orderId,
+    );
+    logInput.params = req;
+    await this.businessLogService.writeLog(logInput);
     return updateOrderMain.id;
   }
 
@@ -723,19 +728,18 @@ export class OrderService {
       approvalDto.operatorName = user.nickName;
       approvalDto.reason = req.cancelReason ? req.cancelReason.trim() : '';
       await this.approvalEngineService.cancelApprovalProcess(approvalDto);
-
-      const result = OrderLogHelper.getOrderOperate(
-        user,
-        OrderOperateTemplateEnum.CANCEL_ORDER,
-        lastOperateProgram,
-        req.orderId,
-      );
-      if (req.cancelReason !== undefined) {
-        result.action = result.action + ';取消原因为:' + req.cancelReason;
-      }
-      await this.businessLogService.writeLog(result);
     });
 
+    const result = OrderLogHelper.getOrderOperate(
+      user,
+      OrderOperateTemplateEnum.CANCEL_ORDER,
+      lastOperateProgram,
+      req.orderId,
+    );
+    if (req.cancelReason !== undefined) {
+      result.action = result.action + ';取消原因为:' + req.cancelReason;
+    }
+    await this.businessLogService.writeLog(result);
     return req.orderId;
   }
 
@@ -765,14 +769,14 @@ export class OrderService {
         orderId,
         user,
       );
-      const result = OrderLogHelper.getOrderOperate(
-        user,
-        OrderOperateTemplateEnum.CONFIRM_ORDER_PAYMENT,
-        lastOperateProgram,
-        orderId,
-      );
-      await this.businessLogService.writeLog(result);
     });
+    const result = OrderLogHelper.getOrderOperate(
+      user,
+      OrderOperateTemplateEnum.CONFIRM_ORDER_PAYMENT,
+      lastOperateProgram,
+      orderId,
+    );
+    await this.businessLogService.writeLog(result);
 
     return orderId;
   }

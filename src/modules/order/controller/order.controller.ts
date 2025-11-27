@@ -52,14 +52,8 @@ export class OrderController {
     @Body() req: AddOfflineOrderRequest,
     @CurrentUser() user: JwtUserPayload,
   ): Promise<SuccessResponseDto<string>> {
-    try {
-      const result = await this.orderService.add(req, user);
-      return new SuccessResponseDto(result, '订单新增成功！');
-    } catch (error) {
-      console.log(error);
-      // 确保这里能捕获到 BusinessException
-      return new ErrorResponseDto('订单新增失败！');
-    }
+    const result = await this.orderService.add(req, user);
+    return new SuccessResponseDto(result, '订单新增成功！');
   }
 
   @Post('update')
@@ -68,14 +62,8 @@ export class OrderController {
     @Body() req: UpdateOfflineOrderRequest,
     @CurrentUser() user: JwtUserPayload,
   ) {
-    try {
-      const result = await this.orderService.update(req, user);
-      return new SuccessResponseDto(result, '订单修改成功！');
-    } catch (error) {
-      console.log(error);
-      // 确保这里能捕获到 BusinessException
-      return new ErrorResponseDto('订单修改失败！');
-    }
+    const result = await this.orderService.update(req, user);
+    return new SuccessResponseDto(result, '订单修改成功！');
   }
 
   @Post('cancel')
@@ -84,12 +72,8 @@ export class OrderController {
     @Body() req: CancelOrderRequest,
     @CurrentUser() user: JwtUserPayload,
   ) {
-    try {
-      await this.orderService.cancel(req, user);
-      return new SuccessResponseDto('id', '订单已取消！');
-    } catch (error) {
-      return new ErrorResponseDto('订单确认支付失败！');
-    }
+    await this.orderService.cancel(req, user);
+    return new SuccessResponseDto('id', '订单已取消！');
   }
   @Post('confirm-payment/:orderId')
   @ApiOperation({ summary: '确认回款' })
@@ -97,12 +81,8 @@ export class OrderController {
     @Param('orderId') orderId: string,
     @CurrentUser() user: JwtUserPayload,
   ) {
-    try {
-      await this.orderService.confirmPayment(orderId, user);
-      return new SuccessResponseDto('id', '订单已确认回款！');
-    } catch (error) {
-      return new ErrorResponseDto('订单确认回款失败！');
-    }
+    await this.orderService.confirmPayment(orderId, user);
+    return new SuccessResponseDto('id', '订单已确认回款！');
   }
 
   @ApiOperation({ summary: '获取订单列表' })

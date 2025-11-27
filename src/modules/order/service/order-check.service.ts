@@ -158,12 +158,12 @@ export class OrderCheckService {
       replenishGoods,
       false,
     );
-    console.log('after replenishAmount',replenishAmount);
+    console.log('after replenishAmount', replenishAmount);
     const auxiliaryAmount = await this.calculateAmountWithQuery(
       auxiliaryGoods,
       false,
     );
-    console.log('after auxiliaryAmount',auxiliaryAmount);
+    console.log('after auxiliaryAmount', auxiliaryAmount);
 
     /* ---------- 2. 比例 & 审批标志 ---------- */
     const replenishRatio = MoneyUtil.safeDivide(replenishAmount, subsidyAmount);

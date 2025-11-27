@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, EntityManager } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import {
@@ -168,11 +168,12 @@ export class CustomerCreditLimitDetailService {
    * 编辑客户订单授信信息
    * @param creditParam - 授信限额详情请求参数对象，包含订单ID、发货金额、辅助销售商品金额等信息
    * @param user - JWT用户负载信息，包含用户ID和用户名
-   * @param confirm
+   * @param manager
    */
   async editCustomerOrderCredit(
     creditParam: CreditLimitDetailRequestDto,
     user: JwtUserPayload,
+    manager: EntityManager,
   ) {
     this.logger.log('开始编辑客户流水！');
     return this.dataSource.transaction(async (manager) => {
