@@ -198,7 +198,7 @@ export class CustomerService {
         if (checkResult.isQueryAll == false) {
           if (checkResult?.principalUserIds?.length > 0) {
             queryBuilder = queryBuilder.andWhere(
-              'customer.creator_id IN (:userIds)',
+              'customer.principal_user_id IN (:userIds)',
               {
                 userIds: checkResult.principalUserIds,
               },
