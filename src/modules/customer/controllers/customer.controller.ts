@@ -60,8 +60,9 @@ export class CustomerController {
     @Param('id') id: string,
     @Body() cstomerInfo: CustomerInfoUpdateDto,
     @CurrentUser() user: JwtUserPayload,
+    @CurrentToken() token: string,
   ): Promise<SuccessResponseDto<CustomerInfoResponseDto>> {
-    await this.customerService.updateCustomerInfo(id, cstomerInfo, user);
+    await this.customerService.updateCustomerInfo(id, cstomerInfo, user, token);
     return new SuccessResponseDto(null, '更新成功');
   }
 }

@@ -13,4 +13,8 @@ export class UserEndpoints {
 
   /** 用户下级列表 */
   static USER_SUB_LEVEL = (userId: string) => `/auth/user/${userId}/hierarchy`;
+
+  /** 根据id获取用户列表 */
+  static USER_by_id = (userId: string) =>
+    `/auth/user/get-users-by-id/${userId}`;
 }
