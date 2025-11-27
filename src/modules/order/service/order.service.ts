@@ -33,6 +33,7 @@ import { OrderCheckService } from '@src/modules/order/service/order-check.servic
 import { UserService } from '@modules/common/user/user.service';
 import { ApprovalEngineService } from '@modules/approval/services/approval-engine.service';
 import { CancelApprovalDto } from '@src/dto';
+import { CustomerService } from '@modules/customer/services/customer.service';
 
 @Injectable()
 export class OrderService {
@@ -48,6 +49,7 @@ export class OrderService {
     private orderCheckService: OrderCheckService,
     private approvalEngineService: ApprovalEngineService,
     private userService: UserService,
+    private customerService: CustomerService,
     private creditLimitDetailService: CustomerCreditLimitDetailService,
     private dataSource: DataSource, // 添加数据源注入
   ) {}
@@ -181,7 +183,7 @@ export class OrderService {
         user.userId,
       );
       if (checkResult) {
-        this.logger.log(`user checkResult: ${JSON.stringify(checkResult)}`)
+        this.logger.log(`user checkResult: ${JSON.stringify(checkResult)}`);
         if (checkResult.isQueryAll == false) {
           queryBuilder = queryBuilder.andWhere(
             'order.creator_id IN (:userIds)',
@@ -214,8 +216,8 @@ export class OrderService {
    */
   async getUnReviewOrderList(
     params: QueryOrderDto,
-    user:JwtUserPayload,
-    token:string
+    user: JwtUserPayload,
+    token: string,
   ): Promise<{ items: OrderInfoResponseDto[]; total: number }> {
     try {
       const {
@@ -321,20 +323,20 @@ export class OrderService {
         token,
         user.userId,
       );
-      if (checkResult) {
-        if (checkResult.isQueryAll == false) {
-          if (checkResult?.principalUserIds?.length > 0) {
-            queryBuilder = queryBuilder.andWhere(
-              'order.creator_id IN (:userIds)',
-              {
-                userIds: checkResult.principalUserIds,
-              },
-            );
-          } else {
-            console.log('进入了else');
-            return { items: [], total: 0 };
-          }
-        }
+      if (!checkResult || checkResult.isQueryAll) {
+        // 不限制客户范围，继续查询
+      } else if (!checkResult.principalUserIds?.length) {
+        console.log('进入了else');
+        return { items: [], total: 0 };
+      } else {
+        // 收集所有人负责的客户ID，去查询订单对应的客户ID
+        const customerIds = await this.customerService.getManagedCustomerIds(
+          checkResult.principalUserIds,
+        );
+        queryBuilder = queryBuilder.andWhere(
+          'order.customer_id IN (:customerIds)',
+          { customerIds },
+        );
       }
       // 执行计数查询
       const countQueryBuilder = queryBuilder.clone();

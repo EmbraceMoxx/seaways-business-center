@@ -389,4 +389,12 @@ export class CustomerService {
       throw new BusinessException(error.message);
     }
   }
+  async getManagedCustomerIds(userIds: string[]): Promise<string[]> {
+    const userCustomerRelation = await this.customerRepository
+      .createQueryBuilder('customer')
+      .where('customer.principalUserId IN (:...userIds)', { userIds })
+      .andWhere('customer.deleted = :deleted', { deleted: GlobalStatusEnum.NO })
+      .getMany();
+    return userCustomerRelation.map((relation) => relation.id);
+  }
 }
