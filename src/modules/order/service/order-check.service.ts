@@ -144,19 +144,26 @@ export class OrderCheckService {
     auxiliaryGoods: OrderItem[],
   ) {
     // 计算订单金额 = 商品数量 * 出厂价相加
+    // 统一做空值保护
+    finishGoods = finishGoods ?? [];
+    replenishGoods = replenishGoods ?? [];
+    auxiliaryGoods = auxiliaryGoods ?? [];
     /* ---------- 1. 金额计算 ---------- */
     const [orderAmount, subsidyAmount] = await Promise.all([
       this.calculateAmountWithQuery(finishGoods, false),
       this.calculateAmountWithQuery(finishGoods, true),
     ]);
+    console.log('before');
     const replenishAmount = await this.calculateAmountWithQuery(
       replenishGoods,
       false,
     );
+    console.log('after replenishAmount',replenishAmount);
     const auxiliaryAmount = await this.calculateAmountWithQuery(
       auxiliaryGoods,
       false,
     );
+    console.log('after auxiliaryAmount',auxiliaryAmount);
 
     /* ---------- 2. 比例 & 审批标志 ---------- */
     const replenishRatio = MoneyUtil.safeDivide(replenishAmount, subsidyAmount);
@@ -334,6 +341,7 @@ export class OrderCheckService {
     goods: OrderItem[],
     onlySubsidyInvolved = false,
   ): Promise<number> {
+    if (!goods || goods.length === 0) return 0;
     const commodityIds = goods.map((item) => item.commodityId);
     const commodityInfos =
       await this.commodityService.getCommodityListByCommodityIds(commodityIds);
