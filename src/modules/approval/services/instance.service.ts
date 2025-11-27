@@ -127,14 +127,6 @@ export class InstanceService {
       throw new BusinessException(errorMessage);
     }
 
-    // 检查任务审批状态
-    const task = await this.taskRepository.findOneBy({
-      instanceId: instance.id,
-      status: ApprovalTaskStatusEnum.APPROVED,
-      autoApproved: GlobalStatusEnum.NO, // 非自动审批
-    });
-    if (task) throw new BusinessException('流程已被审批过，无法重新提交');
-
     return instance;
   }
 
