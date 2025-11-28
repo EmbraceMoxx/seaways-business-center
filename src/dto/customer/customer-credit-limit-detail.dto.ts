@@ -207,6 +207,12 @@ export class CreditLimitDetailRequestDto {
   orderId: string;
 
   @ApiProperty({
+    description: '订单编码',
+    example: '123',
+  })
+  orderCode: string;
+
+  @ApiProperty({
     description: '聚水潭线上订单号',
     example: 'SXYXJ20251101001',
   })

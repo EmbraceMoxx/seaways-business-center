@@ -12,7 +12,7 @@ import { CustomerCreditLimitDetailService } from '../services/customer-credit-li
 
 @ApiTags('客户额度流水明细')
 @ApiBearerAuth()
-@Controller('customerCreditLimitDetail')
+@Controller('customer/credit/detail')
 export class CustomerCreditLimitDetailController {
   constructor(
     private creditLimitDetailService: CustomerCreditLimitDetailService,
@@ -41,28 +41,8 @@ export class CustomerCreditLimitDetailController {
     return new SuccessResponseDto(null, '新增成功');
   }
 
-  @ApiOperation({ summary: '确认收款' })
-  @Post('confirmReceipt')
-  async confirmReceipt(
-    @Body('customerId') customerId: string,
-    @CurrentUser() user: JwtUserPayload,
-  ): Promise<SuccessResponseDto> {
-    await this.creditLimitDetailService.onReceipt(true, customerId, user);
-    return new SuccessResponseDto(null, '确认收款成功');
-  }
-
-  @ApiOperation({ summary: '取消订单' })
-  @Post('cancelOrder')
-  async cancelOrder(
-    @Body('customerId') customerId: string,
-    @CurrentUser() user: JwtUserPayload,
-  ): Promise<SuccessResponseDto> {
-    await this.creditLimitDetailService.onReceipt(false, customerId, user);
-    return new SuccessResponseDto(null, '取消订单成功');
-  }
-
   @ApiOperation({ summary: '客户额度流水明细存入月度额度' })
-  @Get('saveToMonth')
+  @Get('sync-month')
   async saveCreditDetailToMonth(
     @Query() params: any,
     @CurrentUser() user: JwtUserPayload,

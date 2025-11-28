@@ -335,6 +335,7 @@ export class CustomerCreditLimitDetailService {
       creditDetail.customerName = creditParam.customerName;
       creditDetail.flowCode = IdUtil.generateFlowCode();
       creditDetail.orderId = creditParam.orderId;
+      creditDetail.orderCode = creditParam.orderCode;
       creditDetail.onlineOrderId = creditParam.onlineOrderId;
       creditDetail.shippedAmount = creditParam.shippedAmount || '0';
       creditDetail.auxiliarySaleGoodsAmount =
@@ -363,55 +364,6 @@ export class CustomerCreditLimitDetailService {
       return await this.creditDetailRepository.save(creditDetail);
     } catch (error) {
       throw new BusinessException('新增客户额度流水失败' + error.message);
-    }
-  }
-
-  /**
-   * 确认收款 or 取消订单(事务)
-   * @param flag 状态 true:确认收款 false:取消订单
-   * @param customerId 客户ID
-   * @param user 用户信息
-   */
-  async onReceipt(flag: boolean, customerId: string, user: JwtUserPayload) {
-    try {
-      // 1、判断该客户是否存在
-      const customer =
-        this.customerService.getCustomerInfoCreditById(customerId);
-      if (!customer) {
-        throw new BusinessException('客户不存在');
-      }
-      // 2、事务
-      return await this.dataSource.transaction(async (manager) => {
-        // 2.1 获取流水详情信息
-        const creditDetail = await this.getCreditDetailById(customerId);
-
-        // 2.2 判断该流水是否可操作
-        if (creditDetail?.status !== -1) {
-          throw new BusinessException('该流水已处理');
-        }
-        // 2.3、计算并修改客户额度列表的相关金额
-        await this.customerCreditLimitService.updateAuxiliaryAndReplenishingAmount(
-          creditDetail,
-          flag,
-          manager,
-        );
-        // 2.4、修改流水列表的状态 1为已完成，2为已关闭
-        const params = {
-          status: flag ? 1 : 2,
-          reviserId: user?.userId,
-          reviserName: user?.nickName,
-          revisedTime: new Date(),
-        };
-        await manager.update(
-          CustomerCreditLimitDetailEntity,
-          creditDetail.id,
-          params,
-        );
-      });
-    } catch (error) {
-      throw new BusinessException(
-        `${flag ? '确认收款' : '取消订单'}失败` + error.message,
-      );
     }
   }
 

@@ -31,6 +31,14 @@ export class CustomerCreditLimitDetailEntity {
   orderId: string;
 
   @Column('varchar', {
+    name: 'order_code',
+    unique: true,
+    comment: '订单编号, 全局唯一，格式："XX" + YYYYMMDD + NNNNNN',
+    length: 128,
+  })
+  orderCode: string;
+
+  @Column('varchar', {
     name: 'online_order_id',
     nullable: true,
     comment: '聚水潭线上订单号',
