@@ -34,7 +34,7 @@ export class OrderController {
     private orderPushService: OrderPushService,
   ) {}
 
-  @Post('checkAmount')
+  @Post('check-amount')
   @ApiOperation({ summary: '校验订单金额信息' })
   async checkOrderAmount(
     @Body() req: CheckOrderAmountRequest,
@@ -116,7 +116,7 @@ export class OrderController {
   }
 
   @ApiOperation({ summary: '获取待审核订单列表' })
-  @Post('unReviewList')
+  @Post('under-review-list')
   async getUnReviewOrderList(
     @Body() body: QueryOrderDto,
     @CurrentUser() user: JwtUserPayload,

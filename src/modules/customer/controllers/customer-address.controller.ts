@@ -20,7 +20,7 @@ import { CustomerAddressService } from '../services/customer-address.service';
 
 @ApiTags('客户地址管理')
 @ApiBearerAuth()
-@Controller('customerAddress')
+@Controller('customer/address')
 export class CustomerAddressController {
   constructor(private customerAddressService: CustomerAddressService) {}
 
@@ -70,7 +70,7 @@ export class CustomerAddressController {
   }
 
   @ApiOperation({ summary: '获取客户地址信息' })
-  @Get('addressInfo/:id')
+  @Get('detail/:id')
   async getCustomerAddressInfo(
     @Param('id') id: string,
   ): Promise<SuccessResponseDto> {

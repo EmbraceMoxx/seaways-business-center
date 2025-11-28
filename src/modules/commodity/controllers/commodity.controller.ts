@@ -25,7 +25,7 @@ export class CommodityController {
   }
 
   @ApiOperation({ summary: '获取商品详情' })
-  @Get('commodityInfo/:id')
+  @Get('detail/:id')
   async getCommodityDetail(
     @Param('id') id: string,
   ): Promise<SuccessResponseDto<CommodityResponseDto>> {

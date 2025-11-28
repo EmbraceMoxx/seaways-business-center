@@ -46,7 +46,7 @@ export class CustomerController {
   }
 
   @ApiOperation({ summary: '获取客户详情' })
-  @Get('customerInfo/:id')
+  @Get('detail/:id')
   async getCustomerInfo(
     @Param('id') id: string,
   ): Promise<SuccessResponseDto<CustomerInfoResponseDto>> {
@@ -55,7 +55,7 @@ export class CustomerController {
   }
 
   @ApiOperation({ summary: '更新客户信息' })
-  @Put('updateCustomerInfo/:id')
+  @Put('update/:id')
   async updateCustomerInfo(
     @Param('id') id: string,
     @Body() cstomerInfo: CustomerInfoUpdateDto,
