@@ -63,6 +63,42 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     });
   }
 
+  handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
+    if (err || !user) {
+      throw err || new UnauthorizedException();
+    }
+
+    const request = context.switchToHttp().getRequest();
+    user.ipAddress = this.getClientIP(request);
+    return user;
+  }
+
+  private getClientIP(request: any): string {
+    let ip: string =
+      request.headers['x-forwarded-for'] ||
+      request.headers['x-real-ip'] ||
+      request.headers['x-client-ip'] ||
+      request.connection?.remoteAddress ||
+      request.socket?.remoteAddress ||
+      request.info?.remoteAddress ||
+      request.ip ||
+      'unknown';
+
+    // 处理IP格式
+    if (typeof ip === 'string') {
+      if (ip.includes(',')) {
+        ip = ip.split(',')[0].trim();
+      }
+      if (ip === '::1') {
+        ip = '127.0.0.1';
+      } else if (ip.startsWith('::ffff:')) {
+        ip = ip.substring(7);
+      }
+    }
+
+    return ip;
+  }
+
   private extractTokenFromHeader(request: any): string | undefined {
     const authHeader = request.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) return;
