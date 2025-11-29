@@ -1,7 +1,6 @@
 import {
   ExecutionContext,
   Injectable,
-  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
@@ -9,11 +8,10 @@ import { AuthGuard } from '@nestjs/passport';
 import { IS_PUBLIC_KEY } from './public.decorator';
 import { Observable, map } from 'rxjs';
 import { RedisService } from '@modules/redis/redis.service';
+import * as requestIp from 'request-ip';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
-  private readonly logger = new Logger(JwtAuthGuard.name);
-
   constructor(
     private reflector: Reflector,
     private redisService: RedisService,
@@ -21,7 +19,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     super();
   }
 
-  // 去掉 async，保持父类签名完全一致
   canActivate(
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
@@ -69,34 +66,8 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
 
     const request = context.switchToHttp().getRequest();
-    user.ipAddress = this.getClientIP(request);
+    user.ipAddress = requestIp.getClientIp(request);
     return user;
-  }
-
-  private getClientIP(request: any): string {
-    let ip: string =
-      request.headers['x-forwarded-for'] ||
-      request.headers['x-real-ip'] ||
-      request.headers['x-client-ip'] ||
-      request.connection?.remoteAddress ||
-      request.socket?.remoteAddress ||
-      request.info?.remoteAddress ||
-      request.ip ||
-      'unknown';
-
-    // 处理IP格式
-    if (typeof ip === 'string') {
-      if (ip.includes(',')) {
-        ip = ip.split(',')[0].trim();
-      }
-      if (ip === '::1') {
-        ip = '127.0.0.1';
-      } else if (ip.startsWith('::ffff:')) {
-        ip = ip.substring(7);
-      }
-    }
-
-    return ip;
   }
 
   private extractTokenFromHeader(request: any): string | undefined {
