@@ -58,6 +58,15 @@ export class OrderCheckService {
     }
     return orderMain;
   }
+  async checkOrderExistByOrderCode(orderCode: string) {
+    const orderMain = await this.orderRepository.findOne({
+      where: { orderCode: orderCode, deleted: GlobalStatusEnum.NO },
+    });
+    if (!orderMain) {
+      throw new BusinessException('订单不存在或已被删除');
+    }
+    return orderMain;
+  }
   /**
    * 检查客户信息是否符合要求
    * @returns 客户基本信息对象

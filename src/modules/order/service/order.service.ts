@@ -718,6 +718,8 @@ export class OrderService {
       await this.creditLimitDetailService.closeCustomerOrderCredit(
         orderMain.id,
         user,
+        false,
+        manager,
       );
       // 修改订单
       await manager.update(OrderMainEntity, { id: orderMain.id }, updateOrder);

@@ -20,6 +20,12 @@ import * as dayjs from 'dayjs';
 import { CustomerCreditLimitDetailEntity } from '@modules/customer/entities/customer-credit-limit-detail.entity';
 import { MoneyUtil } from '@utils/MoneyUtil';
 import { CustomerMonthlyCreditLimitService } from '../services/customer-monthly-credit-limit.server';
+import {
+  CancelStrategyFactory,
+  ConfirmStrategyFactory,
+  CreditUpdateStrategyFactory,
+} from '@modules/customer/strategy/credit-release.strategy';
+import { UpdateAmountVector } from '@modules/customer/strategy/credit-update.strategy';
 
 @Injectable()
 export class CustomerCreditLimitService {
@@ -514,6 +520,8 @@ export class CustomerCreditLimitService {
    * @param user 操作人
    * @param manager 事务管理器
    * @param confirm 是否确认收款（true=累加到已使用）
+   * @param isFromJst
+   * @param vector
    */
   async releaseCreditInTransaction(
     customerId: string,
@@ -528,6 +536,7 @@ export class CustomerCreditLimitService {
     user: JwtUserPayload,
     manager: EntityManager,
     confirm: boolean,
+    isFromJst = false,
   ): Promise<void> {
     const repo = manager.getRepository(CustomerCreditAmountInfoEntity);
 
@@ -539,77 +548,102 @@ export class CustomerCreditLimitService {
     if (!credit) {
       throw new BusinessException('客户额度不存在');
     }
-    // 1. 释放发货冻结金额
-    credit.frozenShippedAmount = MoneyUtil.fromYuan(credit.frozenShippedAmount)
-      .sub(MoneyUtil.fromYuan(flow.shippedAmount))
-      .toYuan();
-    //  2. 释放冻结金额
-    credit.frozenSaleGoodsAmount = MoneyUtil.fromYuan(
-      credit.frozenSaleGoodsAmount,
-    )
-      .sub(MoneyUtil.fromYuan(flow.auxiliarySaleGoodsAmount))
-      .toYuan();
-    credit.frozenUsedSaleGoodsAmount = MoneyUtil.fromYuan(
-      credit.frozenUsedSaleGoodsAmount,
-    )
-      .sub(MoneyUtil.fromYuan(flow.usedAuxiliarySaleGoodsAmount))
-      .toYuan();
-    credit.frozenReplenishingGoodsAmount = MoneyUtil.fromYuan(
-      credit.frozenReplenishingGoodsAmount,
-    )
-      .sub(MoneyUtil.fromYuan(flow.replenishingGoodsAmount))
-      .toYuan();
-    credit.frozenUsedReplenishingGoodsAmount = MoneyUtil.fromYuan(
-      credit.frozenUsedReplenishingGoodsAmount,
-    )
-      .sub(MoneyUtil.fromYuan(flow.usedReplenishingGoodsAmount))
-      .toYuan();
-
-    // 3. 若确认收款，则累加到已使用
+    // 1. 根据渠道+阶段拿到策略
     if (confirm) {
-      credit.shippedAmount = MoneyUtil.fromYuan(credit.shippedAmount)
-        .add(MoneyUtil.fromYuan(flow.shippedAmount))
-        .toYuan();
-      credit.auxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
-        credit.auxiliarySaleGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(flow.auxiliarySaleGoodsAmount))
-        .toYuan();
-      credit.usedAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
-        credit.usedAuxiliarySaleGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(flow.usedAuxiliarySaleGoodsAmount))
-        .toYuan();
-      credit.replenishingGoodsAmount = MoneyUtil.fromYuan(
-        credit.replenishingGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(flow.replenishingGoodsAmount))
-        .toYuan();
-      credit.usedReplenishingGoodsAmount = MoneyUtil.fromYuan(
-        credit.usedReplenishingGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(flow.usedReplenishingGoodsAmount))
-        .toYuan();
+      const confirmVector = {
+        shipped: flow.shippedAmount,
+        auxiliary: flow.auxiliarySaleGoodsAmount,
+        auxiliaryUsed: flow.usedAuxiliarySaleGoodsAmount,
+        replenishing: flow.replenishingGoodsAmount,
+        replenishingUsed: flow.usedReplenishingGoodsAmount,
+      };
+      const result = ConfirmStrategyFactory.get();
+      result.apply(credit, confirmVector);
+    }
+    // 若来自聚水潭取消，则对额度进行扣减
+    if (isFromJst) {
+      const cancelVector = {
+        shipped: flow.shippedAmount,
+        auxiliary: flow.auxiliarySaleGoodsAmount,
+        auxiliaryUsed: flow.usedAuxiliarySaleGoodsAmount,
+        replenishing: flow.replenishingGoodsAmount,
+        replenishingUsed: flow.usedReplenishingGoodsAmount,
+      };
+      const result = CancelStrategyFactory.get('JST_POST');
+      result.apply(credit, cancelVector);
     }
 
-    //  4. 重新计算剩余额度
-    credit.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
-      credit.auxiliarySaleGoodsAmount,
-    )
-      .sub(MoneyUtil.fromYuan(credit.usedAuxiliarySaleGoodsAmount))
-      .sub(MoneyUtil.fromYuan(credit.frozenUsedSaleGoodsAmount))
-      .toYuan();
-    credit.remainReplenishingGoodsAmount = MoneyUtil.fromYuan(
-      credit.replenishingGoodsAmount,
-    )
-      .sub(MoneyUtil.fromYuan(credit.usedReplenishingGoodsAmount))
-      .sub(MoneyUtil.fromYuan(credit.frozenUsedReplenishingGoodsAmount))
-      .toYuan();
+    // 3. 统一兜底：重新计算剩余额度 + 防负
+    const zero = MoneyUtil.fromYuan('0');
+    // 1. 定义金额字段子集
+    type MoneyField =
+      | 'shippedAmount'
+      | 'auxiliarySaleGoodsAmount'
+      | 'usedAuxiliarySaleGoodsAmount'
+      | 'frozenSaleGoodsAmount'
+      | 'frozenUsedSaleGoodsAmount'
+      | 'replenishingGoodsAmount'
+      | 'usedReplenishingGoodsAmount'
+      | 'frozenReplenishingGoodsAmount'
+      | 'frozenUsedReplenishingGoodsAmount'
+      | 'remainAuxiliarySaleGoodsAmount'
+      | 'remainReplenishingGoodsAmount';
+
+    // 2. 兜底函数
+    const guard = (f: MoneyField) => {
+      const v = credit[f] as string;
+      if (MoneyUtil.fromYuan(v).lt(zero)) credit[f] = zero.toYuan();
+    };
+
+    // 3. 遍历
+    (
+      [
+        'shippedAmount',
+        'auxiliarySaleGoodsAmount',
+        'usedAuxiliarySaleGoodsAmount',
+        'frozenSaleGoodsAmount',
+        'frozenUsedSaleGoodsAmount',
+        'replenishingGoodsAmount',
+        'usedReplenishingGoodsAmount',
+        'frozenReplenishingGoodsAmount',
+        'frozenUsedReplenishingGoodsAmount',
+        'remainAuxiliarySaleGoodsAmount',
+        'remainReplenishingGoodsAmount',
+      ] as MoneyField[]
+    ).forEach(guard);
 
     credit.reviserId = user.userId;
     credit.reviserName = user.nickName;
     credit.revisedTime = dayjs().toDate();
 
+    await manager.update(
+      CustomerCreditAmountInfoEntity,
+      { id: credit.id },
+      credit,
+    );
+  }
+
+  async changeCustomerCreditAmountInTx(
+    manager: EntityManager,
+    customerId: string,
+    updateVector: UpdateAmountVector,
+    user: JwtUserPayload,
+  ) {
+    const repo = manager.getRepository(CustomerCreditAmountInfoEntity);
+    const credit = await repo.findOne({
+      where: { customerId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!credit) throw new BusinessException('客户额度不存在');
+
+    // 直接让策略算差额、改额度
+    const strategy = CreditUpdateStrategyFactory.get();
+    strategy.apply(credit, updateVector);
+
+    // 允许剩余额度为负
+    credit.reviserId = user.userId;
+    credit.reviserName = user.nickName;
+    credit.revisedTime = dayjs().toDate();
     await repo.update({ id: credit.id }, credit);
   }
 }

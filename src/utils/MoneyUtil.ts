@@ -21,10 +21,27 @@ export class MoneyUtil {
       typeof other === 'number' ? Math.round(other * 100) : other.cents;
     return new MoneyUtil(this.cents + otherCent);
   }
+
+  static add(a: string, b: string): string {
+    const aCent = Math.round(Number(a || 0) * 100);
+    const bCent = Math.round(Number(b || 0) * 100);
+    return ((aCent + bCent) / 100).toFixed(2);
+  }
   sub(other: MoneyUtil | number): MoneyUtil {
     const otherCent =
       typeof other === 'number' ? Math.round(other * 100) : other.cents;
     return new MoneyUtil(this.cents - otherCent);
+  }
+  /* ======== 新增：小于比较 ======== */
+  lt(other: MoneyUtil | number): boolean {
+    const otherCent =
+      typeof other === 'number' ? Math.round(other * 100) : other.cents;
+    return this.cents < otherCent;
+  }
+  static sub(a: string, b: string): string {
+    const aCent = Math.round(Number(a || 0) * 100);
+    const bCent = Math.round(Number(b || 0) * 100);
+    return ((aCent - bCent) / 100).toFixed(2);
   }
   /**
    * 安全除法
