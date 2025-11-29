@@ -28,6 +28,9 @@ import {
   AUX_THRESHOLD_TOKEN,
   REP_THRESHOLD_TOKEN,
 } from '@modules/order/constant';
+import { OrderSyncService } from '@modules/order/service/order-sync.service';
+import { OrderSyncController } from '@modules/order/controller/order-sync.controller';
+import { OrderSyncCancelService } from '@modules/order/strategy/order-sync-cancel.service';
 
 @Module({
   imports: [
@@ -47,7 +50,7 @@ import {
     OrderPushService,
     OrderEventService,
     OrderEventTaskService,
-
+    OrderSyncService,
     OrderPushEventExecutor,
     {
       provide: EventExecutorRegistry,
@@ -70,10 +73,11 @@ import {
     RegionQuotaValidationStrategy,
     BusinessLogService,
     OrderCheckService,
+    OrderSyncCancelService,
     UserService,
   ],
 
-  controllers: [OrderController, OrderTaskController],
+  controllers: [OrderController, OrderTaskController,OrderSyncController],
   exports: [
     OrderCheckService,
     AuxiliarySalesRatioValidationStrategy,

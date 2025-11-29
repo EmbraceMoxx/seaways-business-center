@@ -538,6 +538,7 @@ export class CustomerCreditLimitService {
     confirm: boolean,
     isFromJst = false,
   ): Promise<void> {
+    this.logger.log(`进入释放额度逻辑：${flow},来自聚水潭：${isFromJst}`);
     const repo = manager.getRepository(CustomerCreditAmountInfoEntity);
 
     // 1. 先锁额度主表

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CustomerCreditLimitDetailService } from '@modules/customer/services/customer-credit-limit-detail.service';
 import { EntityManager } from 'typeorm';
 import { OrderCheckService } from '@modules/order/service/order-check.service';
@@ -9,12 +9,14 @@ export interface IOperateSideEffect {
 }
 @Injectable()
 export class OrderSyncCancelService implements IOperateSideEffect {
+  private readonly logger = new Logger(OrderSyncCancelService.name);
   constructor(
     private readonly creditLimitDetailService: CustomerCreditLimitDetailService,
     private readonly orderCheckService: OrderCheckService,
   ) {}
 
   async handle(orderCode: string, manager: EntityManager): Promise<void> {
+    this.logger.log(`进入取消策略：${orderCode}`);
     const orderResult = await this.orderCheckService.checkOrderExistByOrderCode(
       orderCode,
     );

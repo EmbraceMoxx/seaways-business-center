@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
   BusinessException,
-  CancelOrderRequest,
   CheckOrderAmountResponse,
   OrderItem,
   OrderOperateButton,
@@ -62,6 +61,7 @@ export class OrderCheckService {
     const orderMain = await this.orderRepository.findOne({
       where: { orderCode: orderCode, deleted: GlobalStatusEnum.NO },
     });
+    this.logger.log('orderMain:{}',orderMain)
     if (!orderMain) {
       throw new BusinessException('订单不存在或已被删除');
     }

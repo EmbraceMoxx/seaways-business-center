@@ -6,22 +6,23 @@ import {
   SyncOrderStatusDto,
 } from '@src/dto/order/order.sync.dto';
 import { OrderSyncService } from '@modules/order/service/order-sync.service';
+import { OrderCheckService } from '@modules/order/service/order-check.service';
 
 @ApiTags('订单同步管理')
 @Controller('order/sync')
 export class OrderSyncController {
-  constructor(private readonly orderSyncService: OrderSyncService) {}
-  @ApiOperation({ summary: '聚水潭确认发货！' })
+  constructor(private readonly orderSyncService: OrderSyncService,) {}
+  @ApiOperation({ summary: '需要获取聚水潭的订单编码集合' })
   @Get('order-codes')
   async getSyncOrderCodes(): Promise<SuccessResponseDto<QueryOrderCodesDto>> {
     const result = await this.orderSyncService.getSyncOrderCodes();
-    return new SuccessResponseDto(result, '同步完成！');
+    return new SuccessResponseDto(result, '获取成功');
   }
 
-  @ApiOperation({ summary: '聚水潭取消订单！' })
+  @ApiOperation({ summary: '聚水潭订单状态同步！' })
   @Post('sync-jst-status')
   async syncJstOrderStatus(@Body() request: SyncOrderStatusDto[]) {
     const result = await this.orderSyncService.syncJstOrderStatus(request);
-    return new SuccessResponseDto(result, '取消完成！');
+    return new SuccessResponseDto(result, '状态同步完成！');
   }
 }

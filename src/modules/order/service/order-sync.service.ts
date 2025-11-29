@@ -12,6 +12,7 @@ import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import * as dayjs from 'dayjs';
 import { OrderLogHelper } from '@modules/order/helper/order.log.helper';
 import { OPERATE_STRATEGY } from '@modules/order/strategy/order-sync.strategy';
+import { OrderSyncCancelService } from '@modules/order/strategy/order-sync-cancel.service';
 type StatusCandidate = Pick<
   OrderMainEntity,
   'id' | 'orderCode' | 'orderStatus'
@@ -23,6 +24,7 @@ export class OrderSyncService {
     @InjectRepository(OrderMainEntity)
     private orderRepository: Repository<OrderMainEntity>,
     private businessLogService: BusinessLogService,
+    private readonly orderSyncCancelService: OrderSyncCancelService,
     private dataSource: DataSource, // 添加数据源注入
   ) {}
   /**
@@ -95,7 +97,7 @@ export class OrderSyncService {
       arr.push(dto);
       group.set(dto.operate, arr);
     });
-
+    this.logger.log(`group:${group}`)
     await this.dataSource.transaction(async (manager) => {
       // 每组并发执行
       await Promise.all(
@@ -112,9 +114,10 @@ export class OrderSyncService {
     program: string,
     manager: typeof this.dataSource.manager,
   ): Promise<void> {
+    this.logger.log(`进入处理逻辑：${operate}`);
     const strategy = OPERATE_STRATEGY.get(operate);
     if (!strategy) {
-      this.logger.warn(`未注册的操作类型: ${operate}`);
+      this.logger.error(`未注册的操作类型: ${operate}`);
       return;
     }
 
@@ -134,15 +137,17 @@ export class OrderSyncService {
         `[${operate}] 以下订单在库中不存在，跳过：${missing.join(',')}`,
       );
     }
-
+    this.logger.log(`差异比对 candidates：${JSON.stringify(candidates)}`);
     // 3. 过滤可操作的订单
     const toUpdate = candidates.filter(
       (c) => c.orderStatus === strategy.fromStatus,
     );
     if (!toUpdate.length) return;
-
     // 4. 批量更新
     const ids = toUpdate.map((c) => c.id);
+    this.logger.log(`[operate=2] fromStatus: ${strategy.fromStatus}, candidateStatus: ${candidates.map(c => c.orderStatus).join(',')}`);
+    this.logger.log(`[operate=2] toUpdate length: ${toUpdate.length}`);
+    this.logger.log(`strategy.fromStatus:${strategy.fromStatus}, strategy.toStatus:${strategy.toStatus},id:${ids}`)
     const { affected = 0 } = await manager.update(
       OrderMainEntity,
       { id: In(ids), orderStatus: strategy.fromStatus },
@@ -155,6 +160,17 @@ export class OrderSyncService {
       },
     );
 
+    // 5. 执行副作用
+    if (strategy.sideEffects?.length) {
+      this.logger.log(`strategy.sideEffects:${strategy.sideEffects}`)
+      for (const SideEffectClass of strategy.sideEffects) {
+        if (SideEffectClass === OrderSyncCancelService) {
+          for (const orderCode of toUpdate.map(c => c.orderCode)) {
+            await this.orderSyncCancelService.handle(orderCode, manager);
+          }
+        }
+      }
+    }
     // 5. 写日志
     const logIds = ids.slice(0, affected);
     await Promise.all(
