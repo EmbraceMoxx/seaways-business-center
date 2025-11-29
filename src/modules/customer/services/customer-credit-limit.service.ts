@@ -549,7 +549,7 @@ export class CustomerCreditLimitService {
     if (!credit) {
       throw new BusinessException('客户额度不存在');
     }
-    // 1. 根据渠道+阶段拿到策略
+    // 1. 确认收款
     if (confirm) {
       const confirmVector = {
         shipped: flow.shippedAmount,
@@ -573,45 +573,31 @@ export class CustomerCreditLimitService {
       const result = CancelStrategyFactory.get('JST_POST');
       result.apply(credit, cancelVector);
     }
+    // 普通的取消流程
+    if (!isFromJst && !confirm) {
+      const cancelVector = {
+        shipped: flow.shippedAmount,
+        auxiliary: flow.auxiliarySaleGoodsAmount,
+        auxiliaryUsed: flow.usedAuxiliarySaleGoodsAmount,
+        replenishing: flow.replenishingGoodsAmount,
+        replenishingUsed: flow.usedReplenishingGoodsAmount,
+      };
+      const result = CancelStrategyFactory.get('STANDARD');
+      result.apply(credit, cancelVector);
+    }
+    credit.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
+      credit.auxiliarySaleGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(credit.usedAuxiliarySaleGoodsAmount))
+      .sub(MoneyUtil.fromYuan(credit.frozenUsedSaleGoodsAmount))
+      .toYuan();
 
-    // 3. 统一兜底：重新计算剩余额度 + 防负
-    const zero = MoneyUtil.fromYuan('0');
-    // 1. 定义金额字段子集
-    type MoneyField =
-      | 'shippedAmount'
-      | 'auxiliarySaleGoodsAmount'
-      | 'usedAuxiliarySaleGoodsAmount'
-      | 'frozenSaleGoodsAmount'
-      | 'frozenUsedSaleGoodsAmount'
-      | 'replenishingGoodsAmount'
-      | 'usedReplenishingGoodsAmount'
-      | 'frozenReplenishingGoodsAmount'
-      | 'frozenUsedReplenishingGoodsAmount'
-      | 'remainAuxiliarySaleGoodsAmount'
-      | 'remainReplenishingGoodsAmount';
-
-    // 2. 兜底函数
-    const guard = (f: MoneyField) => {
-      const v = credit[f] as string;
-      if (MoneyUtil.fromYuan(v).lt(zero)) credit[f] = zero.toYuan();
-    };
-
-    // 3. 遍历
-    (
-      [
-        'shippedAmount',
-        'auxiliarySaleGoodsAmount',
-        'usedAuxiliarySaleGoodsAmount',
-        'frozenSaleGoodsAmount',
-        'frozenUsedSaleGoodsAmount',
-        'replenishingGoodsAmount',
-        'usedReplenishingGoodsAmount',
-        'frozenReplenishingGoodsAmount',
-        'frozenUsedReplenishingGoodsAmount',
-        'remainAuxiliarySaleGoodsAmount',
-        'remainReplenishingGoodsAmount',
-      ] as MoneyField[]
-    ).forEach(guard);
+    credit.remainReplenishingGoodsAmount = MoneyUtil.fromYuan(
+      credit.replenishingGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(credit.usedReplenishingGoodsAmount))
+      .sub(MoneyUtil.fromYuan(credit.frozenUsedReplenishingGoodsAmount))
+      .toYuan();
 
     credit.reviserId = user.userId;
     credit.reviserName = user.nickName;

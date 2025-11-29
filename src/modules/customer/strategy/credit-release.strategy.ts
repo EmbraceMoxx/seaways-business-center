@@ -19,19 +19,16 @@ export interface ICreditReleaseStrategy<V = CancelAmountVector> {
 }
 
 /* ---------- 取消 ---------- */
-export type CreditReleaseStrategyFlag =
-  | 'JST_PRE'
-  | 'JST_POST'
-  | 'STANDARD_CANCEL';
+export type CreditReleaseStrategyFlag = 'JST_PRE' | 'JST_POST' | 'STANDARD';
 
 export class CancelStrategyFactory {
   private static readonly MAP: Map<
     CreditReleaseStrategyFlag,
     ICreditReleaseStrategy
   > = new Map([
-    ['STANDARD_CANCEL', new StandardCancelStrategy()],
     ['JST_PRE', new JstPreCancelStrategy()],
     ['JST_POST', new JstPostCancelStrategy()],
+    ['STANDARD', new StandardCancelStrategy()],
   ]);
   static get(flag: CreditReleaseStrategyFlag): ICreditReleaseStrategy {
     const s = this.MAP.get(flag);
@@ -40,8 +37,6 @@ export class CancelStrategyFactory {
   }
 }
 /* ---------- 确认 ---------- */
-export type CreditConfirmStrategyFlag = 'STANDARD';
-
 export class ConfirmStrategyFactory {
   private static readonly INSTANCE = new StandardConfirmStrategy();
   static get(): ICreditReleaseStrategy<ConfirmAmountVector> {
@@ -50,8 +45,6 @@ export class ConfirmStrategyFactory {
 }
 
 /* ---------- 修改 ---------- */
-export type CreditUpdateStrategyFlag = 'STANDARD_UPDATE';
-
 export class CreditUpdateStrategyFactory {
   private static readonly INSTANCE = new StandardUpdateStrategy();
   static get(): ICreditReleaseStrategy<UpdateAmountVector> {

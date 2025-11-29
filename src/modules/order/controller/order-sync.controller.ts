@@ -6,12 +6,11 @@ import {
   SyncOrderStatusDto,
 } from '@src/dto/order/order.sync.dto';
 import { OrderSyncService } from '@modules/order/service/order-sync.service';
-import { OrderCheckService } from '@modules/order/service/order-check.service';
 
 @ApiTags('订单同步管理')
 @Controller('order/sync')
 export class OrderSyncController {
-  constructor(private readonly orderSyncService: OrderSyncService,) {}
+  constructor(private readonly orderSyncService: OrderSyncService) {}
   @ApiOperation({ summary: '需要获取聚水潭的订单编码集合' })
   @Get('order-codes')
   async getSyncOrderCodes(): Promise<SuccessResponseDto<QueryOrderCodesDto>> {

@@ -97,7 +97,6 @@ export class OrderSyncService {
       arr.push(dto);
       group.set(dto.operate, arr);
     });
-    this.logger.log(`group:${group}`)
     await this.dataSource.transaction(async (manager) => {
       // 每组并发执行
       await Promise.all(
@@ -145,9 +144,12 @@ export class OrderSyncService {
     if (!toUpdate.length) return;
     // 4. 批量更新
     const ids = toUpdate.map((c) => c.id);
-    this.logger.log(`[operate=2] fromStatus: ${strategy.fromStatus}, candidateStatus: ${candidates.map(c => c.orderStatus).join(',')}`);
+    this.logger.log(
+      `[operate=2] fromStatus: ${
+        strategy.fromStatus
+      }, candidateStatus: ${candidates.map((c) => c.orderStatus).join(',')}`,
+    );
     this.logger.log(`[operate=2] toUpdate length: ${toUpdate.length}`);
-    this.logger.log(`strategy.fromStatus:${strategy.fromStatus}, strategy.toStatus:${strategy.toStatus},id:${ids}`)
     const { affected = 0 } = await manager.update(
       OrderMainEntity,
       { id: In(ids), orderStatus: strategy.fromStatus },
@@ -162,10 +164,10 @@ export class OrderSyncService {
 
     // 5. 执行副作用
     if (strategy.sideEffects?.length) {
-      this.logger.log(`strategy.sideEffects:${strategy.sideEffects}`)
+      this.logger.log(`strategy.sideEffects:${strategy.sideEffects}`);
       for (const SideEffectClass of strategy.sideEffects) {
         if (SideEffectClass === OrderSyncCancelService) {
-          for (const orderCode of toUpdate.map(c => c.orderCode)) {
+          for (const orderCode of toUpdate.map((c) => c.orderCode)) {
             await this.orderSyncCancelService.handle(orderCode, manager);
           }
         }
