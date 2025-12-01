@@ -173,6 +173,100 @@ export class CreditLimitResponseDto {
 }
 
 /**
+ * 客户累积额度信息导出信息DTO */
+export class CreditLimitExportDTO {
+  @ApiProperty({
+    description: '客户ID',
+    example: '1735123456789012346',
+  })
+  customerId: string;
+
+  @ApiProperty({
+    description: '客户名称',
+    example: '某某公司',
+  })
+  customerName: string;
+
+  @ApiProperty({
+    description: '客户所属区域',
+    example: '华东区',
+  })
+  region: string;
+
+  @ApiProperty({
+    description: '发货金额 = 订单金额，元',
+    example: 10000.0,
+  })
+  shippedAmount: string;
+
+  @ApiProperty({
+    description: '冻结发货金额，元',
+    example: 10000.0,
+  })
+  frozenShippedAmount: string;
+
+  @ApiProperty({
+    description: '3%辅销品金额，元',
+    example: 300.0,
+  })
+  auxiliarySaleGoodsAmount: string;
+
+  @ApiProperty({
+    description: '10%货补金额，元',
+    example: 1000.0,
+  })
+  replenishingGoodsAmount: string;
+
+  @ApiProperty({
+    description: '已提辅销金额，元',
+    example: 150.0,
+  })
+  usedAuxiliarySaleGoodsAmount: string;
+
+  @ApiProperty({
+    description: '冻结产生辅销金额，元',
+    example: 150.0,
+  })
+  frozenSaleGoodsAmount: string;
+
+  @ApiProperty({
+    description: '冻结使用辅销品金额，元',
+    example: 150.0,
+  })
+  frozenUsedSaleGoodsAmount: string;
+
+  @ApiProperty({
+    description: '剩余辅销金额，元',
+    example: 150.0,
+  })
+  remainAuxiliarySaleGoodsAmount: string;
+
+  @ApiProperty({
+    description: '已提货补金额，元',
+    example: 500.0,
+  })
+  usedReplenishingGoodsAmount: string;
+
+  @ApiProperty({
+    description: '冻结产生货补金额，元',
+    example: 150.0,
+  })
+  frozenReplenishingGoodsAmount: string;
+
+  @ApiProperty({
+    description: '冻结使用货补金额，元',
+    example: 150.0,
+  })
+  frozenUsedReplenishingGoodsAmount: string;
+
+  @ApiProperty({
+    description: '剩余货补金额，元',
+    example: 500.0,
+  })
+  remainReplenishingGoodsAmount: string;
+}
+
+/**
  * 客户额度统计累计信息响应DTO
  */
 export class CreditLimitStatisticsResponseDto {

@@ -8,7 +8,7 @@ import {
   CreditLimitListResponseDto,
   CreditLimitStatisticsResponseDto,
   CustomerInfoCreditResponseDto,
-  CreditLimitDetailResponseDto,
+  CreditLimitExportDTO,
   CreditLimitResponseDto,
   CreditLimitDetailRequestDto,
 } from '@src/dto';
@@ -190,6 +190,45 @@ export class CustomerCreditLimitService {
     }
   }
 
+  /**
+   * 导出客户额度列表
+   * @param query 查询参数
+   * @returns 客户额度列表
+   */
+  async exportCreditInfoList(
+    query: QueryCreditLimitDto,
+  ): Promise<CreditLimitExportDTO[]> {
+    const { customerName, region } = query;
+    // 1、创建查询条件
+    const queryBuilder = this.creditRepository
+      .createQueryBuilder('credit')
+      .where('credit.deleted = :deleted', {
+        deleted: GlobalStatusEnum.NO,
+      });
+
+    // 客户名称
+    if (customerName) {
+      queryBuilder.andWhere('credit.customer_name LIKE :customerName', {
+        customerName: `%${customerName}%`,
+      });
+    }
+
+    // 客户所属区域
+    if (region) {
+      queryBuilder.andWhere('credit.region = :region', {
+        region,
+      });
+    }
+
+    queryBuilder.orderBy({
+      'credit.created_time': 'DESC',
+      'credit.customer_id': 'ASC',
+    });
+
+    // 4、获取数据
+    return await queryBuilder.getMany();
+  }
+
   // -------------------------------辅助方法------------------------------------
   /**
    * 获取客户额度列表-客户额度统计累计信息
@@ -295,143 +334,6 @@ export class CustomerCreditLimitService {
   }
 
   /**
-   * 转换为数字
-   * @param value 待转换的值
-   * @returns 转换后的数字
-   */
-  private toNumber(value: string | number | undefined | null): number {
-    const num = Number(value);
-    return isNaN(num) ? null : num;
-  }
-
-  /**
-   * 执行数值计算
-   * @param value1 第一个值
-   * @param value2 第二个值
-   * @param operator 运算符 ('+', '-')
-   * @returns 计算结果
-   */
-  private calculate(
-    value1: string | number | undefined | null,
-    value2: string | number | undefined | null,
-    operator: '+' | '-',
-  ): string | null {
-    const num1 = this.toNumber(value1);
-    const num2 = this.toNumber(value2);
-
-    switch (operator) {
-      case '+':
-        return String(num1 + num2);
-      case '-':
-        return String(num1 - num2);
-      default:
-        return null;
-    }
-  }
-
-  /**
-   * 更新辅销品、货补相关金额
-   * @param creditDetail 额度流水明细信息
-   * @param isProceeds 是否是进账
-   * @param manager 数据库事务管理器
-   */
-
-  async updateAuxiliaryAndReplenishingAmount(
-    creditDetail: CreditLimitDetailResponseDto,
-    isProceeds: boolean,
-    manager: any,
-  ): Promise<void> {
-    // 1、获取客户原有额度信息
-    const {
-      id,
-      auxiliarySaleGoodsAmount,
-      usedAuxiliarySaleGoodsAmount,
-      frozenSaleGoodsAmount,
-      frozenUsedSaleGoodsAmount,
-      replenishingGoodsAmount,
-      usedReplenishingGoodsAmount,
-      frozenReplenishingGoodsAmount,
-      frozenUsedReplenishingGoodsAmount,
-    } = await this.getCreditInfoByCustomerId(creditDetail?.customerId);
-
-    // 2、设置参数（默认释放冻结金额）
-    let params: Partial<CustomerCreditAmountInfoEntity> = {
-      // 冻结产生辅销金额=原本金额-产生辅销额度1
-      frozenSaleGoodsAmount: this.calculate(
-        frozenSaleGoodsAmount,
-        creditDetail?.auxiliarySaleGoodsAmount,
-        '-',
-      ),
-      // 冻结使用辅销金额=原本金额-使用辅销额度1
-      frozenUsedSaleGoodsAmount: this.calculate(
-        frozenUsedSaleGoodsAmount,
-        creditDetail?.usedAuxiliarySaleGoodsAmount,
-        '-',
-      ),
-
-      // 冻结产生货补金额=原本金额-产生货补额度1
-      frozenReplenishingGoodsAmount: this.calculate(
-        frozenReplenishingGoodsAmount,
-        creditDetail?.replenishingGoodsAmount,
-        '-',
-      ),
-      // 冻结使用货补金额=原本金额-使用货补额度1
-      frozenUsedReplenishingGoodsAmount: this.calculate(
-        frozenUsedReplenishingGoodsAmount,
-        creditDetail?.usedReplenishingGoodsAmount,
-        '-',
-      ),
-    };
-
-    // 3、进账
-    if (isProceeds) {
-      params = {
-        ...params,
-        // 3%辅销品金额=原本的金额+产生辅销额度1
-        auxiliarySaleGoodsAmount: this.calculate(
-          auxiliarySaleGoodsAmount,
-          creditDetail?.auxiliarySaleGoodsAmount,
-          '+',
-        ),
-        // 已提辅销金额=原本金额+使用辅销额度1
-        usedAuxiliarySaleGoodsAmount: this.calculate(
-          usedAuxiliarySaleGoodsAmount,
-          creditDetail?.usedAuxiliarySaleGoodsAmount,
-          '+',
-        ),
-        // 10%货补金额=原本的金额+产生货补额度1
-        replenishingGoodsAmount: this.calculate(
-          replenishingGoodsAmount,
-          creditDetail?.replenishingGoodsAmount,
-          '+',
-        ),
-        // 已提货补金额=原本金额+使用货补额度1
-        usedReplenishingGoodsAmount: this.calculate(
-          usedReplenishingGoodsAmount,
-          creditDetail?.usedReplenishingGoodsAmount,
-          '+',
-        ),
-      };
-
-      // 剩余辅销金额=3%辅销品金额-已提辅销金额
-      params.remainAuxiliarySaleGoodsAmount = this.calculate(
-        params.auxiliarySaleGoodsAmount,
-        params.usedAuxiliarySaleGoodsAmount,
-        '-',
-      );
-
-      // 剩余货补金额=10%货补金额-已提货补金额
-      params.remainReplenishingGoodsAmount = this.calculate(
-        params.replenishingGoodsAmount,
-        params.usedReplenishingGoodsAmount,
-        '-',
-      );
-    }
-    // 4、更新额度信息
-    await manager.update(CustomerCreditAmountInfoEntity, id, params);
-  }
-
-  /**
    * 获取客户额度信息
    * @param customerId 客户ID
    */
@@ -510,8 +412,6 @@ export class CustomerCreditLimitService {
     this.logger.log('开始调整差额：', JSON.stringify(credit));
     await creditRepo.update({ id: credit.id }, credit);
   }
-
-  // customer-credit-limit.service.ts
 
   /**
    * 安全释放客户额度（由事务管理器调用）
