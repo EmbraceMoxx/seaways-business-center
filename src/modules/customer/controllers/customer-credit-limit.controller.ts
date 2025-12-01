@@ -9,6 +9,7 @@ import { CustomerCreditLimitService } from '../services/customer-credit-limit.se
 import { BusinessException } from '@src/dto/common/common.dto';
 import * as exceljs from 'exceljs';
 import { generateSafeFileName } from '@src/utils/exportDataToExcel';
+import { MoneyUtil } from '@utils/MoneyUtil';
 
 @ApiTags('客户额度')
 @ApiBearerAuth()
@@ -101,7 +102,46 @@ export class CustomerCreditLimitController {
 
       // 5、添加数据行
       for (const item of creditExportList) {
-        worksheet.addRow(item, 'n');
+        worksheet.addRow(
+          {
+            ...item,
+            shippedAmount: MoneyUtil.fromYuan(item.shippedAmount).toYuan(),
+            frozenShippedAmount: MoneyUtil.fromYuan(
+              item.frozenShippedAmount,
+            ).toYuan(),
+            auxiliarySaleGoodsAmount: MoneyUtil.fromYuan(
+              item.auxiliarySaleGoodsAmount,
+            ).toYuan(),
+            usedAuxiliarySaleGoodsAmount: MoneyUtil.fromYuan(
+              item.usedAuxiliarySaleGoodsAmount,
+            ).toYuan(),
+            frozenSaleGoodsAmount: MoneyUtil.fromYuan(
+              item.frozenSaleGoodsAmount,
+            ).toYuan(),
+            frozenUsedSaleGoodsAmount: MoneyUtil.fromYuan(
+              item.frozenUsedSaleGoodsAmount,
+            ).toYuan(),
+            remainAuxiliarySaleGoodsAmount: MoneyUtil.fromYuan(
+              item.remainAuxiliarySaleGoodsAmount,
+            ).toYuan(),
+            replenishingGoodsAmount: MoneyUtil.fromYuan(
+              item.replenishingGoodsAmount,
+            ).toYuan(),
+            usedReplenishingGoodsAmount: MoneyUtil.fromYuan(
+              item.usedReplenishingGoodsAmount,
+            ).toYuan(),
+            frozenReplenishingGoodsAmount: MoneyUtil.fromYuan(
+              item.frozenReplenishingGoodsAmount,
+            ).toYuan(),
+            frozenUsedReplenishingGoodsAmount: MoneyUtil.fromYuan(
+              item.frozenUsedReplenishingGoodsAmount,
+            ).toYuan(),
+            remainReplenishingGoodsAmount: MoneyUtil.fromYuan(
+              item.remainReplenishingGoodsAmount,
+            ).toYuan(),
+          },
+          'n',
+        );
       }
       // 6、设置响应头
       res.setHeader(
