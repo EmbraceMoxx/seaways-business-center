@@ -128,6 +128,7 @@ export class OrderConvertHelper {
   static buildCreditDetailParam(orderId: string, orderMain: OrderMainEntity) {
     const creditDetail = new CreditLimitDetailRequestDto();
     creditDetail.orderId = orderId;
+    creditDetail.orderCode = orderMain.orderCode;
     creditDetail.customerId = orderMain.customerId;
     creditDetail.shippedAmount = orderMain.amount || '0';
     creditDetail.auxiliarySaleGoodsAmount =
