@@ -29,7 +29,9 @@ import {
   REP_THRESHOLD_TOKEN,
 } from '@modules/order/constant';
 import { OrderSyncService } from '@modules/order/service/order-sync.service';
+import { OrderJstService } from '@modules/order/service/order-jst.service';
 import { OrderSyncController } from '@modules/order/controller/order-sync.controller';
+import { OrderJstController } from '@modules/order/controller/order-jst.controller';
 import { OrderSyncCancelService } from '@modules/order/strategy/order-sync-cancel.service';
 
 @Module({
@@ -51,6 +53,7 @@ import { OrderSyncCancelService } from '@modules/order/strategy/order-sync-cance
     OrderEventService,
     OrderEventTaskService,
     OrderSyncService,
+    OrderJstService,
     OrderPushEventExecutor,
     {
       provide: EventExecutorRegistry,
@@ -77,7 +80,12 @@ import { OrderSyncCancelService } from '@modules/order/strategy/order-sync-cance
     UserService,
   ],
 
-  controllers: [OrderController, OrderTaskController,OrderSyncController],
+  controllers: [
+    OrderController,
+    OrderTaskController,
+    OrderSyncController,
+    OrderJstController,
+  ],
   exports: [
     OrderCheckService,
     AuxiliarySalesRatioValidationStrategy,

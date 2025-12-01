@@ -10,6 +10,7 @@ export const ERP_STATUS = {
 
 export const ERP_JST_API = {
   UPLOAD_ORDER: '/open/jushuitan/orders/upload',
+  QUERY_ORDER: '/open/orders/single/query',
 };
 
 export const ERP_JST_CODE = {
