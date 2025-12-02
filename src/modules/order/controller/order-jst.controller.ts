@@ -8,6 +8,8 @@ import { Public } from '@src/modules/auth/public.decorator';
 @Controller('order/jst')
 export class OrderJstController {
   constructor(private readonly orderJstServic: OrderJstService) {}
+
+  // Todo: 加白名单
   @ApiOperation({ summary: '同步聚水潭订单状态' })
   @Get('sync/order-status')
   @Public()

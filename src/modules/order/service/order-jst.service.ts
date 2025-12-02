@@ -4,6 +4,7 @@ import { JstHttpService } from '@src/modules/erp/jushuitan/jst-http.service';
 import { SyncOrderStatusDto } from '@src/dto/order/order.sync.dto';
 import { ERP_JST_API } from '@modules/erp/jushuitan/jst-http.constant';
 import { BusinessException } from '@src/dto/common/common.dto';
+import { withRetry } from '@src/utils';
 
 interface JstOrderStatus {
   soId: string;
@@ -15,10 +16,12 @@ interface JstOrderStatus {
 export class OrderJstService {
   private readonly logger = new Logger(OrderJstService.name);
   private readonly BATCH_SIZE = 100;
+
   private readonly ORDER_STATUS = {
-    SENT: 'Sent',
-    CANCELLED: 'Cancelled',
+    SENT: 'Sent', // 已发货
+    CANCELLED: 'Cancelled', // 已取消
   };
+
   private readonly OPERATE_TYPE = {
     SENT: 1,
     CANCELLED: 2,
@@ -40,7 +43,7 @@ export class OrderJstService {
         await this.orderSyncService.getSyncOrderCodes();
 
       if (!orderCodes?.length) {
-        this.logger.log('没有查询到需要同步状态的订单');
+        this.logger.log('没有需要同步状态的订单');
         return;
       }
 
@@ -94,7 +97,7 @@ export class OrderJstService {
 
     const syncRequests: SyncOrderStatusDto[] = [];
 
-    groupedOrders.forEach((orders, soId) => {
+    for (const [soId, orders] of groupedOrders) {
       // 找出第一条非拆单的数据
       const mainOrder = orders.find((order) => !order.isSplit);
 
@@ -111,7 +114,7 @@ export class OrderJstService {
             this.createSyncRequest(soId, this.OPERATE_TYPE.CANCELLED),
           );
         }
-        return;
+        continue;
       }
 
       // 处理拆单的情况
@@ -122,7 +125,7 @@ export class OrderJstService {
       if (hasSent) {
         // 只要有任何一个子订单是Sent，就算整个订单是已发货
         syncRequests.push(this.createSyncRequest(soId, this.OPERATE_TYPE.SENT));
-        return;
+        continue;
       }
 
       // 检查是否所有子订单都是Canceled状态
@@ -134,8 +137,9 @@ export class OrderJstService {
         syncRequests.push(
           this.createSyncRequest(soId, this.OPERATE_TYPE.CANCELLED),
         );
+        continue;
       }
-    });
+    }
 
     return syncRequests;
   }
@@ -148,27 +152,43 @@ export class OrderJstService {
   ): Promise<JstOrderStatus[]> {
     try {
       this.logger.log(`开始查询聚水潭订单状态，订单数量: ${orderCodes.length}`);
+
       const allResults: JstOrderStatus[] = [];
       const totalBatches = Math.ceil(orderCodes.length / this.BATCH_SIZE);
 
       for (let i = 0; i < orderCodes.length; i += this.BATCH_SIZE) {
         const batch = orderCodes.slice(i, i + this.BATCH_SIZE);
         const currentBatch = Math.floor(i / this.BATCH_SIZE) + 1;
+
         this.logger.debug(
           `正在处理第 ${currentBatch}/${totalBatches} 批订单，数量: ${batch.length}`,
         );
 
         try {
-          const { data } = await this.jstHttpService.post(
-            ERP_JST_API.QUERY_ORDER,
-            {
-              so_ids: batch,
-              page_index: 1,
-              page_size: 100,
-            },
-          );
+          const fetchJstOrders = async () => {
+            const { data } = await this.jstHttpService.post(
+              ERP_JST_API.QUERY_ORDER,
+              {
+                so_ids: batch,
+                page_index: 1,
+                page_size: 100,
+              },
+            );
+            if (data?.code) {
+              throw new Error(
+                `API错误: ${data.code} - ${data?.msg || JSON.stringify(data)}`,
+              );
+            }
+            return data?.data;
+          };
 
-          allResults.push(...this.parseJstResponse(data));
+          const result = await withRetry(fetchJstOrders, {
+            retries: 3,
+            delayMs: 2000,
+            logger: this.logger,
+          });
+
+          allResults.push(...this.parseJstResponse(result));
           this.logger.debug(
             `第 ${currentBatch}/${totalBatches} 批订单查询完成`,
           );
@@ -177,7 +197,7 @@ export class OrderJstService {
             `第 ${currentBatch}/${totalBatches} 批订单查询失败: ${batchError.message}`,
             batchError.stack,
           );
-          // 继续处理下一批，不中断整个流程
+          // 继续处理下一批
         }
       }
 
@@ -194,9 +214,9 @@ export class OrderJstService {
   /**
    * 解析聚水潭响应数据
    */
-  private parseJstResponse({ data }): JstOrderStatus[] {
-    return Array.isArray(data?.orders)
-      ? data.orders.map((order: any) => ({
+  private parseJstResponse({ orders }): JstOrderStatus[] {
+    return Array.isArray(orders)
+      ? orders.map((order: any) => ({
           soId: order.so_id,
           status: order.status,
           isSplit: order.is_split,
