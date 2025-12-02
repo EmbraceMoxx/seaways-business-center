@@ -56,26 +56,5 @@ export class StandardUpdateStrategy
       c.frozenUsedReplenishingGoodsAmount,
       deltaReplenishingUsed,
     );
-
-    // 3. 已发货字段 += 差额
-    // c.shippedAmount = MoneyUtil.add(c.shippedAmount, deltaShipped);
-    c.auxiliarySaleGoodsAmount = MoneyUtil.add(
-      c.auxiliarySaleGoodsAmount,
-      deltaAuxiliary,
-    );
-    c.replenishingGoodsAmount = MoneyUtil.add(
-      c.replenishingGoodsAmount,
-      deltaReplenishing,
-    );
-
-    // 4. 已使用字段 += 差额
-    c.usedAuxiliarySaleGoodsAmount = MoneyUtil.add(
-      c.usedAuxiliarySaleGoodsAmount,
-      deltaAuxiliaryUsed,
-    );
-    c.usedReplenishingGoodsAmount = MoneyUtil.add(
-      c.usedReplenishingGoodsAmount,
-      deltaReplenishingUsed,
-    );
   }
 }
