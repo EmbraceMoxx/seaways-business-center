@@ -1,7 +1,7 @@
 import { OrderStatusEnum } from '@src/enums/order-status.enum';
 import { OrderOperateTemplateEnum } from '@src/enums/order-operate-template.enum';
 import { OrderMainEntity } from '@modules/order/entities/order.main.entity';
-import dayjs from 'dayjs';
+import * as dayjs from 'dayjs';
 import { OrderSyncCancelService } from '@modules/order/strategy/order-sync-cancel.service';
 
 /** 单个操作策略需要的行为定义 */
