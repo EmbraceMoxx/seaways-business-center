@@ -9,6 +9,7 @@ import {
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
 import { CustomerCreditLimitDetailService } from '../services/customer-credit-limit-detail.service';
+import { CurrentToken } from '@src/decorators/current-token.decorator';
 
 @ApiTags('客户额度流水明细')
 @ApiBearerAuth()
@@ -22,11 +23,15 @@ export class CustomerCreditLimitDetailController {
   @Post('list')
   async getCreditDetailPageList(
     @Body() body: QueryCreditLimiDetailtDto,
+    @CurrentUser() user: JwtUserPayload,
+    @CurrentToken() token: string,
   ): Promise<
     SuccessResponseDto<{ items: CreditLimitDetailResponseDto[]; total: number }>
   > {
     const list = await this.creditLimitDetailService.getCreditDetailPageList(
       body,
+      user,
+      token,
     );
     return new SuccessResponseDto(list);
   }

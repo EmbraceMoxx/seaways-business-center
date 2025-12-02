@@ -18,12 +18,14 @@ import { BusinessLogService } from '@modules/common/business-log/business-log.se
 import { UserService } from '@modules/common/user/user.service';
 import { HttpProxyService } from '@shared/http-proxy.service';
 import { UserEndpoints } from '@src/constants/index';
+import { forwardRef, Inject } from '@nestjs/common';
 
 @Injectable()
 export class CustomerService {
   constructor(
     @InjectRepository(CustomerInfoEntity)
     private customerRepository: Repository<CustomerInfoEntity>,
+    @Inject(forwardRef(() => CustomerCreditLimitService))
     private customerCreditLimitService: CustomerCreditLimitService,
     private businessLogService: BusinessLogService,
     private userService: UserService,
@@ -35,6 +37,8 @@ export class CustomerService {
    */
   async getCustomerList(
     params: QueryCustomerDto,
+    user: JwtUserPayload,
+    token: string,
   ): Promise<{ items: CustomerInfoResponseDto[]; total: number }> {
     try {
       const {
@@ -124,6 +128,31 @@ export class CustomerService {
         );
       }
 
+      // 获取权限
+      const checkResult = await this.userService.getRangeOfOrderQueryUser(
+        token,
+        user.userId,
+      );
+      if (!checkResult || checkResult.isQueryAll) {
+        // 不限制客户范围，继续查询
+      } else if (!checkResult.principalUserIds?.length) {
+        return { items: [], total: 0 };
+      } else {
+        // 收集所有人负责的客户ID，去查询对应的客户ID
+        const customerIds = await this.getManagedCustomerIds(
+          checkResult.principalUserIds,
+        );
+
+        // 如果没有客户ID，则返回空
+        if (!customerIds.length) {
+          return { items: [], total: 0 };
+        }
+
+        queryBuilder = queryBuilder.andWhere('customer.id IN (:customerIds)', {
+          customerIds,
+        });
+      }
+
       // 执行计数查询
       const countQueryBuilder = queryBuilder.clone();
       const total = await countQueryBuilder.getCount();
@@ -192,27 +221,6 @@ export class CustomerService {
           coStatus: '1',
         });
 
-      // 获取权限
-      const checkResult = await this.userService.getRangeOfOrderQueryUser(
-        token,
-        user.userId,
-      );
-      if (checkResult) {
-        if (checkResult.isQueryAll == false) {
-          if (checkResult?.principalUserIds?.length > 0) {
-            queryBuilder = queryBuilder.andWhere(
-              'customer.principal_user_id IN (:userIds)',
-              {
-                userIds: checkResult.principalUserIds,
-              },
-            );
-          } else {
-            console.log('进入了else');
-            return { items: [], total: 0 };
-          }
-        }
-      }
-
       // 客户名称
       if (customerName) {
         queryBuilder = queryBuilder.andWhere(
@@ -258,6 +266,31 @@ export class CustomerService {
             customerType,
           },
         );
+      }
+
+      // 获取权限
+      const checkResult = await this.userService.getRangeOfOrderQueryUser(
+        token,
+        user.userId,
+      );
+      if (!checkResult || checkResult.isQueryAll) {
+        // 不限制客户范围，继续查询
+      } else if (!checkResult.principalUserIds?.length) {
+        return { items: [], total: 0 };
+      } else {
+        // 收集所有人负责的客户ID，去查询对应的客户ID
+        const customerIds = await this.getManagedCustomerIds(
+          checkResult.principalUserIds,
+        );
+
+        // 如果没有客户ID，则返回空
+        if (!customerIds.length) {
+          return { items: [], total: 0 };
+        }
+
+        queryBuilder = queryBuilder.andWhere('customer.id IN (:customerIds)', {
+          customerIds,
+        });
       }
 
       // 执行计数查询

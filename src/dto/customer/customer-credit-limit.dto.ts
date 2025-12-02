@@ -314,6 +314,41 @@ export class CreditLimitStatisticsResponseDto {
 }
 
 /**
+ * 客户额度统计累计信息响应(包含冻结金额)DTO
+ */
+export class CreditLimitStatisticsAndFrozenResponseDto extends CreditLimitStatisticsResponseDto {
+  @ApiProperty({
+    description: '冻结产生辅销金额，元',
+    example: 150.0,
+  })
+  frozenSaleGoodsAmount: string;
+
+  @ApiProperty({
+    description: '冻结使用辅销品金额，元',
+    example: 150.0,
+  })
+  frozenUsedSaleGoodsAmount: string;
+
+  @ApiProperty({
+    description: '冻结产生货补金额，元',
+    example: 150.0,
+  })
+  frozenReplenishingGoodsAmount: string;
+
+  @ApiProperty({
+    description: '冻结使用货补金额，元',
+    example: 150.0,
+  })
+  frozenUsedReplenishingGoodsAmount: string;
+
+  @ApiProperty({
+    description: '冻结发货金额，元',
+    example: 10000.0,
+  })
+  frozenShippedAmount: string;
+}
+
+/**
  * 客户额度列表响应DTO
  */
 export class CreditLimitListResponseDto {
@@ -331,7 +366,7 @@ export class CreditLimitListResponseDto {
 
   @ApiProperty({
     description: '客户额度统计',
-    type: CreditLimitStatisticsResponseDto,
+    type: CreditLimitStatisticsAndFrozenResponseDto,
   })
-  statisticsInfo: CreditLimitStatisticsResponseDto;
+  statisticsInfo: CreditLimitStatisticsAndFrozenResponseDto;
 }

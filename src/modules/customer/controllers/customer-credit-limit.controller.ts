@@ -10,6 +10,9 @@ import { BusinessException } from '@src/dto/common/common.dto';
 import * as exceljs from 'exceljs';
 import { generateSafeFileName } from '@src/utils/exportDataToExcel';
 import { MoneyUtil } from '@utils/MoneyUtil';
+import { CurrentUser } from '@src/decorators/current-user.decorator';
+import { CurrentToken } from '@src/decorators/current-token.decorator';
+import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 
 @ApiTags('客户额度')
 @ApiBearerAuth()
@@ -21,8 +24,14 @@ export class CustomerCreditLimitController {
   @Post('list')
   async getCreditPageList(
     @Body() body: QueryCreditLimitDto,
+    @CurrentUser() user: JwtUserPayload,
+    @CurrentToken() token: string,
   ): Promise<SuccessResponseDto<CreditLimitListResponseDto>> {
-    const list = await this.CreditLimitService.getCreditPageList(body);
+    const list = await this.CreditLimitService.getCreditPageList(
+      body,
+      user,
+      token,
+    );
     return new SuccessResponseDto(list);
   }
 

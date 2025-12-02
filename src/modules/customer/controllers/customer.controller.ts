@@ -21,10 +21,12 @@ export class CustomerController {
   @Post('list')
   async getCustomerList(
     @Body() body: QueryCustomerDto,
+    @CurrentUser() user: JwtUserPayload,
+    @CurrentToken() token: string,
   ): Promise<
     SuccessResponseDto<{ items: CustomerInfoResponseDto[]; total: number }>
   > {
-    const list = await this.customerService.getCustomerList(body);
+    const list = await this.customerService.getCustomerList(body, user, token);
     return new SuccessResponseDto(list);
   }
 

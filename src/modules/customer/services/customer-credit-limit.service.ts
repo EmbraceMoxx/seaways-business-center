@@ -11,6 +11,7 @@ import {
   CreditLimitExportDTO,
   CreditLimitResponseDto,
   CreditLimitDetailRequestDto,
+  CreditLimitStatisticsAndFrozenResponseDto,
 } from '@src/dto';
 import { CustomerCreditAmountInfoEntity } from '../entities/customer-credit-limit.entity';
 import { IdUtil } from '@src/utils';
@@ -26,6 +27,9 @@ import {
   CreditUpdateStrategyFactory,
 } from '@modules/customer/strategy/credit-release.strategy';
 import { UpdateAmountVector } from '@modules/customer/strategy/credit-update.strategy';
+import { UserService } from '@modules/common/user/user.service';
+import { CustomerService } from '@modules/customer/services/customer.service';
+import { forwardRef, Inject } from '@nestjs/common';
 
 @Injectable()
 export class CustomerCreditLimitService {
@@ -34,6 +38,9 @@ export class CustomerCreditLimitService {
     @InjectRepository(CustomerCreditAmountInfoEntity)
     private creditRepository: Repository<CustomerCreditAmountInfoEntity>,
     private customerMonthlyCreditLimitService: CustomerMonthlyCreditLimitService,
+    private userService: UserService,
+    @Inject(forwardRef(() => CustomerService))
+    private customerService: CustomerService,
   ) {}
 
   async initCustomerCredit(
@@ -142,6 +149,8 @@ export class CustomerCreditLimitService {
    */
   async getCreditPageList(
     params: QueryCreditLimitDto,
+    user: JwtUserPayload,
+    token: string,
   ): Promise<CreditLimitListResponseDto> {
     try {
       const { customerName, region, page, pageSize } = params;
@@ -167,6 +176,49 @@ export class CustomerCreditLimitService {
         queryBuilder = queryBuilder.andWhere('credit.region = :region', {
           region,
         });
+      }
+
+      // 获取权限
+      const checkResult = await this.userService.getRangeOfOrderQueryUser(
+        token,
+        user.userId,
+      );
+
+      const statistics: CreditLimitStatisticsAndFrozenResponseDto = {
+        auxiliarySaleGoodsAmount: null,
+        frozenReplenishingGoodsAmount: null,
+        frozenSaleGoodsAmount: null,
+        frozenShippedAmount: null,
+        frozenUsedReplenishingGoodsAmount: null,
+        frozenUsedSaleGoodsAmount: null,
+        remainAuxiliarySaleGoodsAmount: null,
+        remainReplenishingGoodsAmount: null,
+        repaymentAmount: null,
+        replenishingGoodsAmount: null,
+        shippedAmount: null,
+        usedAuxiliarySaleGoodsAmount: null,
+        usedReplenishingGoodsAmount: null,
+      };
+
+      if (!checkResult || checkResult.isQueryAll) {
+        // 不限制客户范围，继续查询
+      } else if (!checkResult.principalUserIds?.length) {
+        return { items: [], total: 0, statisticsInfo: statistics };
+      } else {
+        // 收集所有人负责的客户ID，去查询对应的客户ID
+        const customerIds = await this.customerService.getManagedCustomerIds(
+          checkResult.principalUserIds,
+        );
+
+        // 如果没有客户ID，则返回空
+        if (!customerIds.length) {
+          return { items: [], total: 0, statisticsInfo: statistics };
+        }
+
+        queryBuilder = queryBuilder.andWhere(
+          'credit.customer_id IN (:customerIds)',
+          { customerIds },
+        );
       }
 
       // 获取统计信息
@@ -235,7 +287,7 @@ export class CustomerCreditLimitService {
    */
   private async getCreditStatistics(
     queryBuilder: any,
-  ): Promise<CreditLimitStatisticsResponseDto> {
+  ): Promise<CreditLimitStatisticsAndFrozenResponseDto> {
     const stats = await queryBuilder
       .clone()
       .select([

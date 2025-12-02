@@ -192,6 +192,12 @@ export class OrderService {
         const customerIds = await this.customerService.getManagedCustomerIds(
           checkResult.principalUserIds,
         );
+
+        // 如果没有客户ID，则返回空
+        if (!customerIds.length) {
+          return { items: [], total: 0 };
+        }
+
         queryBuilder = queryBuilder.andWhere(
           'order.customer_id IN (:customerIds)',
           { customerIds },
@@ -338,6 +344,12 @@ export class OrderService {
         const customerIds = await this.customerService.getManagedCustomerIds(
           checkResult.principalUserIds,
         );
+
+        // 如果没有客户ID，则返回空
+        if (!customerIds.length) {
+          return { items: [], total: 0 };
+        }
+
         queryBuilder = queryBuilder.andWhere(
           'order.customer_id IN (:customerIds)',
           { customerIds },

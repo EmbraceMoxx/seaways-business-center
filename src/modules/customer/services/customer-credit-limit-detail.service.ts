@@ -18,12 +18,10 @@ import { CustomerCreditLimitService } from '../services/customer-credit-limit.se
 import { CustomerService } from '../services/customer.service';
 import { IdUtil } from '@src/utils';
 import { CreditStatusEnum } from '@src/enums/credit-status.enum';
-import { MoneyUtil } from '@utils/MoneyUtil';
 import { CustomerInfoEntity } from '../entities/customer.entity';
 import { CustomerMonthlyCreditLimitService } from '../services/customer-monthly-credit-limit.server';
 import { UpdateAmountVector } from '@modules/customer/strategy/credit-update.strategy';
-import { CustomerCreditAmountInfoEntity } from '@modules/customer/entities/customer-credit-limit.entity';
-import { CreditUpdateStrategyFactory } from '@modules/customer/strategy/credit-release.strategy';
+import { UserService } from '@modules/common/user/user.service';
 
 @Injectable()
 export class CustomerCreditLimitDetailService {
@@ -35,6 +33,7 @@ export class CustomerCreditLimitDetailService {
     private customerCreditLimitService: CustomerCreditLimitService,
     private dataSource: DataSource,
     private customerMonthlyCreditLimitService: CustomerMonthlyCreditLimitService,
+    private userService: UserService,
   ) {}
 
   /**
@@ -42,6 +41,8 @@ export class CustomerCreditLimitDetailService {
    */
   async getCreditDetailPageList(
     params: QueryCreditLimiDetailtDto,
+    user: JwtUserPayload,
+    token: string,
   ): Promise<{ items: CreditLimitDetailResponseDto[]; total: number }> {
     try {
       const {
@@ -120,6 +121,34 @@ export class CustomerCreditLimitDetailService {
             },
           );
         }
+      }
+
+      // 获取权限
+      const checkResult = await this.userService.getRangeOfOrderQueryUser(
+        token,
+        user.userId,
+      );
+      if (!checkResult || checkResult.isQueryAll) {
+        // 不限制客户范围，继续查询
+      } else if (!checkResult.principalUserIds?.length) {
+        return { items: [], total: 0 };
+      } else {
+        // 收集所有人负责的客户ID，去查询对应的客户ID
+        const customerIds = await this.customerService.getManagedCustomerIds(
+          checkResult.principalUserIds,
+        );
+
+        // 如果没有客户ID，则返回空
+        if (!customerIds.length) {
+          return { items: [], total: 0 };
+        }
+
+        queryBuilder = queryBuilder.andWhere(
+          'creditDetail.customer_id IN (:customerIds)',
+          {
+            customerIds,
+          },
+        );
       }
 
       // 执行计数查询
