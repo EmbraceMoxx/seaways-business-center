@@ -20,6 +20,7 @@ import {
   AuxiliarySalesRatioValidationStrategy,
   RegionQuotaValidationStrategy,
   ReplenishRatioValidationStrategy,
+  UsePreRioValidationStrategy,
 } from '@modules/order/strategy/order-validation.interface';
 import { CustomerCreditAmountInfoEntity } from '@modules/customer/entities/customer-credit-limit.entity';
 import { EventExecutorRegistry } from './service/order-event/event-executor.registry';
@@ -74,6 +75,7 @@ import { OrderSyncCancelService } from '@modules/order/strategy/order-sync-cance
     ReplenishRatioValidationStrategy,
     AuxiliarySalesRatioValidationStrategy,
     RegionQuotaValidationStrategy,
+    UsePreRioValidationStrategy,
     BusinessLogService,
     OrderCheckService,
     OrderSyncCancelService,
@@ -90,6 +92,7 @@ import { OrderSyncCancelService } from '@modules/order/strategy/order-sync-cance
     OrderCheckService,
     AuxiliarySalesRatioValidationStrategy,
     ReplenishRatioValidationStrategy,
+    UsePreRioValidationStrategy,
   ],
 })
 export class OrderModule {}

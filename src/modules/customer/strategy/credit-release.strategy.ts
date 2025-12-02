@@ -6,7 +6,6 @@ import {
 import {
   CancelAmountVector,
   JstPostCancelStrategy,
-  JstPreCancelStrategy,
   StandardCancelStrategy,
 } from '@modules/customer/strategy/credit-cancel.strategy';
 import {
@@ -19,14 +18,13 @@ export interface ICreditReleaseStrategy<V = CancelAmountVector> {
 }
 
 /* ---------- 取消 ---------- */
-export type CreditReleaseStrategyFlag = 'JST_PRE' | 'JST_POST' | 'STANDARD';
+export type CreditReleaseStrategyFlag = 'JST_POST' | 'STANDARD';
 
 export class CancelStrategyFactory {
   private static readonly MAP: Map<
     CreditReleaseStrategyFlag,
     ICreditReleaseStrategy
   > = new Map([
-    ['JST_PRE', new JstPreCancelStrategy()],
     ['JST_POST', new JstPostCancelStrategy()],
     ['STANDARD', new StandardCancelStrategy()],
   ]);
