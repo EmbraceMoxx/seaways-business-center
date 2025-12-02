@@ -31,65 +31,6 @@ export class StandardCancelStrategy implements ICreditReleaseStrategy {
       c.frozenUsedReplenishingGoodsAmount,
       v.replenishingUsed,
     );
-
-    // 减已使用
-    c.shippedAmount = MoneyUtil.sub(c.shippedAmount, v.shipped);
-    c.auxiliarySaleGoodsAmount = MoneyUtil.sub(
-      c.auxiliarySaleGoodsAmount,
-      v.auxiliary,
-    );
-    c.usedAuxiliarySaleGoodsAmount = MoneyUtil.sub(
-      c.usedAuxiliarySaleGoodsAmount,
-      v.auxiliaryUsed,
-    );
-    c.replenishingGoodsAmount = MoneyUtil.sub(
-      c.replenishingGoodsAmount,
-      v.replenishing,
-    );
-    c.usedReplenishingGoodsAmount = MoneyUtil.sub(
-      c.usedReplenishingGoodsAmount,
-      v.replenishingUsed,
-    );
-  }
-}
-
-/* ---------- 聚水潭-发货前取消：直接扣减已使用+冻结 ---------- */
-export class JstPreCancelStrategy implements ICreditReleaseStrategy {
-  apply(c: CustomerCreditAmountInfoEntity, v: CancelAmountVector): void {
-    c.shippedAmount = MoneyUtil.sub(c.shippedAmount, v.shipped);
-    c.auxiliarySaleGoodsAmount = MoneyUtil.sub(
-      c.auxiliarySaleGoodsAmount,
-      v.auxiliary,
-    );
-    c.usedAuxiliarySaleGoodsAmount = MoneyUtil.sub(
-      c.usedAuxiliarySaleGoodsAmount,
-      v.auxiliaryUsed,
-    );
-    c.frozenSaleGoodsAmount = MoneyUtil.sub(
-      c.frozenSaleGoodsAmount,
-      v.auxiliary,
-    );
-    c.frozenUsedSaleGoodsAmount = MoneyUtil.sub(
-      c.frozenUsedSaleGoodsAmount,
-      v.auxiliaryUsed,
-    );
-
-    c.replenishingGoodsAmount = MoneyUtil.sub(
-      c.replenishingGoodsAmount,
-      v.replenishing,
-    );
-    c.usedReplenishingGoodsAmount = MoneyUtil.sub(
-      c.usedReplenishingGoodsAmount,
-      v.replenishingUsed,
-    );
-    c.frozenReplenishingGoodsAmount = MoneyUtil.sub(
-      c.frozenReplenishingGoodsAmount,
-      v.replenishing,
-    );
-    c.frozenUsedReplenishingGoodsAmount = MoneyUtil.sub(
-      c.frozenUsedReplenishingGoodsAmount,
-      v.replenishingUsed,
-    );
   }
 }
 

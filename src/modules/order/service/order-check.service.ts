@@ -24,6 +24,7 @@ import {
   AuxiliarySalesRatioValidationStrategy,
   RegionQuotaValidationStrategy,
   ReplenishRatioValidationStrategy,
+  UsePreRioValidationStrategy,
   ValidationStrategy,
 } from '@modules/order/strategy/order-validation.interface';
 import { ApprovalEngineService } from '@modules/approval/services/approval-engine.service';
@@ -47,6 +48,7 @@ export class OrderCheckService {
     private approvalEngineService: ApprovalEngineService,
     private readonly replenishStrategy: ReplenishRatioValidationStrategy,
     private readonly auxiliaryStrategy: AuxiliarySalesRatioValidationStrategy,
+    private readonly usePreRioValidationStrategy: UsePreRioValidationStrategy,
   ) {}
   async checkOrderExist(orderId: string) {
     const orderMain = await this.orderRepository.findOne({
@@ -61,7 +63,7 @@ export class OrderCheckService {
     const orderMain = await this.orderRepository.findOne({
       where: { orderCode: orderCode, deleted: GlobalStatusEnum.NO },
     });
-    this.logger.log('orderMain:{}',orderMain)
+    this.logger.log(`orderMain:${JSON.stringify(orderMain)}`);
     if (!orderMain) {
       throw new BusinessException('订单不存在或已被删除');
     }
@@ -103,9 +105,10 @@ export class OrderCheckService {
     // 1. 计算比例
     const auxRatio = Number(response.auxiliarySalesRatio) || 0;
     const repRatio = Number(response.replenishRatio) || 0;
+    const subsidyAmount = Number(response.orderSubsidyAmount) || 0;
 
     // 2. 是否免审批
-    if (this.isFreeApproval(customerInfo, auxRatio, repRatio)) {
+    if (this.isFreeApproval(customerInfo, auxRatio, repRatio, subsidyAmount)) {
       this.logger.log(`免审批：auxRatio=${auxRatio}, repRatio=${repRatio}`);
       return OrderStatusEnum.PENDING_PAYMENT;
     }
@@ -184,11 +187,15 @@ export class OrderCheckService {
       customer,
       replenishRatio,
       auxiliarySalesRatio,
+      subsidyAmount,
+      replenishAmount,
+      auxiliaryAmount,
     );
     /* ---------- 3. 校验策略插件 ---------- */
     const strategies: ValidationStrategy[] = [
       this.replenishStrategy,
       this.auxiliaryStrategy,
+      this.usePreRioValidationStrategy,
       // new RegionQuotaValidationStrategy(this.creditAmountInfoRepository),
     ];
     console.log('repRatio,', replenishRatio);
@@ -198,7 +205,14 @@ export class OrderCheckService {
       await Promise.all(
         strategies.map((s) =>
           s.validate(
-            { replenishRatio, auxiliarySalesRatio, needApproval } as any,
+            {
+              replenishRatio,
+              auxiliarySalesRatio,
+              needApproval,
+              orderSubsidyAmount: subsidyAmount,
+              replenishAmount,
+              auxiliaryAmount,
+            } as any,
             customer,
           ),
         ),
@@ -376,9 +390,15 @@ export class OrderCheckService {
     c: CustomerInfoEntity,
     aux: number,
     rep: number,
+    subsidyAmount: number,
   ): boolean {
     const t = this.getApprovalThresholds(c);
-    return aux <= t.aux && rep <= t.rep;
+    const compareResult = aux <= t.aux && rep <= t.rep;
+    if (compareResult) {
+      // 若阈值比例免审批，则额度金额是否为0
+      return subsidyAmount > 0;
+    }
+    return compareResult;
   }
 
   /** 需审批 = 任一比例超过阈值 */
@@ -386,8 +406,18 @@ export class OrderCheckService {
     c: CustomerInfoEntity,
     aux: number,
     rep: number,
+    subsidyAmount: number,
+    replenishAmount: number,
+    auxiliaryAmount: number,
   ): boolean {
     const t = this.getApprovalThresholds(c);
-    return aux > t.aux || rep > t.rep;
+    const compareResult = aux > t.aux || rep > t.rep;
+    // 当符合比例，再进入最后的金额校验
+    if (!compareResult) {
+      if ((subsidyAmount <= 0 && replenishAmount > 0) || auxiliaryAmount > 0) {
+        return true;
+      }
+    }
+    return compareResult;
   }
 }

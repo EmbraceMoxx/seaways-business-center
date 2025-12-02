@@ -58,7 +58,7 @@ export class StandardUpdateStrategy
     );
 
     // 3. 已发货字段 += 差额
-    c.shippedAmount = MoneyUtil.add(c.shippedAmount, deltaShipped);
+    // c.shippedAmount = MoneyUtil.add(c.shippedAmount, deltaShipped);
     c.auxiliarySaleGoodsAmount = MoneyUtil.add(
       c.auxiliarySaleGoodsAmount,
       deltaAuxiliary,

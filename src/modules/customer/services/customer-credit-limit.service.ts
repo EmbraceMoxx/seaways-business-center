@@ -490,7 +490,9 @@ export class CustomerCreditLimitService {
     confirm: boolean,
     isFromJst = false,
   ): Promise<void> {
-    this.logger.log(`进入释放额度逻辑：${flow},来自聚水潭：${isFromJst}`);
+    this.logger.log(
+      `进入释放额度逻辑：${JSON.stringify(flow)},来自聚水潭：${isFromJst}`,
+    );
     const repo = manager.getRepository(CustomerCreditAmountInfoEntity);
 
     // 1. 先锁额度主表
@@ -522,6 +524,7 @@ export class CustomerCreditLimitService {
         replenishing: flow.replenishingGoodsAmount,
         replenishingUsed: flow.usedReplenishingGoodsAmount,
       };
+      this.logger.log(`聚水潭回调取消订单：${JSON.stringify(cancelVector)}`);
       const result = CancelStrategyFactory.get('JST_POST');
       result.apply(credit, cancelVector);
     }
@@ -534,6 +537,7 @@ export class CustomerCreditLimitService {
         replenishing: flow.replenishingGoodsAmount,
         replenishingUsed: flow.usedReplenishingGoodsAmount,
       };
+      this.logger.log(`普通取消订单：${JSON.stringify(cancelVector)}`);
       const result = CancelStrategyFactory.get('STANDARD');
       result.apply(credit, cancelVector);
     }

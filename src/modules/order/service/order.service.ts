@@ -471,7 +471,7 @@ export class OrderService {
       ),
     ];
 
-    const calculateAmount =
+    const orderAmountResponse =
       await this.orderCheckService.calculateCheckAmountResult(
         customerInfo,
         finishGoodsList,
@@ -482,7 +482,7 @@ export class OrderService {
     OrderConvertHelper.convertOrderItemAmount(
       finalOrderItemList,
       orderMain,
-      calculateAmount,
+      orderAmountResponse,
     );
 
     // 订单基础信息
@@ -496,7 +496,7 @@ export class OrderService {
 
     // 结合客户信息计算订单初始状态
     orderMain.orderStatus = await this.orderCheckService.calculateOrderStatus(
-      calculateAmount,
+      orderAmountResponse,
       user,
       customerInfo,
     );
@@ -522,6 +522,7 @@ export class OrderService {
           orderMain,
           user,
         );
+        console.log('approvalDto:', JSON.stringify(approvalDto));
         await this.approvalEngineService.startApprovalProcess(approvalDto);
       });
 

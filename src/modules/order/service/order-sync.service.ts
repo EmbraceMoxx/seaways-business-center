@@ -141,15 +141,16 @@ export class OrderSyncService {
     const toUpdate = candidates.filter(
       (c) => c.orderStatus === strategy.fromStatus,
     );
-    if (!toUpdate.length) return;
-    // 4. 批量更新
-    const ids = toUpdate.map((c) => c.id);
     this.logger.log(
       `[operate=2] fromStatus: ${
         strategy.fromStatus
       }, candidateStatus: ${candidates.map((c) => c.orderStatus).join(',')}`,
     );
+    if (!toUpdate.length) return;
     this.logger.log(`[operate=2] toUpdate length: ${toUpdate.length}`);
+    // 4. 批量更新
+    const ids = toUpdate.map((c) => c.id);
+
     const { affected = 0 } = await manager.update(
       OrderMainEntity,
       { id: In(ids), orderStatus: strategy.fromStatus },

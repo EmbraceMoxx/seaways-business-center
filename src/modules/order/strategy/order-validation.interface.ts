@@ -70,6 +70,24 @@ export class AuxiliarySalesRatioValidationStrategy
     return messages;
   }
 }
+// 未产生额度，却使用额度无法确认比例校验
+export class UsePreRioValidationStrategy implements ValidationStrategy {
+  async validate(
+    response: CheckOrderAmountResponse,
+    customerInfo: CustomerInfoEntity,
+  ): Promise<string[]> {
+    const messages: string[] = [];
+    console.log('测试金额获取', JSON.stringify(response));
+    if (
+      parseFloat(response.orderSubsidyAmount) <= 0 &&
+      (parseFloat(response.replenishAmount) > 0 ||
+        parseFloat(response.auxiliarySalesAmount) > 0)
+    ) {
+      messages.push('当前未选中参与货补/辅销的产品，但使用了货补/辅销金额');
+    }
+    return messages;
+  }
+}
 
 // 区域额度校验策略
 @Injectable()
