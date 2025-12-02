@@ -150,25 +150,10 @@ export class OrderController {
     @CurrentToken() token: string,
   ) {
     console.log('user:', user);
-    const req = new CheckOrderAmountResponse();
-    req.replenishRatio = '0.12';
-    req.auxiliarySalesRatio = '0.004';
-    const customer = new CustomerInfoEntity();
-    customer.regionalHeadId = '633192657597894656';
-    customer.principalUserId = '633192657597894656';
-    user.userId = '633192658931683328';
-    // customer.provincialHeadId = '633192658931683328';
-    const reject = new ApprovalRejectRequest();
-    reject.orderId = '648056041950547968';
-    reject.rejectReason = '测试驳回';
-    // reject.creatorId = '633192658931683328';
-    // reject.operatorName = '张坤坤';
-    // await this.orderService.approvalReject(reject);
-    // 测试取消订单
-    // return await this.orderCheckService.calculateOrderStatus(
-    //   req,
-    //   user,
-    //   customer,
-    // );
+    const result = await this.userService.getRangeOfOrderQueryUser(
+      token,
+      user.userId,
+    );
+    console.log(JSON.stringify(result));
   }
 }

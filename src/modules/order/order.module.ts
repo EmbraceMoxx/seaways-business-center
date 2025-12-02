@@ -34,6 +34,7 @@ import { OrderJstService } from '@modules/order/service/order-jst.service';
 import { OrderSyncController } from '@modules/order/controller/order-sync.controller';
 import { OrderJstController } from '@modules/order/controller/order-jst.controller';
 import { OrderSyncCancelService } from '@modules/order/strategy/order-sync-cancel.service';
+import { ApprovalConfig } from '@src/configs/approval.config';
 
 @Module({
   imports: [
@@ -65,12 +66,15 @@ import { OrderSyncCancelService } from '@modules/order/strategy/order-sync-cance
     },
     {
       provide: REP_THRESHOLD_TOKEN,
-      inject: [],
-      useFactory: () => OrderCheckService.REP_FREE_RATIO, // 读静态字段
+      inject: [ApprovalConfig],
+      useFactory: (cfg: ApprovalConfig) =>
+        Number(cfg.provinceReplenishmentFreeRatio ?? 0.05), // 读静态字段
     },
     {
       provide: AUX_THRESHOLD_TOKEN,
-      useFactory: () => OrderCheckService.AUX_FREE_RATIO,
+      inject: [ApprovalConfig],
+      useFactory:(cfg: ApprovalConfig) =>
+        Number(cfg.auxiliaryFreeRatio ?? 0.03),
     },
     ReplenishRatioValidationStrategy,
     AuxiliarySalesRatioValidationStrategy,
@@ -78,6 +82,7 @@ import { OrderSyncCancelService } from '@modules/order/strategy/order-sync-cance
     UsePreRioValidationStrategy,
     BusinessLogService,
     OrderCheckService,
+    ApprovalConfig,
     OrderSyncCancelService,
     UserService,
   ],

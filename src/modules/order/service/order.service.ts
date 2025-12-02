@@ -34,6 +34,7 @@ import { UserService } from '@modules/common/user/user.service';
 import { ApprovalEngineService } from '@modules/approval/services/approval-engine.service';
 import { CancelApprovalDto } from '@src/dto';
 import { CustomerService } from '@modules/customer/services/customer.service';
+import { ApprovalConfig } from '@src/configs/approval.config';
 
 @Injectable()
 export class OrderService {
@@ -52,6 +53,7 @@ export class OrderService {
     private customerService: CustomerService,
     private creditLimitDetailService: CustomerCreditLimitDetailService,
     private dataSource: DataSource, // 添加数据源注入
+    private approvalConfig: ApprovalConfig,
   ) {}
 
   /**
@@ -451,6 +453,7 @@ export class OrderService {
         commodityPriceMap,
         user,
         OrderItemTypeEnum.FINISHED_PRODUCT,
+        this.approvalConfig,
         lastOperateProgram,
       ),
       ...OrderConvertHelper.buildOrderItems(
@@ -459,6 +462,7 @@ export class OrderService {
         commodityPriceMap,
         user,
         OrderItemTypeEnum.REPLENISH_PRODUCT,
+        this.approvalConfig,
         lastOperateProgram,
       ),
       ...OrderConvertHelper.buildOrderItems(
@@ -467,6 +471,7 @@ export class OrderService {
         commodityPriceMap,
         user,
         OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT,
+        this.approvalConfig,
         lastOperateProgram,
       ),
     ];
@@ -590,6 +595,7 @@ export class OrderService {
         commodityPriceMap,
         user,
         OrderItemTypeEnum.FINISHED_PRODUCT,
+        this.approvalConfig,
         lastOperateProgram,
       ),
       ...OrderConvertHelper.buildOrderItems(
@@ -598,6 +604,7 @@ export class OrderService {
         commodityPriceMap,
         user,
         OrderItemTypeEnum.REPLENISH_PRODUCT,
+        this.approvalConfig,
         lastOperateProgram,
       ),
       ...OrderConvertHelper.buildOrderItems(
@@ -606,6 +613,7 @@ export class OrderService {
         commodityPriceMap,
         user,
         OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT,
+        this.approvalConfig,
         lastOperateProgram,
       ),
     ];

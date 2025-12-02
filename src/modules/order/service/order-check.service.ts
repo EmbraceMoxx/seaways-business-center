@@ -30,13 +30,11 @@ import {
 import { ApprovalEngineService } from '@modules/approval/services/approval-engine.service';
 import { plainToInstance } from 'class-transformer';
 import { MoneyUtil } from '@utils/MoneyUtil';
+import { ApprovalConfig } from '@src/configs/approval.config';
 
 @Injectable()
 export class OrderCheckService {
   private readonly logger = new Logger(OrderCheckService.name);
-  static readonly AUX_FREE_RATIO = 0.03; // 辅销免审批比例
-  static readonly REP_FREE_RATIO = 0.05; // 有省区时货补免审批比例
-  static readonly REP_FREE_RATIO_NO_PROV = 0.1; // 无省区时货补免审批比
   constructor(
     private userService: UserService,
     @InjectRepository(OrderMainEntity)
@@ -45,11 +43,18 @@ export class OrderCheckService {
     private creditAmountInfoRepository: Repository<CustomerCreditAmountInfoEntity>,
     private customerService: CustomerService,
     private commodityService: CommodityService,
+    private approvalConfig: ApprovalConfig,
     private approvalEngineService: ApprovalEngineService,
     private readonly replenishStrategy: ReplenishRatioValidationStrategy,
     private readonly auxiliaryStrategy: AuxiliarySalesRatioValidationStrategy,
     private readonly usePreRioValidationStrategy: UsePreRioValidationStrategy,
   ) {}
+  /**
+   * 检查订单是否存在
+   * @param orderId 订单ID
+   * @returns Promise<Order> 订单主信息对象
+   * @throws BusinessException 当订单不存在或已被删除时抛出异常
+   */
   async checkOrderExist(orderId: string) {
     const orderMain = await this.orderRepository.findOne({
       where: { id: orderId, deleted: GlobalStatusEnum.NO },
@@ -59,6 +64,12 @@ export class OrderCheckService {
     }
     return orderMain;
   }
+  /**
+   * 根据订单编码检查订单是否存在
+   * @param orderCode 订单编码
+   * @returns Promise<OrderMain> 订单主信息对象
+   * @throws BusinessException 当订单不存在或已被删除时抛出异常
+   */
   async checkOrderExistByOrderCode(orderCode: string) {
     const orderMain = await this.orderRepository.findOne({
       where: { orderCode: orderCode, deleted: GlobalStatusEnum.NO },
@@ -165,17 +176,14 @@ export class OrderCheckService {
       this.calculateAmountWithQuery(finishGoods, false),
       this.calculateAmountWithQuery(finishGoods, true),
     ]);
-    console.log('before');
     const replenishAmount = await this.calculateAmountWithQuery(
       replenishGoods,
       false,
     );
-    console.log('after replenishAmount', replenishAmount);
     const auxiliaryAmount = await this.calculateAmountWithQuery(
       auxiliaryGoods,
       false,
     );
-    console.log('after auxiliaryAmount', auxiliaryAmount);
 
     /* ---------- 2. 比例 & 审批标志 ---------- */
     const replenishRatio = MoneyUtil.safeDivide(replenishAmount, subsidyAmount);
@@ -198,9 +206,9 @@ export class OrderCheckService {
       this.usePreRioValidationStrategy,
       // new RegionQuotaValidationStrategy(this.creditAmountInfoRepository),
     ];
-    console.log('repRatio,', replenishRatio);
-    console.log('auxiliarySalesRatio,', auxiliarySalesRatio);
-    console.log('needApproval,', needApproval);
+    this.logger.log(`repRatio:${replenishRatio}` );
+    this.logger.log(`auxiliarySalesRatio:${auxiliarySalesRatio}` );
+    this.logger.log(`needApproval:${needApproval}`);
     const messages = (
       await Promise.all(
         strategies.map((s) =>
@@ -378,10 +386,10 @@ export class OrderCheckService {
   /** 唯一一份比例规则 */
   private getApprovalThresholds(customer: CustomerInfoEntity) {
     return {
-      aux: OrderCheckService.AUX_FREE_RATIO,
+      aux: this.approvalConfig.auxiliaryFreeRatio,
       rep: customer.provincialHeadId
-        ? OrderCheckService.REP_FREE_RATIO
-        : OrderCheckService.REP_FREE_RATIO_NO_PROV,
+        ? this.approvalConfig.provinceReplenishmentFreeRatio
+        : this.approvalConfig.maxReplenishmentFreeApprovalRatio,
     };
   }
 

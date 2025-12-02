@@ -12,6 +12,7 @@ import { CustomerModule } from '@modules/customer/customer.module';
 import { OrderModule } from '@modules/order/order.module';
 import { BusinessLogModule } from './modules/common/business-log/business-log.module';
 import { ApprovalModule } from '@modules/approval/approval.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ApprovalModule } from '@modules/approval/approval.module';
     OrderModule,
     BusinessLogModule,
     ApprovalModule,
+    ConfigModule.forRoot({ isGlobal: true }), // 全局可用
   ],
   providers: [
     {

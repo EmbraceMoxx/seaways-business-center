@@ -1,11 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { HttpProxyService } from '@shared/http-proxy.service';
 import { OrderUserQueryDto } from '@src/dto';
 import { UserEndpoints } from '@src/constants';
+import * as config from 'config';
 
 @Injectable()
 export class UserService{
-  constructor(private httpProxyServices: HttpProxyService) {}
+  private readonly logger = new Logger(UserService.name);
+  constructor(
+    private httpProxyServices: HttpProxyService,
+  ) {}
   async getRangeOfOrderQueryUser(
     token: string,
     userId: string,
@@ -17,11 +21,13 @@ export class UserService{
       UserEndpoints.USER_ROLES(userId),
       token,
     );
-    console.log('userRoles', userRoles);
+    this.logger.log(`userRoles: ${JSON.stringify(userRoles)}`);
     if (userRoles) {
-      // 过滤出包含 roleId 为 '645552106786394112' 的数据 todo 后续放到配置里
-      const targetRole = userRoles.find(
-        (role) => role.roleId === '645552106786394112',
+      const idsStr = config.get('role.ids');
+      this.logger.log(`idsStr: ${idsStr}`);
+      const roleIds = idsStr ? idsStr.split(',') : [];
+      const targetRole = userRoles.find((role) =>
+        roleIds.includes(role.roleId), // 精确匹配
       );
       if (targetRole) {
         // 在这里处理找到的目标角色数据
@@ -33,7 +39,6 @@ export class UserService{
           UserEndpoints.USER_SUB_LEVEL(userId),
           token,
         );
-        console.log('userList:', userList);
         // 收集所有用户的 id 字段
         if (userList && Array.isArray(userList)) {
           userDto.principalUserIds = userList.map((user) => user.id);

@@ -17,6 +17,7 @@ import { OrderMainEntity } from '@modules/order/entities/order.main.entity';
 import { OrderItemTypeEnum } from '@src/enums/order-item-type.enum';
 import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
 import { IdUtil } from '@src/utils';
+import { ApprovalConfig } from '@src/configs/approval.config';
 
 export class OrderConvertHelper {
   static convertCustomerInfo(
@@ -50,6 +51,7 @@ export class OrderConvertHelper {
     commodityPriceMap: Map<string, CommodityInfoEntity>,
     user: JwtUserPayload,
     itemType: OrderItemTypeEnum,
+    config: ApprovalConfig,
     lastOperateProgram: string,
   ): OrderItemEntity[] {
     if (!goodsList) {
@@ -80,10 +82,10 @@ export class OrderConvertHelper {
       switch (itemType) {
         case OrderItemTypeEnum.FINISHED_PRODUCT:
           orderItem.replenishAmount = commodityInfo.isQuotaInvolved
-            ? (amount * 0.1).toFixed(2)
+            ? (amount * config.maxReplenishmentFreeApprovalRatio).toFixed(2)
             : '0';
           orderItem.auxiliarySalesAmount = commodityInfo.isQuotaInvolved
-            ? (amount * 0.03).toFixed(2)
+            ? (amount * config.auxiliaryFreeRatio).toFixed(2)
             : '0';
           break;
         case OrderItemTypeEnum.REPLENISH_PRODUCT:
