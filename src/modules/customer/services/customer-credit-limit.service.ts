@@ -249,10 +249,12 @@ export class CustomerCreditLimitService {
    */
   async exportCreditInfoList(
     query: QueryCreditLimitDto,
+    user: JwtUserPayload,
+    token: string,
   ): Promise<CreditLimitExportDTO[]> {
     const { customerName, region } = query;
     // 1、创建查询条件
-    const queryBuilder = this.creditRepository
+    let queryBuilder = this.creditRepository
       .createQueryBuilder('credit')
       .where('credit.deleted = :deleted', {
         deleted: GlobalStatusEnum.NO,
@@ -260,19 +262,49 @@ export class CustomerCreditLimitService {
 
     // 客户名称
     if (customerName) {
-      queryBuilder.andWhere('credit.customer_name LIKE :customerName', {
-        customerName: `%${customerName}%`,
-      });
+      queryBuilder = queryBuilder.andWhere(
+        'credit.customer_name LIKE :customerName',
+        {
+          customerName: `%${customerName}%`,
+        },
+      );
     }
 
     // 客户所属区域
     if (region) {
-      queryBuilder.andWhere('credit.region = :region', {
+      queryBuilder = queryBuilder.andWhere('credit.region = :region', {
         region,
       });
     }
 
-    queryBuilder.orderBy({
+    // 获取权限
+    const checkResult = await this.userService.getRangeOfOrderQueryUser(
+      token,
+      user.userId,
+    );
+
+    if (!checkResult || checkResult.isQueryAll) {
+      // 不限制客户范围，继续查询
+    } else if (!checkResult.principalUserIds?.length) {
+      return [];
+    } else {
+      // 收集所有人负责的客户ID，去查询对应的客户ID
+      const customerIds = await this.customerService.getManagedCustomerIds(
+        checkResult.principalUserIds,
+      );
+
+      // 如果没有客户ID，则返回空
+      if (!customerIds.length) {
+        return [];
+      }
+
+      queryBuilder = queryBuilder.andWhere(
+        'credit.customer_id IN (:customerIds)',
+        { customerIds },
+      );
+    }
+
+    queryBuilder = queryBuilder.orderBy({
       'credit.created_time': 'DESC',
       'credit.customer_id': 'ASC',
     });

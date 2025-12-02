@@ -37,7 +37,12 @@ export class CustomerCreditLimitController {
 
   @ApiOperation({ summary: '客户额度列表导出' })
   @Post('export')
-  async exportToExcel(@Res() res, @Body() query: QueryCreditLimitDto) {
+  async exportToExcel(
+    @Res() res,
+    @Body() query: QueryCreditLimitDto,
+    @CurrentUser() user: JwtUserPayload,
+    @CurrentToken() token: string,
+  ) {
     try {
       // 1、创建工作簿
       const workbook = new exceljs.Workbook();
@@ -107,7 +112,7 @@ export class CustomerCreditLimitController {
       ];
       // 4、获取数据
       const creditExportList =
-        await this.CreditLimitService.exportCreditInfoList(query);
+        await this.CreditLimitService.exportCreditInfoList(query, user, token);
 
       // 5、添加数据行
       for (const item of creditExportList) {
