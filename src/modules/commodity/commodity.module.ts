@@ -9,10 +9,15 @@ import { CommodityService } from './services/commodity.service';
 import { CommodityCategoryEntity } from './entities/commodity-category.entity';
 import { CommodityCategoryController } from './controllers/commodity-category.controller';
 import { CommodityCategoryService } from './services/commodity-category.service';
+import { CommodityBundledSkuInfoEntity } from '@modules/commodity/entities/commodity-bundled-sku-info.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CommodityInfoEntity, CommodityCategoryEntity]),
+    TypeOrmModule.forFeature([
+      CommodityInfoEntity,
+      CommodityCategoryEntity,
+      CommodityBundledSkuInfoEntity,
+    ]),
   ],
   providers: [CommodityService, CommodityCategoryService],
   controllers: [CommodityController, CommodityCategoryController],

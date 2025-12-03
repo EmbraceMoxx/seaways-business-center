@@ -436,16 +436,17 @@ export class OrderService {
       req.receiverAddress,
     );
     orderMain.remark = req.remark?.trim() ?? '';
-
+    // 处理商品信息
     const finishGoodsList = req.finishGoods;
     const replenishGoodsList = req.replenishGoods;
     const auxiliaryGoodsList = req.auxiliaryGoods;
 
-    const { commodityPriceMap } = await this.getCommodityMapByOrderItems(
-      finishGoodsList,
-      replenishGoodsList,
-      auxiliaryGoodsList,
-    );
+    const { commodityInfos, commodityPriceMap } =
+      await this.getCommodityMapByOrderItems(
+        finishGoodsList,
+        replenishGoodsList,
+        auxiliaryGoodsList,
+      );
     const finalOrderItemList: OrderItemEntity[] = [
       ...OrderConvertHelper.buildOrderItems(
         orderId,
@@ -475,6 +476,20 @@ export class OrderService {
         lastOperateProgram,
       ),
     ];
+    // 若包含组合产品，则需要将产品转换为组合的产品
+    const bundledIds = commodityInfos
+      .filter((c) => c.isBundledProducts > 0)
+      .map((c) => c.id);
+    if (bundledIds.length) {
+      await this.calculateBundleCommodity(
+        bundledIds,
+        finalOrderItemList,
+        commodityPriceMap,
+        orderId,
+        user,
+        lastOperateProgram,
+      );
+    }
 
     const orderAmountResponse =
       await this.orderCheckService.calculateCheckAmountResult(
@@ -565,7 +580,6 @@ export class OrderService {
     const orderId = req.orderId;
     // 判断是否存在订单
     const orderMain = await this.orderCheckService.checkOrderExist(orderId);
-    this.logger.log(`开始修改订单：before: ${JSON.stringify(orderMain)}`);
     const updateOrderMain = new OrderMainEntity();
     updateOrderMain.id = orderMain.id;
     updateOrderMain.customerId = orderMain.customerId;
@@ -583,11 +597,12 @@ export class OrderService {
     const finishGoodsList = req.finishGoods;
     const replenishGoodsList = req.replenishGoods;
     const auxiliaryGoodsList = req.auxiliaryGoods;
-    const { commodityPriceMap } = await this.getCommodityMapByOrderItems(
-      finishGoodsList,
-      replenishGoodsList,
-      auxiliaryGoodsList,
-    );
+    const { commodityInfos, commodityPriceMap } =
+      await this.getCommodityMapByOrderItems(
+        finishGoodsList,
+        replenishGoodsList,
+        auxiliaryGoodsList,
+      );
     const finalOrderItemList: OrderItemEntity[] = [
       ...OrderConvertHelper.buildOrderItems(
         orderId,
@@ -617,6 +632,20 @@ export class OrderService {
         lastOperateProgram,
       ),
     ];
+    // 若包含组合产品，则需要将产品转换为组合的产品
+    const bundledIds = commodityInfos
+      .filter((c) => c.isBundledProducts > 0)
+      .map((c) => c.id);
+    if (bundledIds.length) {
+      await this.calculateBundleCommodity(
+        bundledIds,
+        finalOrderItemList,
+        commodityPriceMap,
+        orderId,
+        user,
+        lastOperateProgram,
+      );
+    }
 
     // 开始计算订单金额
     const customerInfo = await this.orderCheckService.checkCustomerInfo(
@@ -643,8 +672,8 @@ export class OrderService {
     this.logger.log('orderStatus:', orderStatus);
     if (orderMain.orderStatus !== orderStatus) {
       updateOrderMain.orderStatus = orderStatus;
+      updateOrderMain.lastOperateProgram = lastOperateProgram;
     }
-
     await this.dataSource.transaction(async (manager) => {
       // 修改订单
       await manager.save(updateOrderMain);
@@ -711,6 +740,44 @@ export class OrderService {
     logInput.params = req;
     await this.businessLogService.writeLog(logInput);
     return updateOrderMain.id;
+  }
+
+  private async calculateBundleCommodity(
+    bundledIds: string[],
+    finalOrderItemList: OrderItemEntity[],
+    commodityPriceMap: Map<string, CommodityInfoEntity>,
+    orderId: string,
+    user: JwtUserPayload,
+    lastOperateProgram: string,
+  ) {
+    if (bundledIds.length === 0) {
+      return;
+    }
+    const expanded = await this.expandBundledItems(
+      bundledIds,
+      finalOrderItemList,
+      commodityPriceMap,
+      orderId,
+      user,
+      lastOperateProgram,
+    );
+    const mergedExpanded = OrderConvertHelper.mergeOrderItems(expanded);
+
+    // 剔除原组合商品，追加合并后的子商品
+    finalOrderItemList.splice(
+      0,
+      finalOrderItemList.length,
+      ...finalOrderItemList.filter(
+        (item) => !bundledIds.includes(item.commodityId),
+      ),
+      ...mergedExpanded,
+    );
+    // 最后再做一次全局合并（可选，防止用户重复添加普通商品）
+    finalOrderItemList.splice(
+      0,
+      finalOrderItemList.length,
+      ...OrderConvertHelper.mergeOrderItems(finalOrderItemList),
+    );
   }
 
   /**
@@ -934,12 +1001,105 @@ export class OrderService {
     this.logger.log(`需要查询的商品ID列表: ${JSON.stringify(commodityIds)}`);
     const commodityInfos =
       await this.commodityService.getCommodityListByCommodityIds(commodityIds);
-
     const commodityPriceMap = new Map<string, CommodityInfoEntity>();
     commodityInfos.forEach((good) => {
       commodityPriceMap.set(good.id, good);
     });
     return { commodityInfos, commodityPriceMap };
+  }
+  /**
+   * 把“组合商品”展开成子商品列表
+   * @param bundledIds        所有组合商品 ID
+   * @param sourceItems       订单行（含组合商品）
+   * @param priceMap          商品价格缓存
+   * @param orderId           当前订单号
+   * @param user              当前用户
+   * @param lastOperateProgram
+   * @returns 展开后的子商品订单行（不包含原组合商品）
+   */
+  private async expandBundledItems(
+    bundledIds: string[],
+    sourceItems: OrderItemEntity[],
+    priceMap: Map<string, CommodityInfoEntity>,
+    orderId: string,
+    user: JwtUserPayload,
+    lastOperateProgram: string,
+  ): Promise<OrderItemEntity[]> {
+    // 并发查询所有组合明细
+    const subCommodityIds = new Set<string>();
+    const bundleList = await Promise.all(
+      bundledIds.map((id) =>
+        this.commodityService.getCommodityBundleIdListByCommodityId(id),
+      ),
+    );
+    bundleList.flat().forEach((b) => subCommodityIds.add(b.bundledCommodityId));
+    if (subCommodityIds.size) {
+      const subCommodities =
+        await this.commodityService.getCommodityListByCommodityIds([
+          ...subCommodityIds,
+        ]);
+      subCommodities.forEach((c) => priceMap.set(c.id, c));
+    }
+    // 建立“组合商品ID -> 订单行”映射，方便后面取数量/类型
+    const itemMap = new Map(
+      sourceItems
+        .filter((i) => bundledIds.includes(i.commodityId))
+        .map((i) => [i.commodityId, i]),
+    );
+    // 建立“组合商品ID -> 子商品列表”映射
+    const bundleMap = new Map<string, any[]>();
+    bundleList.forEach((list, idx) => {
+      const parentId = bundledIds[idx];
+      bundleMap.set(parentId, list);
+    });
+    // 开始组装
+    const result: OrderItemEntity[] = [];
+
+    bundledIds.forEach((parentId) => {
+      const parentItem = itemMap.get(parentId);
+      if (!parentItem) return; // 理论上不会走到这里
+
+      const children = bundleMap.get(parentId) ?? [];
+      this.logger.log(
+        `parentId=${parentId} 对应的子商品条数=${children.length}`,
+      );
+
+      children.forEach((bun) => {
+        const info = priceMap.get(bun.bundledCommodityId);
+
+        if (!info) return; // 数据异常直接跳过
+
+        const entity = new OrderItemEntity();
+        Object.assign(entity, {
+          id: IdUtil.generateId(), // 新 ID
+          orderId,
+          commodityId: info.id,
+          name: info.commodityName,
+          aliasName: info.commodityAliaName,
+          internalCode: info.commodityInternalCode,
+          specInfo: info.itemSpecInfo,
+          boxSpecPiece: info.boxSpecPiece,
+          boxSpecInfo: info.boxSpecInfo,
+          exFactoryPrice: info.itemExFactoryPrice,
+          exFactoryBoxPrice: info.boxExFactoryPrice,
+          isQuotaInvolved: info.isQuotaInvolved,
+          boxQty: Number(parentItem.boxQty || 0),
+          qty: Number(parentItem.qty || 0),
+          amount: (
+            Number(parentItem.qty || 0) * parseFloat(info.itemExFactoryPrice)
+          ).toFixed(2),
+          type: parentItem.type,
+          lastOperateProgram: lastOperateProgram,
+          deleted: GlobalStatusEnum.NO,
+          creatorId: user.userId,
+          creatorName: user.nickName,
+          createdTime: dayjs().toDate(),
+        });
+        result.push(entity);
+      });
+    });
+    this.logger.log(`result1111:${JSON.stringify(result)}`);
+    return result;
   }
 
   /**

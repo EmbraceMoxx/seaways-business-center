@@ -206,8 +206,8 @@ export class OrderCheckService {
       this.usePreRioValidationStrategy,
       // new RegionQuotaValidationStrategy(this.creditAmountInfoRepository),
     ];
-    this.logger.log(`repRatio:${replenishRatio}` );
-    this.logger.log(`auxiliarySalesRatio:${auxiliarySalesRatio}` );
+    this.logger.log(`repRatio:${replenishRatio}`);
+    this.logger.log(`auxiliarySalesRatio:${auxiliarySalesRatio}`);
     this.logger.log(`needApproval:${needApproval}`);
     const messages = (
       await Promise.all(

@@ -5,7 +5,7 @@ import { MaxLength } from 'class-validator';
 
 export class OrderItem {
   @ApiProperty({ description: '项目ID' })
-  itemId: string;
+  id: string;
   @ApiProperty({ description: '订单ID' })
   orderId: string;
   @ApiProperty({ description: '商品ID' })

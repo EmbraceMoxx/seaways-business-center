@@ -22,6 +22,9 @@ export class CommodityService {
     @InjectRepository(CommodityInfoEntity)
     private commodityRepository: Repository<CommodityInfoEntity>,
 
+    @InjectRepository(CommodityBundledSkuInfoEntity)
+    private commodityBundledSkuInfoEntityRepository: Repository<CommodityBundledSkuInfoEntity>,
+
     @Inject(forwardRef(() => CommodityCategoryService))
     private commodityCategoryService: CommodityCategoryService,
   ) {}
@@ -434,6 +437,20 @@ export class CommodityService {
       })
       .andWhere('commodity.status = :status', {
         status: BooleanStatusEnum.TRUE,
+      })
+      .getMany();
+  }
+  async getCommodityBundleIdListByCommodityId(
+    commodityId: string,
+  ): Promise<CommodityBundledSkuInfoEntity[]> {
+    return await this.commodityBundledSkuInfoEntityRepository
+      .createQueryBuilder('bundle')
+      .where('bundle.commodity_id = :commodityId', { commodityId: commodityId })
+      .andWhere('bundle.deleted = :deleted', {
+        deleted: GlobalStatusEnum.NO,
+      })
+      .andWhere('bundle.enabled = :enabled', {
+        enabled: GlobalStatusEnum.YES,
       })
       .getMany();
   }

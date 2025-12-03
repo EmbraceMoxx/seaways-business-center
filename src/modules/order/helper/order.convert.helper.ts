@@ -65,8 +65,8 @@ export class OrderConvertHelper {
         commodityPriceMap,
       );
       // 按商品级别判断：有 itemId → 更新，没有 → 新增
-      if (item.itemId) {
-        orderItem.id = item.itemId;
+      if (item.id) {
+        orderItem.id = item.id;
       } else {
         orderItem.id = IdUtil.generateId();
         orderItem.creatorId = user.userId;
@@ -257,5 +257,21 @@ export class OrderConvertHelper {
     }
     return approvalDto;
   }
-
+  static mergeOrderItems(items: OrderItemEntity[]): OrderItemEntity[] {
+    const map = new Map<string, OrderItemEntity>();
+    for (const item of items) {
+      const key = `${item.commodityId}-${item.type}`;
+      if (map.has(key)) {
+        const existing = map.get(key)!;
+        existing.qty += item.qty;
+        existing.boxQty += item.boxQty ?? 0;
+        existing.amount = (
+          Number(existing.qty) * parseFloat(existing.exFactoryPrice)
+        ).toFixed(2);
+      } else {
+        map.set(key, item);
+      }
+    }
+    return [...map.values()];
+  }
 }
