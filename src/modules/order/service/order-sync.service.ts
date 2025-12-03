@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { OrderMainEntity } from '@modules/order/entities/order.main.entity';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
 import {
   QueryOrderCodesDto,
@@ -13,10 +13,6 @@ import * as dayjs from 'dayjs';
 import { OrderLogHelper } from '@modules/order/helper/order.log.helper';
 import { OPERATE_STRATEGY } from '@modules/order/strategy/order-sync.strategy';
 import { OrderSyncCancelService } from '@modules/order/strategy/order-sync-cancel.service';
-type StatusCandidate = Pick<
-  OrderMainEntity,
-  'id' | 'orderCode' | 'orderStatus'
->;
 @Injectable()
 export class OrderSyncService {
   private readonly logger = new Logger(OrderSyncService.name);
@@ -97,103 +93,108 @@ export class OrderSyncService {
       arr.push(dto);
       group.set(dto.operate, arr);
     });
-    await this.dataSource.transaction(async (manager) => {
-      // 每组并发执行
-      await Promise.all(
-        Array.from(group.entries()).map(([operate, list]) =>
-          this.handleOperateGroup(operate, list, program, manager),
-        ),
-      );
-    });
+    /* 2. 每组内部串行处理单个订单（事务隔离） */
+    await Promise.all(
+      Array.from(group.entries()).map(async ([operate, list]) => {
+        for (const dto of list) {
+          try {
+            // 一个订单一个事务
+            await this.dataSource.transaction(async (manager) =>
+              this.handleSingleOrder(operate, dto, program, manager),
+            );
+          } catch (e) {
+            // 记录失败，继续下一个
+            this.logger.error(
+              `[operate=${operate}] 订单 ${dto.orderCode} 同步失败: ${e.message}`,
+              e.stack,
+            );
+          }
+        }
+      }),
+    );
   }
-
-  private async handleOperateGroup(
+  /**
+   * 处理单个订单（逻辑基本同原 handleOperateGroup，但只处理一条）
+   */
+  private async handleSingleOrder(
     operate: number,
-    list: SyncOrderStatusDto[],
+    dto: SyncOrderStatusDto,
     program: string,
-    manager: typeof this.dataSource.manager,
+    manager: EntityManager,
   ): Promise<void> {
-    this.logger.log(`进入处理逻辑：${operate}`);
     const strategy = OPERATE_STRATEGY.get(operate);
     if (!strategy) {
       this.logger.error(`未注册的操作类型: ${operate}`);
       return;
     }
 
-    const orderCodes = list.map((e) => e.orderCode);
-
-    // 1. 查库
-    const candidates: StatusCandidate[] = await manager.find(OrderMainEntity, {
-      where: { orderCode: In(orderCodes), deleted: GlobalStatusEnum.NO },
+    /* 1. 查库 */
+    const candidate = await manager.findOne(OrderMainEntity, {
+      where: {
+        orderCode: dto.orderCode,
+        deleted: GlobalStatusEnum.NO,
+      },
       select: ['id', 'orderCode', 'orderStatus'],
     });
 
-    // 2. 差异比对
-    const existCodeSet = new Set(candidates.map((c) => c.orderCode));
-    const missing = orderCodes.filter((c) => !existCodeSet.has(c));
-    if (missing.length) {
-      this.logger.warn(
-        `[${operate}] 以下订单在库中不存在，跳过：${missing.join(',')}`,
-      );
+    if (!candidate) {
+      this.logger.warn(`订单 ${dto.orderCode} 不存在，跳过`);
+      return;
     }
-    this.logger.log(`差异比对 candidates：${JSON.stringify(candidates)}`);
-    // 3. 过滤可操作的订单
-    const toUpdate = candidates.filter(
-      (c) => c.orderStatus === strategy.fromStatus,
-    );
-    this.logger.log(
-      `[operate=2] fromStatus: ${
-        strategy.fromStatus
-      }, candidateStatus: ${candidates.map((c) => c.orderStatus).join(',')}`,
-    );
-    if (!toUpdate.length) return;
-    this.logger.log(`[operate=2] toUpdate length: ${toUpdate.length}`);
-    // 4. 批量更新
-    const ids = toUpdate.map((c) => c.id);
 
+    /* 2. 状态校验 */
+    if (candidate.orderStatus !== strategy.fromStatus) {
+      this.logger.warn(
+        `订单 ${dto.orderCode} 当前状态 ${candidate.orderStatus} 不符合要求 ${strategy.fromStatus}，跳过`,
+      );
+      return;
+    }
+
+    /* 3. 更新 */
     const { affected = 0 } = await manager.update(
       OrderMainEntity,
-      { id: In(ids), orderStatus: strategy.fromStatus },
+      { id: candidate.id, orderStatus: strategy.fromStatus },
       {
         orderStatus: strategy.toStatus,
         reviserId: '-1',
         receiverName: '系统自动同步',
         revisedTime: dayjs().toDate(),
-        ...strategy.extraPayload?.(''), // 支持额外字段
+        ...strategy.extraPayload?.(''),
       },
     );
 
-    // 5. 执行副作用
+    if (affected === 0) {
+      this.logger.warn(`订单 ${dto.orderCode} 更新失败，可能并发冲突`);
+      return;
+    }
+
+    /* 4. 副作用 */
     if (strategy.sideEffects?.length) {
-      this.logger.log(`strategy.sideEffects:${strategy.sideEffects}`);
       for (const SideEffectClass of strategy.sideEffects) {
         if (SideEffectClass === OrderSyncCancelService) {
-          for (const orderCode of toUpdate.map((c) => c.orderCode)) {
-            await this.orderSyncCancelService.handle(orderCode, manager);
-          }
+          await this.orderSyncCancelService.handle(
+            candidate.orderCode,
+            manager,
+          );
         }
       }
     }
-    // 5. 写日志
-    const logIds = ids.slice(0, affected);
-    await Promise.all(
-      logIds.map((id) => {
-        const logInput = OrderLogHelper.getOrderOperate(
-          {
-            businessSystemId: '',
-            exp: 0,
-            iat: 0,
-            ipAddress: '',
-            username: '',
-            userId: '1',
-            nickName: '超级管理员',
-          },
-          strategy.logTemplate,
-          program,
-          String(id),
-        );
-        return this.businessLogService.writeLog(logInput, manager);
-      }),
+
+    /* 5. 日志 */
+    const logInput = OrderLogHelper.getOrderOperate(
+      {
+        businessSystemId: '',
+        exp: 0,
+        iat: 0,
+        ipAddress: '',
+        username: '',
+        userId: '-1',
+        nickName: '系统自动同步',
+      },
+      strategy.logTemplate,
+      program,
+      String(candidate.id),
     );
+    await this.businessLogService.writeLog(logInput, manager);
   }
 }
