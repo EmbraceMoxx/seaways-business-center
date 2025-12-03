@@ -306,7 +306,7 @@ export class CustomerCreditLimitService {
 
     queryBuilder = queryBuilder.orderBy({
       'credit.created_time': 'DESC',
-      'credit.customer_id': 'ASC',
+      'credit.customer_id': 'DESC',
     });
 
     // 4、获取数据
