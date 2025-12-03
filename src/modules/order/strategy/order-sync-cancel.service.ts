@@ -26,8 +26,8 @@ export class OrderSyncCancelService implements IOperateSideEffect {
       iat: 0,
       ipAddress: '',
       username: '',
-      userId: '1',
-      nickName: '超级管理员',
+      userId: '-1',
+      nickName: '系统自动同步',
     };
     // 释放额度，要衡量一下要不要新写，逻辑比较特殊
     await this.creditLimitDetailService.closeCustomerOrderCredit(

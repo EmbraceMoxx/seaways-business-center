@@ -156,8 +156,8 @@ export class OrderSyncService {
       { id: In(ids), orderStatus: strategy.fromStatus },
       {
         orderStatus: strategy.toStatus,
-        reviserId: '1',
-        receiverName: '超级管理员',
+        reviserId: '-1',
+        receiverName: '系统自动同步',
         revisedTime: dayjs().toDate(),
         ...strategy.extraPayload?.(''), // 支持额外字段
       },
