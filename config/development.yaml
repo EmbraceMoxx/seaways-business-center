@@ -1,2 +1,24 @@
 # 日志级别
 logLevel: debug
+
+# HTTP Proxy
+httpProxy:
+  baseURL: http://192.168.110.163:5183/api
+  # baseURL: http://127.0.0.1:8099/api
+
+# 订单事件任务配置
+orderEventTask:
+  maxEventBatchSize: 5          # 每次处理的最大订单事件数量
+  # 日期格式为: 数字 + 空格 + 单位(day/hour/minute)
+  earliestTime: '7 day'         # 最早处理时间点，防止处理过旧的事件
+  latestTime: '30 minute'       # 最晚处理时间点，防止处理过新的事件
+
+# role 指定角色可访问数据配置
+role:
+  ids: 640742067030593536,645552106786394112
+# 审批边界设置
+approval:
+  freeRatio:
+    auxiliary: 0.03          # 辅销免审批比例
+    replenishment: 0.05      # 有省区时货补免审批比例
+    replenishmentNoProv: 0.1 # 无省区时货补免审批比例
