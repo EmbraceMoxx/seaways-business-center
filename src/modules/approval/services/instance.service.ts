@@ -108,8 +108,10 @@ export class InstanceService {
    * 验证是否可以重新提交
    */
   async validateResubmission(
-    orderId: string,
+    createDto: CreateApprovalDto,
   ): Promise<ApprovalInstanceEntity | null> {
+    const { orderId, operatorId } = createDto;
+
     // 查询现有实例
     const instance = await this.instanceRepository.findOneBy({ orderId });
 
@@ -120,7 +122,11 @@ export class InstanceService {
     const currentOrder = await this.entityManager.findOneBy(OrderMainEntity, {
       id: orderId,
     });
+
     if (!currentOrder) throw new BusinessException('未找到关联的订单');
+
+    if (currentOrder.creatorId !== operatorId)
+      throw new BusinessException('非创建人不允许提交');
 
     if (!isResubmitAllowed(currentOrder.orderStatus)) {
       const errorMessage = getResubmitMessage(currentOrder.orderStatus);

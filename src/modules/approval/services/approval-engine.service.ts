@@ -46,9 +46,7 @@ export class ApprovalEngineService {
     createDto: CreateApprovalDto,
   ): Promise<ApprovalInstanceEntity> {
     // 查询并验证现有实例
-    const existing = await this.instanceService.validateResubmission(
-      createDto.orderId,
-    );
+    const existing = await this.instanceService.validateResubmission(createDto);
 
     // 创建新的审批实例
     return this.instanceService.createInstance(createDto, existing);
