@@ -339,7 +339,7 @@ export class OrderService {
       if (!checkResult || checkResult.isQueryAll) {
         // 不限制客户范围，继续查询
       } else if (!checkResult.principalUserIds?.length) {
-        console.log('进入了else');
+        this.logger.log('进入了else');
         return { items: [], total: 0 };
       } else {
         // 收集所有人负责的客户ID，去查询订单对应的客户ID
@@ -542,7 +542,7 @@ export class OrderService {
           orderMain,
           user,
         );
-        console.log('approvalDto:', JSON.stringify(approvalDto));
+        this.logger.log('approvalDto:', JSON.stringify(approvalDto));
         await this.approvalEngineService.startApprovalProcess(approvalDto);
       });
 
@@ -725,6 +725,7 @@ export class OrderService {
 
       // 调用审批流程
       const approvalDto = OrderConvertHelper.buildApprovalDto(orderMain, user);
+      this.logger.log(`修改订单，审批信息为：${JSON.stringify(approvalDto)}`);
       await this.approvalEngineService.startApprovalProcess(approvalDto);
     });
 

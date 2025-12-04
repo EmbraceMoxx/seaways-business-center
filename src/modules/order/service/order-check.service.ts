@@ -288,9 +288,11 @@ export class OrderCheckService {
     // 修改为：
     const hasPermission =
       userResult.isQueryAll ||
-      userResult.principalUserIds?.includes(orderMain.creatorId) ||
+      // userResult.principalUserIds?.includes(orderMain.creatorId) ||
       user.userId === orderMain.creatorId;
-
+    this.logger.log(
+      `userResult.isQueryAll:${userResult.isQueryAll},orderMain.creatorId:${orderMain.creatorId},user.userId:${user.userId},userResult.principalUserIds:${userResult.principalUserIds}`,
+    );
     // 根据不同订单状态设置可操作按钮
     switch (orderMain.orderStatus) {
       case OrderStatusEnum.PENDING_PAYMENT:
