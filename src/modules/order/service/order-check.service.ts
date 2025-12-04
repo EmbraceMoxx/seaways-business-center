@@ -215,12 +215,12 @@ export class OrderCheckService {
         strategies.map((s) =>
           s.validate(
             {
-              replenishRatio,
-              auxiliarySalesRatio,
-              needApproval,
+              replenishRatio: replenishRatio,
+              auxiliarySalesRatio: auxiliarySalesRatio,
+              isNeedApproval: needApproval,
               orderSubsidyAmount: subsidyAmount,
-              replenishAmount,
-              auxiliaryAmount,
+              replenishAmount: replenishAmount,
+              auxiliarySalesAmount: auxiliaryAmount,
             } as any,
             customer,
           ),

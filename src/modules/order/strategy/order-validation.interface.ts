@@ -35,19 +35,18 @@ export class ReplenishRatioValidationStrategy implements ValidationStrategy {
     customerInfo: CustomerInfoEntity,
   ): Promise<string[]> {
     const messages: string[] = [];
+
+    const actual = parseFloat(response.replenishRatio || '0');
+    console.log('ReplenishRatioValidationStrategy actual ', actual);
+    console.log('this.replenishThreshold ', this.replenishThreshold);
     // 省区负责人不存在则return
-    if (!customerInfo.provincialHeadId) {
-      console.log(
-        '省区负责人不存在,无需进入此策略 ',
-        customerInfo.provincialHeadId,
-      );
+    console.log(response.isNeedApproval);
+    if (!response.isNeedApproval) {
+      console.log('无需审核', response.isNeedApproval);
       console.log('ReplenishRatioValidationStrategy message', messages);
 
       return messages;
     }
-    const actual = parseFloat(response.replenishRatio || '0');
-    console.log('ReplenishRatioValidationStrategy actual ', actual);
-    console.log('this.replenishThreshold ', this.replenishThreshold);
     if (actual > this.replenishThreshold) {
       messages.push(
         `货补比例 ${toPercent(response.replenishRatio)}% 超过上限 ${(
@@ -74,6 +73,11 @@ export class AuxiliarySalesRatioValidationStrategy
     const actual = parseFloat(response.auxiliarySalesRatio || '0');
     console.log('AuxiliarySalesRatioValidationStrategy actual ', actual);
     console.log('this.auxiliaryThreshold ', this.auxiliaryThreshold);
+    if (!response.isNeedApproval) {
+      console.log('无需审核', response.isNeedApproval);
+      console.log('AuxiliarySalesRatioValidationStrategy message', messages);
+      return messages;
+    }
     if (actual > this.auxiliaryThreshold) {
       messages.push(
         `辅销比例 ${toPercent(response.auxiliarySalesRatio)}% 超过上限 ${(
@@ -92,7 +96,11 @@ export class UsePreRioValidationStrategy implements ValidationStrategy {
     customerInfo: CustomerInfoEntity,
   ): Promise<string[]> {
     const messages: string[] = [];
-    console.log('测试金额获取', JSON.stringify(response));
+    if (!response.isNeedApproval) {
+      console.log('无需审核', response.isNeedApproval);
+      console.log('UsePreRioValidationStrategy message', messages);
+      return messages;
+    }
     if (
       parseFloat(response.orderSubsidyAmount) <= 0 &&
       (parseFloat(response.replenishAmount) > 0 ||
