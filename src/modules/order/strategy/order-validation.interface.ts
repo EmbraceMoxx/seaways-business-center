@@ -30,8 +30,21 @@ export class ReplenishRatioValidationStrategy implements ValidationStrategy {
     @Inject(REP_THRESHOLD_TOKEN)
     private readonly replenishThreshold: number, // 默认 5%，业务层传入
   ) {}
-  async validate(response: CheckOrderAmountResponse): Promise<string[]> {
+  async validate(
+    response: CheckOrderAmountResponse,
+    customerInfo: CustomerInfoEntity,
+  ): Promise<string[]> {
     const messages: string[] = [];
+    // 省区负责人不存在则return
+    if (!customerInfo.provincialHeadId) {
+      console.log(
+        '省区负责人不存在,无需进入此策略 ',
+        customerInfo.provincialHeadId,
+      );
+      console.log('ReplenishRatioValidationStrategy message', messages);
+
+      return messages;
+    }
     const actual = parseFloat(response.replenishRatio || '0');
     console.log('ReplenishRatioValidationStrategy actual ', actual);
     console.log('this.replenishThreshold ', this.replenishThreshold);
@@ -42,6 +55,7 @@ export class ReplenishRatioValidationStrategy implements ValidationStrategy {
         ).toFixed(0)}%，需审批`,
       );
     }
+
     return messages;
   }
 }
@@ -67,6 +81,7 @@ export class AuxiliarySalesRatioValidationStrategy
         ).toFixed(0)}%，需审批`,
       );
     }
+    console.log('AuxiliarySalesRatioValidationStrategy message', messages);
     return messages;
   }
 }
@@ -85,6 +100,7 @@ export class UsePreRioValidationStrategy implements ValidationStrategy {
     ) {
       messages.push('当前未选中参与货补/辅销的产品，但使用了货补/辅销金额');
     }
+    console.log('UsePreRioValidationStrategy message', messages);
     return messages;
   }
 }

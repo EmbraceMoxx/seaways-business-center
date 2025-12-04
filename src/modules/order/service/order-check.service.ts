@@ -193,12 +193,13 @@ export class OrderCheckService {
     );
     const needApproval = this.needApproval(
       customer,
-      replenishRatio,
       auxiliarySalesRatio,
+      replenishRatio,
       subsidyAmount,
       replenishAmount,
       auxiliaryAmount,
     );
+    this.logger.log(`is needApproval${needApproval}`);
     /* ---------- 3. 校验策略插件 ---------- */
     const strategies: ValidationStrategy[] = [
       this.replenishStrategy,
@@ -226,6 +227,7 @@ export class OrderCheckService {
         ),
       )
     ).flat();
+    this.logger.log(`messages.length:${messages.length}`);
     const message = messages.length
       ? `${messages.join('，')}，即将进入审批流程`
       : '';
@@ -394,13 +396,14 @@ export class OrderCheckService {
   }
 
   /** 免审批 = 两个比例都不超阈值 */
-  private isFreeApproval(
+  isFreeApproval(
     c: CustomerInfoEntity,
     aux: number,
     rep: number,
     subsidyAmount: number,
   ): boolean {
     const t = this.getApprovalThresholds(c);
+
     const compareResult = aux <= t.aux && rep <= t.rep;
     if (compareResult) {
       // 若阈值比例免审批，则额度金额是否为0
@@ -422,7 +425,7 @@ export class OrderCheckService {
     const compareResult = aux > t.aux || rep > t.rep;
     // 当符合比例，再进入最后的金额校验
     if (!compareResult) {
-      if ((subsidyAmount <= 0 && replenishAmount > 0) || auxiliaryAmount > 0) {
+      if (subsidyAmount <= 0 && (replenishAmount > 0 || auxiliaryAmount > 0)) {
         return true;
       }
     }

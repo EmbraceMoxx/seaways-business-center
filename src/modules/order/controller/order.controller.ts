@@ -23,6 +23,7 @@ import { CurrentToken } from '@src/decorators/current-token.decorator';
 import { UserService } from '@modules/common/user/user.service';
 import { OrderCheckService } from '@modules/order/service/order-check.service';
 import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
+import { OrderStatusEnum } from '@src/enums/order-status.enum';
 
 @ApiTags('订单管理')
 @Controller('order')
@@ -149,11 +150,47 @@ export class OrderController {
     @CurrentUser() user: JwtUserPayload,
     @CurrentToken() token: string,
   ) {
-    console.log('user:', user);
-    const result = await this.userService.getRangeOfOrderQueryUser(
-      token,
-      user.userId,
+    // 1. 计算比例
+    const auxRatio = Number(0.0102) || 0;
+    const repRatio = Number(0.0971) || 0;
+    const subsidyAmount = Number(3818.6) || 0;
+
+    // 2. 是否免审批
+    const customerInfo = new CustomerInfoEntity();
+    customerInfo.principalUserId = '633192657597894656';
+    customerInfo.regionalHeadId = '633192657597894656';
+    if (
+      this.orderCheckService.isFreeApproval(
+        customerInfo,
+        auxRatio,
+        repRatio,
+        subsidyAmount,
+      )
+    ) {
+      console.log(`免审批：auxRatio=${auxRatio}, repRatio=${repRatio}`);
+      return OrderStatusEnum.PENDING_PAYMENT;
+    }
+    // 3. 需要审批：按人岗关系决定第一站
+    const isCreator = user.userId === customerInfo.principalUserId;
+    console.log(
+      `需审批：auxRatio=${auxRatio}, repRatio=${repRatio}, ` +
+        `isCreator=${isCreator}, provincialHeadId=${customerInfo.provincialHeadId}, ` +
+        `regionalHeadId=${customerInfo.regionalHeadId}`,
     );
-    console.log(JSON.stringify(result));
+    // 3.1 省区存在
+    if (customerInfo.provincialHeadId) {
+      return isCreator
+        ? OrderStatusEnum.REGION_REVIEWING //  其他人提交→先到大区
+        : OrderStatusEnum.PROVINCE_REVIEWING; //  creator 自己就是省区
+    }
+
+    // 3.2 仅大区存在
+    if (customerInfo.regionalHeadId) {
+      return isCreator
+        ? OrderStatusEnum.DIRECTOR_REVIEWING
+        : OrderStatusEnum.REGION_REVIEWING;
+    }
+    // 默认流程： 省区审批
+    console.log(OrderStatusEnum.PROVINCE_REVIEWING);
   }
 }

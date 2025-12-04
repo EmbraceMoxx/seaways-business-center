@@ -6,6 +6,7 @@ import {
   SyncOrderStatusDto,
 } from '@src/dto/order/order.sync.dto';
 import { OrderSyncService } from '@modules/order/service/order-sync.service';
+import { Public } from '@modules/auth/public.decorator';
 
 @ApiTags('订单同步管理')
 @Controller('order/sync')
@@ -20,6 +21,7 @@ export class OrderSyncController {
 
   @ApiOperation({ summary: '聚水潭订单状态同步！' })
   @Post('sync-jst-status')
+  @Public()
   async syncJstOrderStatus(@Body() request: SyncOrderStatusDto[]) {
     const result = await this.orderSyncService.syncJstOrderStatus(request);
     return new SuccessResponseDto(result, '状态同步完成！');

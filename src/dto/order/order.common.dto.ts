@@ -143,6 +143,10 @@ export class CheckOrderAmountResponse {
   message: string;
   @ApiProperty({ description: '是否需要审批' })
   isNeedApproval = false;
+  @ApiProperty({ description: '省区负责人ID' })
+  provinceHeadId :string ;
+  @ApiProperty({ description: '大区负责人ID' })
+  regionalHeadId :string ;
 }
 
 /**
