@@ -27,6 +27,7 @@ import { EventExecutorRegistry } from './service/order-event/event-executor.regi
 import { OrderPushEventExecutor } from './service/order-event/executors/order-push-event.executor';
 import {
   AUX_THRESHOLD_TOKEN,
+  REP_REGION_THRESHOLD_TOKEN,
   REP_THRESHOLD_TOKEN,
 } from '@modules/order/constant';
 import { OrderSyncService } from '@modules/order/service/order-sync.service';
@@ -71,9 +72,15 @@ import { ApprovalConfig } from '@src/configs/approval.config';
         Number(cfg.provinceReplenishmentFreeRatio ?? 0.05), // 读静态字段
     },
     {
+      provide: REP_REGION_THRESHOLD_TOKEN,
+      inject: [ApprovalConfig],
+      useFactory: (cfg: ApprovalConfig) =>
+        Number(cfg.maxReplenishmentFreeApprovalRatio ?? 0.1), // 读静态字段
+    },
+    {
       provide: AUX_THRESHOLD_TOKEN,
       inject: [ApprovalConfig],
-      useFactory:(cfg: ApprovalConfig) =>
+      useFactory: (cfg: ApprovalConfig) =>
         Number(cfg.auxiliaryFreeRatio ?? 0.03),
     },
     ReplenishRatioValidationStrategy,

@@ -8,6 +8,7 @@ import { CustomerCreditAmountInfoEntity } from '@modules/customer/entities/custo
 import { Repository } from 'typeorm';
 import {
   AUX_THRESHOLD_TOKEN,
+  REP_REGION_THRESHOLD_TOKEN,
   REP_THRESHOLD_TOKEN,
 } from '@modules/order/constant';
 
@@ -29,6 +30,8 @@ export class ReplenishRatioValidationStrategy implements ValidationStrategy {
   constructor(
     @Inject(REP_THRESHOLD_TOKEN)
     private readonly replenishThreshold: number, // 默认 5%，业务层传入
+    @Inject(REP_REGION_THRESHOLD_TOKEN)
+    private readonly replenishRegionThreshold: number, // 默认 10%，业务层传入
   ) {}
   async validate(
     response: CheckOrderAmountResponse,
@@ -37,8 +40,6 @@ export class ReplenishRatioValidationStrategy implements ValidationStrategy {
     const messages: string[] = [];
 
     const actual = parseFloat(response.replenishRatio || '0');
-    console.log('ReplenishRatioValidationStrategy actual ', actual);
-    console.log('this.replenishThreshold ', this.replenishThreshold);
     // 省区负责人不存在则return
     console.log(response.isNeedApproval);
     if (!response.isNeedApproval) {
@@ -47,10 +48,20 @@ export class ReplenishRatioValidationStrategy implements ValidationStrategy {
 
       return messages;
     }
-    if (actual > this.replenishThreshold) {
+    if (actual > this.replenishThreshold && customerInfo.provincialHeadId) {
       messages.push(
         `货补比例 ${toPercent(response.replenishRatio)}% 超过上限 ${(
           this.replenishThreshold * 100
+        ).toFixed(0)}%，需审批`,
+      );
+    }
+    if (
+      actual > this.replenishRegionThreshold &&
+      !customerInfo.provincialHeadId
+    ) {
+      messages.push(
+        `货补比例 ${toPercent(response.replenishRatio)}% 超过上限 ${(
+          this.replenishRegionThreshold * 100
         ).toFixed(0)}%，需审批`,
       );
     }
