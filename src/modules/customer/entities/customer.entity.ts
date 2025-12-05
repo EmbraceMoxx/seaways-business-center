@@ -164,6 +164,15 @@ export class CustomerInfoEntity {
   coStatus: string;
 
   @Column({
+    name: 'is_earnest_money',
+    type: 'varchar',
+    length: 20,
+    default: '1',
+    comment: '是否缴纳保证金，1缴纳0未缴纳',
+  })
+  isEarnestMoney: string;
+
+  @Column({
     name: 'enabled',
     type: 'varchar',
     length: 10,

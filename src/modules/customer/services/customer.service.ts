@@ -68,6 +68,7 @@ export class CustomerService {
           'customer.distributor_type as distributorType',
           'customer.is_contract as isContract',
           'customer.co_status as coStatus',
+          'customer.is_earnest_money as isEarnestMoney',
           'customer.enabled as enabled',
           'customer.deleted as deleted',
           'customer.creator_id as creatorId',
@@ -393,6 +394,9 @@ export class CustomerService {
         customer.provincialHeadId = customerData?.provincialHeadId;
       }
 
+      customer.customerJstId = customerData?.customerJstId;
+      customer.customerType = customerData?.customerType;
+      customer.isEarnestMoney = customerData?.isEarnestMoney;
       customer.distributorType = customerData?.distributorType;
       customer.contractValidityPeriod = customerData?.contractValidityPeriod;
       customer.contractAmount = customerData?.contractAmount
