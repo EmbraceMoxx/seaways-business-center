@@ -1004,6 +1004,8 @@ export class OrderService {
         name: item.name,
         alias: item.aliasName,
         internalCode: item.internalCode,
+        commodityBarcode: item.commodityBarcode,
+        remark: item.remark,
         specInfo: item.specInfo,
         boxSpecInfo: item.boxSpecInfo,
         boxSpecPiece: item.boxSpecPiece,
