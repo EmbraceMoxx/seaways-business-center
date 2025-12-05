@@ -603,18 +603,18 @@ export class CommodityService {
       const savedCommodity = await this.commodityRepository.save(commodity);
 
       // 7、 组合商品
-      if (
-        commodityData.compositeCommodity &&
-        commodityData.compositeCommodity.length > 0
-      ) {
-        await Promise.all(
-          commodityData.compositeCommodity.map((item) =>
-            this.addCommodityBundleInfo(commodity.id, item, userPayload),
-          ),
-        );
-      } else {
-        await this.deleteCommodityBundleInfo(commodity.id);
-      }
+      // if (
+      //   commodityData.compositeCommodity &&
+      //   commodityData.compositeCommodity.length > 0
+      // ) {
+      //   await Promise.all(
+      //     commodityData.compositeCommodity.map((item) =>
+      //       this.addCommodityBundleInfo(commodity.id, item, userPayload),
+      //     ),
+      //   );
+      // } else {
+      //   await this.deleteCommodityBundleInfo(commodity.id);
+      // }
       return savedCommodity;
     } catch (error) {
       throw new BusinessException('新增商品失败');
@@ -660,19 +660,19 @@ export class CommodityService {
       await this.commodityRepository.update(id, commodity);
 
       // 6、 组合商品
-      if (
-        commodityData.compositeCommodity &&
-        commodityData.compositeCommodity.length > 0
-      ) {
-        await Promise.all(
-          commodityData.compositeCommodity.map((item) =>
-            this.addCommodityBundleInfo(commodity.id, item, userPayload),
-          ),
-        );
-      } else {
-        // 删除组合商品
-        await this.deleteCommodityBundleInfo(commodity.id);
-      }
+      // if (
+      //   commodityData.compositeCommodity &&
+      //   commodityData.compositeCommodity.length > 0
+      // ) {
+      //   await Promise.all(
+      //     commodityData.compositeCommodity.map((item) =>
+      //       this.addCommodityBundleInfo(commodity.id, item, userPayload),
+      //     ),
+      //   );
+      // } else {
+      //   // 删除组合商品
+      //   await this.deleteCommodityBundleInfo(commodity.id);
+      // }
     } catch (error) {
       throw new BusinessException('更新商品失败');
     }
