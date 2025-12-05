@@ -436,7 +436,12 @@ export class OrderService {
       orderMain,
       req.receiverAddress,
     );
+    // 备注信息
     orderMain.remark = req.remark?.trim() ?? '';
+    orderMain.orderTimeliness = req.orderTimeliness?.trim() ?? '';
+    orderMain.processCodeRemark = req.processCodeRemark?.trim() ?? '';
+    orderMain.deliveryRequirement = req.deliveryRequirement?.trim() ?? '';
+
     // 处理商品信息
     const finishGoodsList = req.finishGoods;
     const replenishGoodsList = req.replenishGoods;
@@ -593,7 +598,12 @@ export class OrderService {
       updateOrderMain,
       req.receiverAddress,
     );
-    updateOrderMain.remark = req.remark ? req.remark.trim() : '';
+    // 备注信息
+    updateOrderMain.remark = req.remark?.trim() ?? '';
+    updateOrderMain.orderTimeliness = req.orderTimeliness?.trim() ?? '';
+    updateOrderMain.processCodeRemark = req.processCodeRemark?.trim() ?? '';
+    updateOrderMain.deliveryRequirement = req.deliveryRequirement?.trim() ?? '';
+
     // 3. 订单商品信息
     const finishGoodsList = req.finishGoods;
     const replenishGoodsList = req.replenishGoods;
@@ -900,20 +910,15 @@ export class OrderService {
   }
 
   /**
-   * 确认订单回款
+   * 订单推单释放额度
    * @param orderId 订单ID
    * @param user 当前操作用户信息
    * @returns 返回订单ID
    */
   async confirmPayment(orderId: string, user: JwtUserPayload) {
-    const lastOperateProgram = 'OrderService.confirmPayment';
     const orderMain = await this.orderCheckService.checkOrderExist(orderId);
-    if (OrderStatusEnum.PENDING_PAYMENT !== orderMain.orderStatus) {
-      throw new BusinessException('订单当前状态不允许操作确认回款请确认！');
-    }
     const updateOrder = new OrderMainEntity();
     updateOrder.id = orderId;
-    updateOrder.orderStatus = String(OrderStatusEnum.PENDING_PUSH);
     updateOrder.reviserId = user.userId;
     updateOrder.receiverName = user.nickName;
     updateOrder.revisedTime = dayjs().toDate();
@@ -926,14 +931,6 @@ export class OrderService {
         user,
       );
     });
-    const result = OrderLogHelper.getOrderOperate(
-      user,
-      OrderOperateTemplateEnum.CONFIRM_ORDER_PAYMENT,
-      lastOperateProgram,
-      orderId,
-    );
-    await this.businessLogService.writeLog(result);
-
     return orderId;
   }
 

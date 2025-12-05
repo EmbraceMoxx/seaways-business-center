@@ -6,7 +6,7 @@ export enum OrderStatusEnum {
   /** 总监审批中 */
   DIRECTOR_REVIEWING = '2000103',
   /** 待回款 */
-  PENDING_PAYMENT = '20002',
+  // PENDING_PAYMENT = '20002',
   /** 待推单 */
   PENDING_PUSH = '20003',
   /** 推单中 */
