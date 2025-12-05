@@ -165,11 +165,12 @@ export class CustomerInfoEntity {
 
   @Column({
     name: 'is_earnest_money',
-    type: 'int',
-    default: 0,
+    type: 'varchar',
+    length: 20,
+    default: '1',
     comment: '是否缴纳保证金，1缴纳0未缴纳',
   })
-  isEarnestMoney: number;
+  isEarnestMoney: string;
 
   @Column({
     name: 'enabled',

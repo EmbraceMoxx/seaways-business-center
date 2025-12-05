@@ -448,12 +448,12 @@ export class CustomerInfoUpdateDto {
 
   @ApiProperty({
     description: '是否缴纳保证金，1-缴纳,0-未缴纳',
-    example: 1,
+    example: '1',
     required: false,
   })
   @IsOptional()
-  @IsIn([1, 0], { message: '是否缴纳保证金只能是1或0' })
-  isEarnestMoney?: number;
+  @IsIn(['1', '0'], { message: '是否缴纳保证金只能是1或0' })
+  isEarnestMoney?: string;
 
   @ApiProperty({
     description: '类型：1-店铺2-分销商-1待开通聚水潭店铺',
