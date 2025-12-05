@@ -31,6 +31,14 @@ export class QueryCreditLimiDetailtDto extends PageRequestDto {
   onlineOrderId?: string;
 
   @ApiProperty({
+    description: '订单编码',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '订单编码必须是字符串' })
+  orderCode?: string;
+
+  @ApiProperty({
     description: '开始时间',
     required: false,
   })

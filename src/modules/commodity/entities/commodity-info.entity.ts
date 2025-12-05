@@ -1,5 +1,4 @@
 import { Column, Entity, PrimaryGeneratedColumn, BeforeInsert } from 'typeorm';
-import { generateId } from '@src/utils';
 
 @Entity('commodity_info')
 export class CommodityInfoEntity {
@@ -304,10 +303,4 @@ export class CommodityInfoEntity {
 
   // 组合商品id
   compositeCommodity?: string;
-  @BeforeInsert()
-  generateId() {
-    if (!this.id) {
-      this.id = generateId();
-    }
-  }
 }

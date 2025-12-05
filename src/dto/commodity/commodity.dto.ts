@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsIn, IsNotEmpty } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsIn,
+  IsNotEmpty,
+  IsNumber,
+} from 'class-validator';
 import { PageRequestDto } from '../../dto/common/common.dto';
 
 /**
@@ -301,6 +307,7 @@ export class CommodityRequestDto {
     required: false,
   })
   @IsOptional()
+  @IsString({ message: '商品二级分类必须是字符串' })
   commoditySecondCategory?: string;
 
   @ApiProperty({
@@ -383,6 +390,62 @@ export class CommodityRequestDto {
   isSupplySubsidyInvolved?: number;
 
   @ApiProperty({
+    description: '单件规格',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '单件规格必须是字符串' })
+  itemSpecPiece?: string;
+
+  @ApiProperty({
+    description: '单品规格单位',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '单品规格单位必须是字符串' })
+  itemSpecUnit?: string;
+
+  @ApiProperty({
+    description: '单品规格信息',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '单品规格信息必须是字符串' })
+  itemSpecInfo?: string;
+
+  @ApiProperty({
+    description: '单品最小计量单位',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '单品最小计量单位必须是字符串' })
+  itemMinSpecUnit?: string;
+
+  @ApiProperty({
+    description: '箱包装规格',
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber({}, { message: '箱包装规格必须是数字' })
+  boxSpecPiece?: number;
+
+  @ApiProperty({
+    description: '箱规信息',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '箱规信息必须是字符串' })
+  boxSpecInfo?: string;
+
+  @ApiProperty({
+    description: '商品材质',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '商品材质必须是字符串' })
+  material?: string;
+
+  @ApiProperty({
     description: '单品出厂价（元）',
     example: '4.5',
     required: false,
@@ -431,8 +494,8 @@ export class CommodityRequestDto {
     description: '组合商品ID',
     example: '1,2,3',
     required: false,
+    type: [CommodityBundledSkuResponseDto],
   })
   @IsOptional()
-  @IsString({ message: '组合商品ID必须是字符串' })
-  compositeCommodity?: string;
+  compositeCommodity?: CommodityBundledSkuResponseDto[];
 }

@@ -51,6 +51,7 @@ export class CustomerCreditLimitDetailService {
         flowCode,
         startTime,
         endTime,
+        orderCode,
         page,
         pageSize,
       } = params;
@@ -87,6 +88,16 @@ export class CustomerCreditLimitDetailService {
           'creditDetail.online_order_id LIKE :onlineOrderId',
           {
             onlineOrderId: `%${onlineOrderId}%`,
+          },
+        );
+      }
+
+      // 订单编码
+      if (orderCode) {
+        queryBuilder = queryBuilder.andWhere(
+          'creditDetail.order_code LIKE :orderCode',
+          {
+            orderCode: `%${orderCode}%`,
           },
         );
       }

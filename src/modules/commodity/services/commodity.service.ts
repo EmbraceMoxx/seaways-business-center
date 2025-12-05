@@ -13,6 +13,7 @@ import {
   CommodityRequestDto,
 } from '@src/dto';
 import * as dayjs from 'dayjs';
+import { generateId } from '@src/utils';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { CommodityInfoEntity } from '../entities/commodity-info.entity';
 import { CommodityBundledSkuInfoEntity } from '../entities/commodity-bundled-sku-info.entity';
@@ -304,6 +305,31 @@ export class CommodityService {
   }
 
   /**
+   * 获取商品基本信息
+   */
+  async getCommodityInfoById(id: string): Promise<CommodityInfoEntity> {
+    try {
+      // 根据id获取启用未删除的商品
+      const commodity = await this.commodityRepository
+        .createQueryBuilder('commodity')
+        .where('commodity.deleted = :deleted', {
+          deleted: GlobalStatusEnum.NO,
+        })
+        .andWhere('commodity.enabled = :enabled', {
+          enabled: GlobalStatusEnum.YES,
+        })
+        .andWhere('commodity.id = :id', { id })
+        .getOne();
+      return commodity;
+    } catch (error) {
+      if (error instanceof BusinessException) {
+        throw error;
+      }
+      throw new BusinessException('获取商品详情失败');
+    }
+  }
+
+  /**
    * 根据商品ID获取绑定的组合商品信息
    */
   async getBundledSkusWithCommodityInfoByCommodityId(
@@ -460,6 +486,67 @@ export class CommodityService {
   }
 
   /**
+   * 新增商品组合信息（覆盖式）
+   */
+  async addCommodityBundleInfo(
+    commodityId: string,
+    bundleCommodity: any,
+    userPayload: JwtUserPayload,
+  ): Promise<void> {
+    // 1、查询是否给该商品commodityId绑过组合商品
+    const existingBundles = await this.getCommodityBundleIdListByCommodityId(
+      commodityId,
+    );
+
+    if (existingBundles && existingBundles.length > 0) {
+      // 1.1 存在则清空
+      for (const bundle of existingBundles) {
+        await this.deleteCommodityBundleInfo(bundle.id);
+      }
+    }
+
+    // 2、构建组合信息
+    const bundleInfo = new CommodityBundledSkuInfoEntity();
+
+    // 3、设置组合信息、
+    bundleInfo.id = generateId();
+    bundleInfo.commodityId = commodityId;
+    bundleInfo.bundledCommodityId = bundleCommodity.bundledCommodityId;
+    bundleInfo.bundleCommodityInternalCode =
+      bundleCommodity.commodityInternalCode;
+    bundleInfo.bundleCommodityBarcode = bundleCommodity.commodityBarcode;
+
+    // 4、默认
+    bundleInfo.enabled = GlobalStatusEnum.YES;
+    bundleInfo.deleted = GlobalStatusEnum.NO;
+
+    // 5、设置创建时间
+    bundleInfo.creatorId = userPayload.userId;
+    bundleInfo.creatorName = userPayload.nickName;
+    bundleInfo.createdTime = dayjs().toDate();
+
+    // 6、设置更新时间
+    bundleInfo.reviserId = userPayload.userId;
+    bundleInfo.reviserName = userPayload.nickName;
+    bundleInfo.revisedTime = dayjs().toDate();
+
+    await this.commodityBundledSkuInfoEntityRepository.save(bundleInfo);
+  }
+
+  /**
+   * 删除组合信息
+   */
+  async deleteCommodityBundleInfo(id: string): Promise<void> {
+    // 软删除
+    await this.commodityBundledSkuInfoEntityRepository.update(
+      { id },
+      {
+        deleted: GlobalStatusEnum.YES,
+      },
+    );
+  }
+
+  /**
    * 新增商品
    */
   async addCommodity(
@@ -471,6 +558,7 @@ export class CommodityService {
       const commodity = new CommodityInfoEntity();
 
       // 2、设置商品信息
+      commodity.id = generateId();
       commodity.commodityCode = commodityData.commodityCode;
       commodity.commodityFirstCategory = commodityData.commodityFirstCategory;
       commodity.commoditySecondCategory = commodityData.commoditySecondCategory;
@@ -483,6 +571,13 @@ export class CommodityService {
       commodity.isQuotaInvolved = commodityData.isQuotaInvolved;
       commodity.isGiftEligible = commodityData.isGiftEligible;
       commodity.isSupplySubsidyInvolved = commodityData.isSupplySubsidyInvolved;
+      commodity.itemSpecPiece = commodityData.itemSpecPiece;
+      commodity.itemSpecUnit = commodityData.itemSpecUnit;
+      commodity.itemSpecInfo = commodityData.itemSpecInfo;
+      commodity.itemMinSpecUnit = commodityData.itemMinSpecUnit;
+      commodity.boxSpecPiece = commodityData.boxSpecPiece;
+      commodity.boxSpecInfo = commodityData.boxSpecInfo;
+      commodity.material = commodityData.material;
       commodity.itemExFactoryPrice = commodityData.itemExFactoryPrice;
       commodity.itemSuggestedPrice = commodityData.itemSuggestedPrice;
       commodity.itemMinRetailPrice = commodityData.itemMinRetailPrice;
@@ -490,27 +585,96 @@ export class CommodityService {
       commodity.itemMinControlledDiscount =
         commodityData.itemMinControlledDiscount;
 
-      // 3、 组合商品id(后续要去新增组合商品关系表)
-      commodity.compositeCommodity = commodityData.compositeCommodity;
-
-      // 4、默认
+      // 3、默认
       commodity.enabled = GlobalStatusEnum.YES;
       commodity.deleted = GlobalStatusEnum.NO;
 
-      // 5、设置创建时间
+      // 4、设置创建时间
       commodity.creatorId = userPayload.userId;
       commodity.creatorName = userPayload.nickName;
       commodity.createdTime = dayjs().toDate();
 
-      // 6、设置更新时间
+      // 5、设置更新时间
       commodity.reviserId = userPayload.userId;
       commodity.reviserName = userPayload.nickName;
       commodity.revisedTime = dayjs().toDate();
 
-      // 7、更新客户地址
-      return await this.commodityRepository.save(commodity);
+      // 6、保存商品
+      const savedCommodity = await this.commodityRepository.save(commodity);
+
+      // 7、 组合商品
+      if (
+        commodityData.compositeCommodity &&
+        commodityData.compositeCommodity.length > 0
+      ) {
+        await Promise.all(
+          commodityData.compositeCommodity.map((item) =>
+            this.addCommodityBundleInfo(commodity.id, item, userPayload),
+          ),
+        );
+      } else {
+        await this.deleteCommodityBundleInfo(commodity.id);
+      }
+      return savedCommodity;
     } catch (error) {
-      throw new BusinessException('新增商品分类失败');
+      throw new BusinessException('新增商品失败');
+    }
+  }
+
+  /**
+   * 更新商品
+   */
+  async updateCommodity(
+    id: string,
+    commodityData: CommodityRequestDto,
+    userPayload: JwtUserPayload,
+  ) {
+    try {
+      // 1、判断商品是否存在
+      const commodityInfo = await this.getCommodityInfoById(id);
+      if (!commodityInfo) {
+        throw new BusinessException('商品不存在');
+      }
+
+      // 2、构建商品信息
+      const commodity = new CommodityInfoEntity();
+
+      // 3、设置商品信息
+      commodity.status = commodityData.status;
+      commodity.isQuotaInvolved = commodityData.isQuotaInvolved;
+      commodity.isGiftEligible = commodityData.isGiftEligible;
+      commodity.isSupplySubsidyInvolved = commodityData.isSupplySubsidyInvolved;
+      commodity.itemExFactoryPrice = commodityData.itemExFactoryPrice;
+      commodity.itemSuggestedPrice = commodityData.itemSuggestedPrice;
+      commodity.itemMinRetailPrice = commodityData.itemMinRetailPrice;
+      commodity.itemMinRetailDiscount = commodityData.itemMinRetailDiscount;
+      commodity.itemMinControlledDiscount =
+        commodityData.itemMinControlledDiscount;
+
+      // 4、设置更新时间
+      commodity.reviserId = userPayload.userId;
+      commodity.reviserName = userPayload.nickName;
+      commodity.revisedTime = dayjs().toDate();
+
+      // 5、更新客商品信息
+      await this.commodityRepository.update(id, commodity);
+
+      // 6、 组合商品
+      if (
+        commodityData.compositeCommodity &&
+        commodityData.compositeCommodity.length > 0
+      ) {
+        await Promise.all(
+          commodityData.compositeCommodity.map((item) =>
+            this.addCommodityBundleInfo(commodity.id, item, userPayload),
+          ),
+        );
+      } else {
+        // 删除组合商品
+        await this.deleteCommodityBundleInfo(commodity.id);
+      }
+    } catch (error) {
+      throw new BusinessException('更新商品失败');
     }
   }
 }

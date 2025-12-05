@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import {
   SuccessResponseDto,
@@ -43,6 +43,21 @@ export class CommodityController {
     @CurrentUser() user: JwtUserPayload,
   ): Promise<SuccessResponseDto> {
     const result = await this.commodityService.addCommodity(commodity, user);
+    return new SuccessResponseDto(result, '新增成功');
+  }
+
+  @ApiOperation({ summary: '更新商品' })
+  @Put(':id')
+  async updateCommodity(
+    @Param('id') id: string,
+    @Body() commodity: CommodityRequestDto,
+    @CurrentUser() user: JwtUserPayload,
+  ): Promise<SuccessResponseDto> {
+    const result = await this.commodityService.updateCommodity(
+      id,
+      commodity,
+      user,
+    );
     return new SuccessResponseDto(result, '新增成功');
   }
 }

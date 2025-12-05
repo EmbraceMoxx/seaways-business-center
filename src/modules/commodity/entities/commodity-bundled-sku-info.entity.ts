@@ -3,7 +3,7 @@ import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 @Entity('commodity_bundled_sku_info')
 export class CommodityBundledSkuInfoEntity {
   @PrimaryGeneratedColumn({ type: 'bigint', name: 'id', comment: '业务主键' })
-  id: number;
+  id: string;
 
   @Column('bigint', { name: 'commodity_id', comment: '父商品ID' })
   commodityId: string;
