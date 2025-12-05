@@ -389,6 +389,12 @@ export class OrderDetailItem {
   @ApiProperty({ description: '商品内部编码' })
   internalCode: string;
 
+  @ApiProperty({ description: '商品条形码' })
+  commodityBarcode: string;
+
+  @ApiProperty({ description: '备注信息' })
+  remark: string;
+
   @ApiProperty({ description: '规格信息' })
   specInfo: string;
 
