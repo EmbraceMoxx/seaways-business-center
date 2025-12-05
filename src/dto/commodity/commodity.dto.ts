@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsIn } from 'class-validator';
+import { IsOptional, IsString, IsIn, IsNotEmpty } from 'class-validator';
 import { PageRequestDto } from '../../dto/common/common.dto';
 
 /**
@@ -271,4 +271,168 @@ export class CommodityBundledSkuResponseDto {
     example: '1143705629588279297',
   })
   bundledCommodityId: string;
+}
+
+/**
+ * 商品请求DTO
+ */
+export class CommodityRequestDto {
+  @ApiProperty({
+    description: '业务中台内部商品编码',
+    example: 'XSFL_000011',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '商品编码必须是字符串' })
+  commodityCode?: string;
+
+  @ApiProperty({
+    description: '商品一级分类ID',
+    example: '1735123456789012355',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '商品一级分类必须是字符串' })
+  commodityFirstCategory?: string;
+
+  @ApiProperty({
+    description: '商品二级分类ID',
+    example: '1735123456789012356',
+    required: false,
+  })
+  @IsOptional()
+  commoditySecondCategory?: string;
+
+  @ApiProperty({
+    description: '商品名称',
+    example: '水卫士校服净托台',
+  })
+  @IsNotEmpty()
+  @IsString({ message: '商品名称必须是字符串' })
+  commodityName: string;
+
+  @ApiProperty({
+    description: '商品简称',
+    example: '水卫士校服净托台',
+  })
+  @IsNotEmpty()
+  @IsString({ message: '商品简称必须是字符串' })
+  commodityAliaName: string;
+
+  @ApiProperty({
+    description: '商品内部编码,与金蝶匹配',
+    example: '12121212',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '商品内部编码必须是字符串' })
+  commodityInternalCode?: string;
+
+  @ApiProperty({
+    description: '商品条码,与69码匹配',
+    example: '12121212',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '商品条码必须是字符串' })
+  commodityBarcode?: string;
+
+  @ApiProperty({
+    description: '商品状态',
+    example: '1',
+    required: false,
+  })
+  @IsOptional()
+  @IsIn(['0', '1', '2'], { message: '商品状态必须是0-下架,1-上架,2-停产' })
+  status?: string;
+
+  @ApiProperty({
+    description: '是否组合商品',
+    example: 1,
+    required: false,
+  })
+  @IsOptional()
+  @IsIn([0, 1], { message: '是否组合商品必须是1-是，0-否' })
+  isBundledProducts?: number;
+
+  @ApiProperty({
+    description: '是否参与额度计算',
+    example: 1,
+    required: false,
+  })
+  @IsOptional()
+  @IsIn([0, 1], { message: '是否参与额度计算必须是1-是，0-否' })
+  isQuotaInvolved?: number;
+
+  @ApiProperty({
+    description: '是否可做赠品',
+    example: 1,
+    required: false,
+  })
+  @IsOptional()
+  @IsIn([0, 1], { message: '是否可做赠品必须是1-是，0-否' })
+  isGiftEligible?: number;
+
+  @ApiProperty({
+    description: '是否参与货补',
+    example: 1,
+    required: false,
+  })
+  @IsOptional()
+  @IsIn([0, 1], { message: '是否参与货补必须是1-是，0-否' })
+  isSupplySubsidyInvolved?: number;
+
+  @ApiProperty({
+    description: '单品出厂价（元）',
+    example: '4.5',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '单品出厂价必须是字符串' })
+  itemExFactoryPrice?: string;
+
+  @ApiProperty({
+    description: '单品建议零售价（元）',
+    example: '4.5',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '建议零售价必须是字符串' })
+  itemSuggestedPrice?: string;
+
+  @ApiProperty({
+    description: '单品最低零售价（元）',
+    example: '4.5',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '单品最低控价必须是字符串' })
+  itemMinRetailPrice?: string;
+
+  @ApiProperty({
+    description: '单品最低零售折扣（%）',
+    example: '4.5',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '	零售折扣价必须是字符串' })
+  itemMinRetailDiscount?: string;
+
+  @ApiProperty({
+    description: '单品最低控价零售折扣（%）',
+    example: '4.5',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '最低控价折扣必须是字符串' })
+  itemMinControlledDiscount?: string;
+
+  @ApiProperty({
+    description: '组合商品ID',
+    example: '1,2,3',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '组合商品ID必须是字符串' })
+  compositeCommodity?: string;
 }

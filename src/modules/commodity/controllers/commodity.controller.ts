@@ -4,8 +4,11 @@ import {
   SuccessResponseDto,
   QueryCommodityDto,
   CommodityResponseDto,
+  CommodityRequestDto,
 } from '@src/dto';
 import { CommodityService } from '../services/commodity.service';
+import { CurrentUser } from '@src/decorators/current-user.decorator';
+import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 
 @ApiTags('商品管理')
 @ApiBearerAuth()
@@ -31,5 +34,15 @@ export class CommodityController {
   ): Promise<SuccessResponseDto<CommodityResponseDto>> {
     const commodity = await this.commodityService.getCommodityById(id);
     return new SuccessResponseDto(commodity);
+  }
+
+  @ApiOperation({ summary: '新增商品' })
+  @Post('create')
+  async addCommodity(
+    @Body() commodity: CommodityRequestDto,
+    @CurrentUser() user: JwtUserPayload,
+  ): Promise<SuccessResponseDto> {
+    const result = await this.commodityService.addCommodity(commodity, user);
+    return new SuccessResponseDto(result, '新增成功');
   }
 }
