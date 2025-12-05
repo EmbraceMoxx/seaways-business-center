@@ -229,7 +229,7 @@ export class OrderCheckService {
     ).flat();
     this.logger.log(`messages.length:${messages.length}`);
     const message = messages.length
-      ? `${messages.join('，')}，即将进入审批流程`
+      ? `${messages.join('，')}，进入审批流程`
       : '';
     return plainToInstance(CheckOrderAmountResponse, {
       customerName: customer.customerName,

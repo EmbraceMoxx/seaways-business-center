@@ -50,9 +50,7 @@ export class ReplenishRatioValidationStrategy implements ValidationStrategy {
     }
     if (actual > this.replenishThreshold && customerInfo.provincialHeadId) {
       messages.push(
-        `货补比例 ${toPercent(response.replenishRatio)}% 超过上限 ${(
-          this.replenishThreshold * 100
-        ).toFixed(0)}%，需审批`,
+        `货补比例 ${toPercent(response.replenishRatio)}% 超过上限，需审批`,
       );
     }
     if (
