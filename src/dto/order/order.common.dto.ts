@@ -105,13 +105,14 @@ export class UpdateOrderRemarks {
   orderId: string;
 
   @ApiProperty({ description: '备注信息' })
-  @IsNotEmpty({ message: '备注信息不能为空' })
+  @IsOptional()
+  @IsString({ message: '备注信息必须是字符串' })
   @MaxLength(1000, { message: '备注信息过长，请简化描述' })
   remark: string;
 
   @ApiProperty({ description: '订单时效' })
   @IsOptional()
-  @MaxLength(128, { message: '订单时效过长，请简化描述' })
+  @MaxLength(128, { message: '订单时效填写过长，请简化描述' })
   orderTimeliness: string;
 
   @ApiProperty({ description: '流程编码' })
