@@ -378,6 +378,15 @@ export class CustomerInfoCreditResponseDto {
  */
 export class CustomerInfoUpdateDto {
   @ApiProperty({
+    description: '客户聚水潭ID',
+    example: '16205412',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '聚水潭ID必须是字符串' })
+  customerJstId?: string;
+
+  @ApiProperty({
     description: '大区负责人Id',
     example: '123456789012346',
   })
@@ -436,4 +445,22 @@ export class CustomerInfoUpdateDto {
   @IsNotEmpty()
   @IsIn(['1', '0'], { message: '客户合作状态只能是1或0' })
   coStatus: string;
+
+  @ApiProperty({
+    description: '是否缴纳保证金，1-缴纳,0-未缴纳',
+    example: 1,
+    required: false,
+  })
+  @IsOptional()
+  @IsIn([1, 0], { message: '是否缴纳保证金只能是1或0' })
+  isEarnestMoney?: number;
+
+  @ApiProperty({
+    description: '类型：1-店铺2-分销商-1待开通聚水潭店铺',
+    example: 1,
+    required: false,
+  })
+  @IsOptional()
+  @IsIn([1, 2, -1], { message: '类型只能是1或2或-1' })
+  customerType?: number;
 }

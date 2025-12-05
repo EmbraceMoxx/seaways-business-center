@@ -393,6 +393,9 @@ export class CustomerService {
         customer.provincialHeadId = customerData?.provincialHeadId;
       }
 
+      customer.customerJstId = customerData?.customerJstId;
+      customer.customerType = customerData?.customerType;
+      customer.isEarnestMoney = customerData?.isEarnestMoney;
       customer.distributorType = customerData?.distributorType;
       customer.contractValidityPeriod = customerData?.contractValidityPeriod;
       customer.contractAmount = customerData?.contractAmount
