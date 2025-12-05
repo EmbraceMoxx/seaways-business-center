@@ -115,10 +115,10 @@ export class UpdateOrderRemarks {
   @MaxLength(128, { message: '订单时效填写过长，请简化描述' })
   orderTimeliness: string;
 
-  @ApiProperty({ description: '流程编码' })
+  @ApiProperty({ description: '流程编码备注' })
   @IsOptional()
-  @MaxLength(1024, { message: '流程编码过长，请简化描述' })
-  processCode: string;
+  @MaxLength(1024, { message: '流程编码备注过长，请简化描述' })
+  processCodeRemark: string;
 
   @ApiProperty({ description: '发货要求' })
   @IsOptional()

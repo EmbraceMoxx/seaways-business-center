@@ -337,12 +337,12 @@ export class OrderMainEntity {
   orderTimeliness: string | null;
 
   @Column('varchar', {
-    name: 'process_code',
+    name: 'process_code_remark',
     nullable: true,
-    comment: '流程编码',
+    comment: '流程编码备注',
     length: 1024,
   })
-  processCode: string | null;
+  processCodeRemark: string | null;
 
   @Column('varchar', {
     name: 'delivery_requirement',

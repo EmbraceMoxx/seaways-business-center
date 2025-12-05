@@ -761,7 +761,7 @@ export class OrderService {
       id: req.orderId,
       remark: req.remark ?? orderMain.remark,
       orderTimeliness: req.orderTimeliness ?? orderMain.orderTimeliness,
-      processCode: req.processCode ?? orderMain.processCode,
+      processCodeRemark: req.processCodeRemark ?? orderMain.processCodeRemark,
       deliveryRequirement:
         req.deliveryRequirement ?? orderMain.deliveryRequirement,
       lastOperateProgram,
@@ -778,7 +778,7 @@ export class OrderService {
           {
             remark: updateOrderMain.remark,
             orderTimeliness: updateOrderMain.orderTimeliness,
-            processCode: updateOrderMain.processCode,
+            processCodeRemark: updateOrderMain.processCodeRemark,
             deliveryRequirement: updateOrderMain.deliveryRequirement,
             reviserId: updateOrderMain.reviserId,
             reviserName: updateOrderMain.reviserName,
