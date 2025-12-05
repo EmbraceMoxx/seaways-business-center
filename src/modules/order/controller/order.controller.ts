@@ -1,5 +1,5 @@
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Body, Controller, Param, Post } from '@nestjs/common';
+import { Body, Controller, Logger, Param, Post } from '@nestjs/common';
 import {
   AddOfflineOrderRequest,
   ApprovalRejectRequest,
@@ -34,6 +34,7 @@ export class OrderController {
     private orderCheckService: OrderCheckService,
     private userService: UserService,
     private orderPushService: OrderPushService,
+    private logger: Logger,
   ) {}
 
   @Post('check-amount')
@@ -87,6 +88,14 @@ export class OrderController {
     await this.orderService.cancel(req, user);
     return new SuccessResponseDto('id', '订单已取消！');
   }
+  /**
+   * 确认订单回款接口
+   * 不再从页面调用，用于处理单个订单未释放额度的情况
+   *
+   * @param orderId - 订单ID，从URL路径参数中获取
+   * @param user - 当前登录用户信息，包含用户权限和身份标识
+   * @returns 返回成功响应对象，包含操作结果提示信息
+   */
   @Post('confirm-payment/:orderId')
   @ApiOperation({ summary: '确认回款' })
   async confirmPayment(
@@ -150,8 +159,15 @@ export class OrderController {
     @Body() body: OrderPushDto,
     @CurrentUser() user: JwtUserPayload,
   ): Promise<SuccessResponseDto<string>> {
+    const result = await this.orderPushService.pushOrderToErp(body.orderId, user);
+    // 确认额度累计
+    try {
+      await this.orderService.confirmPayment(body.orderId,user);
+    }catch (error){
+      this.logger.log(`额度操作失败不影响主推送流程，订单ID为${body.orderId}，打印日志${error}`);
+    }
     return new SuccessResponseDto(
-      await this.orderPushService.pushOrderToErp(body.orderId, user),
+      result,
       '订单推送成功',
     );
   }
@@ -179,7 +195,7 @@ export class OrderController {
       )
     ) {
       console.log(`免审批：auxRatio=${auxRatio}, repRatio=${repRatio}`);
-      return OrderStatusEnum.PENDING_PAYMENT;
+      return OrderStatusEnum.PENDING_PUSH;
     }
     // 3. 需要审批：按人岗关系决定第一站
     const isCreator = user.userId === customerInfo.principalUserId;

@@ -76,7 +76,7 @@ export class OrderConvertHelper {
 
       orderItem.type = itemType;
       orderItem.lastOperateProgram = lastOperateProgram;
-
+      orderItem.remark = item.remark;
       const amount = parseFloat(orderItem.amount);
 
       switch (itemType) {
@@ -113,6 +113,7 @@ export class OrderConvertHelper {
     orderItem.name = commodityInfo.commodityName;
     orderItem.aliasName = commodityInfo.commodityAliaName;
     orderItem.internalCode = commodityInfo.commodityInternalCode;
+    orderItem.commodityBarcode = commodityInfo.commodityBarcode;
     orderItem.specInfo = commodityInfo.itemSpecInfo;
     orderItem.boxSpecPiece = commodityInfo.boxSpecPiece;
     orderItem.boxSpecInfo = commodityInfo.boxSpecInfo;

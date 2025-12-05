@@ -97,7 +97,7 @@ export class OrderCheckService {
       this.logger.warn(`客户合作状态为，coStatus: ${customerInfo.coStatus}`);
       throw new BusinessException('当前客户不属于合作状态，请确认！');
     }
-    // todo 这个限制过于严格需要二次确认
+    // 不签订合同不允许下单
     if (BooleanStatusEnum.FALSE === customerInfo.isContract) {
       this.logger.warn(
         `客户合同签订状态为，isContract: ${customerInfo.isContract}`,
@@ -121,7 +121,7 @@ export class OrderCheckService {
     // 2. 是否免审批
     if (this.isFreeApproval(customerInfo, auxRatio, repRatio, subsidyAmount)) {
       this.logger.log(`免审批：auxRatio=${auxRatio}, repRatio=${repRatio}`);
-      return OrderStatusEnum.PENDING_PAYMENT;
+      return OrderStatusEnum.PENDING_PUSH;
     }
     // 3. 需要审批：按人岗关系决定第一站
     const isCreator = user.userId === customerInfo.principalUserId;
@@ -295,23 +295,14 @@ export class OrderCheckService {
     );
     // 根据不同订单状态设置可操作按钮
     switch (orderMain.orderStatus) {
-      case OrderStatusEnum.PENDING_PAYMENT:
-        if (hasPermission) {
-          // 订单状态为 PENDING_PAYMENT 仅允许操作 确认回款
-          buttons.find(
-            (btn) => btn.buttonCode === 'CONFIRM_PAYMENT',
-          ).isOperate = true;
-          if (approvalResult.canCancel) {
-            buttons.find((btn) => btn.buttonCode === 'MODIFY').isOperate = true;
-          }
-        }
-        break;
-
       case OrderStatusEnum.PENDING_PUSH:
         // 订单状态为 PENDING_PUSH 仅允许操作 确认推单
         if (hasPermission) {
           buttons.find((btn) => btn.buttonCode === 'CONFIRM_PUSH').isOperate =
             true;
+        }
+        if (approvalResult.canCancel) {
+          buttons.find((btn) => btn.buttonCode === 'MODIFY').isOperate = true;
         }
         break;
 

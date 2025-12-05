@@ -12,6 +12,11 @@ export class OrderItem {
   commodityId: string;
   @ApiProperty({ description: '商品内部编码' })
   internalCode: string;
+  @ApiProperty({ description: '商品条码' })
+  commodityBarcode: string;
+  @ApiProperty({ description: '商品备注' })
+  @MaxLength(100, { message: '备注信息过长，请简化描述' })
+  remark: string;
   @ApiProperty({ description: '箱数' })
   @IsOptional()
   @Min(1, { message: '箱数必须大于0' })
@@ -76,6 +81,21 @@ export class AddOfflineOrderRequest {
   @IsOptional()
   @MaxLength(1000, { message: '备注信息过长，请简化描述' })
   remark: string;
+
+  @ApiProperty({ description: '订单时效' })
+  @IsOptional()
+  @MaxLength(128, { message: '订单时效填写过长，请简化描述' })
+  orderTimeliness: string;
+
+  @ApiProperty({ description: '流程编码' })
+  @IsOptional()
+  @MaxLength(1024, { message: '流程编码过长，请简化描述' })
+  processCodeRemark: string;
+
+  @ApiProperty({ description: '发货要求' })
+  @IsOptional()
+  @MaxLength(255, { message: '发货要求过长，请简化描述' })
+  deliveryRequirement: string;
 }
 
 export class UpdateOfflineOrderRequest {
@@ -96,7 +116,23 @@ export class UpdateOfflineOrderRequest {
   @ApiProperty({ description: '辅销商品集合' })
   auxiliaryGoods: OrderItem[];
   @ApiProperty({ description: '备注信息' })
+  @MaxLength(1000, { message: '备注信息过长，请简化描述' })
   remark: string;
+
+  @ApiProperty({ description: '订单时效' })
+  @IsOptional()
+  @MaxLength(128, { message: '订单时效填写过长，请简化描述' })
+  orderTimeliness: string;
+
+  @ApiProperty({ description: '流程编码' })
+  @IsOptional()
+  @MaxLength(1024, { message: '流程编码过长，请简化描述' })
+  processCodeRemark: string;
+
+  @ApiProperty({ description: '发货要求' })
+  @IsOptional()
+  @MaxLength(255, { message: '发货要求过长，请简化描述' })
+  deliveryRequirement: string;
 }
 
 export class UpdateOrderRemarks {

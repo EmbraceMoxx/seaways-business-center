@@ -520,7 +520,6 @@ export class OrderPushService {
           user,
           manager,
         );
-
         // 记录操作日志--推单完成
         const sysUser: JwtUserPayload = {
           userId: ORDER_SERVICE_USER.USER_ID,

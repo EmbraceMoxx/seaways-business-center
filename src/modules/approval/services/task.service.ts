@@ -240,7 +240,7 @@ export class TaskService {
     // 获取下一个状态
     const nextStatus: OrderStatusEnum = nextTask
       ? await this.getNextOrderStatus(nextTask)
-      : OrderStatusEnum.PENDING_PAYMENT;
+      : OrderStatusEnum.PENDING_PUSH;
     if (!nextStatus) throw new BusinessException('获取下一个状态失败');
 
     if (nextTask) {
