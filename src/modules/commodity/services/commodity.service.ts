@@ -10,7 +10,10 @@ import {
   CommodityBundledSkuResponseDto,
   CommodityResponseDto,
   QueryCommodityDto,
+  CommodityRequestDto,
 } from '@src/dto';
+import * as dayjs from 'dayjs';
+import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { CommodityInfoEntity } from '../entities/commodity-info.entity';
 import { CommodityBundledSkuInfoEntity } from '../entities/commodity-bundled-sku-info.entity';
 import { CommodityCategoryEntity } from '../entities/commodity-category.entity';
@@ -279,6 +282,7 @@ export class CommodityService {
         ...commodity,
         commodityFirstCategoryName: firstCategoryName,
         commoditySecondCategoryName: secondCategoryName,
+        compositeCommodity: [],
       } as CommodityResponseDto;
 
       if (commodity.isBundledProducts === 1) {
@@ -453,5 +457,60 @@ export class CommodityService {
         enabled: GlobalStatusEnum.YES,
       })
       .getMany();
+  }
+
+  /**
+   * 新增商品
+   */
+  async addCommodity(
+    commodityData: CommodityRequestDto,
+    userPayload: JwtUserPayload,
+  ) {
+    try {
+      // 1、构建商品信息
+      const commodity = new CommodityInfoEntity();
+
+      // 2、设置商品信息
+      commodity.commodityCode = commodityData.commodityCode;
+      commodity.commodityFirstCategory = commodityData.commodityFirstCategory;
+      commodity.commoditySecondCategory = commodityData.commoditySecondCategory;
+      commodity.commodityName = commodityData.commodityName;
+      commodity.commodityAliaName = commodityData.commodityAliaName;
+      commodity.commodityInternalCode = commodityData.commodityInternalCode;
+      commodity.commodityBarcode = commodityData.commodityBarcode;
+      commodity.status = commodityData.status;
+      commodity.isBundledProducts = commodityData.isBundledProducts;
+      commodity.isQuotaInvolved = commodityData.isQuotaInvolved;
+      commodity.isGiftEligible = commodityData.isGiftEligible;
+      commodity.isSupplySubsidyInvolved = commodityData.isSupplySubsidyInvolved;
+      commodity.itemExFactoryPrice = commodityData.itemExFactoryPrice;
+      commodity.itemSuggestedPrice = commodityData.itemSuggestedPrice;
+      commodity.itemMinRetailPrice = commodityData.itemMinRetailPrice;
+      commodity.itemMinRetailDiscount = commodityData.itemMinRetailDiscount;
+      commodity.itemMinControlledDiscount =
+        commodityData.itemMinControlledDiscount;
+
+      // 3、 组合商品id(后续要去新增组合商品关系表)
+      commodity.compositeCommodity = commodityData.compositeCommodity;
+
+      // 4、默认
+      commodity.enabled = GlobalStatusEnum.YES;
+      commodity.deleted = GlobalStatusEnum.NO;
+
+      // 5、设置创建时间
+      commodity.creatorId = userPayload.userId;
+      commodity.creatorName = userPayload.nickName;
+      commodity.createdTime = dayjs().toDate();
+
+      // 6、设置更新时间
+      commodity.reviserId = userPayload.userId;
+      commodity.reviserName = userPayload.nickName;
+      commodity.revisedTime = dayjs().toDate();
+
+      // 7、更新客户地址
+      return await this.commodityRepository.save(commodity);
+    } catch (error) {
+      throw new BusinessException('新增商品分类失败');
+    }
   }
 }
