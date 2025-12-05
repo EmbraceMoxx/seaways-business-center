@@ -340,7 +340,7 @@ export class OrderMainEntity {
     name: 'process_code',
     nullable: true,
     comment: '流程编码',
-    length: 128,
+    length: 1024,
   })
   processCode: string | null;
 

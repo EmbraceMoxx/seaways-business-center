@@ -117,7 +117,7 @@ export class UpdateOrderRemarks {
 
   @ApiProperty({ description: '流程编码' })
   @IsOptional()
-  @MaxLength(128, { message: '流程编码过长，请简化描述' })
+  @MaxLength(1024, { message: '流程编码过长，请简化描述' })
   processCode: string;
 
   @ApiProperty({ description: '发货要求' })
