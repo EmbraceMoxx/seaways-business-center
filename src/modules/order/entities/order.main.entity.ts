@@ -329,6 +329,30 @@ export class OrderMainEntity {
   remark: string | null;
 
   @Column('varchar', {
+    name: 'order_timeliness',
+    nullable: true,
+    comment: '订单时效',
+    length: 128,
+  })
+  orderTimeliness: string | null;
+
+  @Column('varchar', {
+    name: 'process_code',
+    nullable: true,
+    comment: '流程编码',
+    length: 128,
+  })
+  processCode: string | null;
+
+  @Column('varchar', {
+    name: 'delivery_requirement',
+    nullable: true,
+    comment: '发货要求',
+    length: 255,
+  })
+  deliveryRequirement: string | null;
+
+  @Column('varchar', {
     name: 'deleted',
     comment: '是否删除，YES-删除，NO-未删除',
     length: 10,

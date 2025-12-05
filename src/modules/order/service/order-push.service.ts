@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { OrderMainEntity } from '../entities/order.main.entity';
 import { OrderItemEntity } from '../entities/order.item.entity';
-import { DataSource, EntityManager, Or, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { JstHttpService } from '@src/modules/erp/jushuitan/jst-http.service';
 import {
   ERP_JST_API,

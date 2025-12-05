@@ -48,6 +48,22 @@ export class OrderItemEntity {
   internalCode: string | null;
 
   @Column('varchar', {
+    name: 'commodity_barcode',
+    nullable: true,
+    comment: '商品条形码',
+    length: 128,
+  })
+  commodityBarcode: string | null;
+
+  @Column('varchar', {
+    name: 'remark',
+    nullable: true,
+    comment: '备注信息',
+    length: 255,
+  })
+  remark: string | null;
+
+  @Column('varchar', {
     name: 'spec_info',
     nullable: true,
     comment: '单品规格信息',

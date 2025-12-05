@@ -9,6 +9,7 @@ import {
   OrderItem,
   QueryOrderDto,
   UpdateOfflineOrderRequest,
+  UpdateOrderRemarks,
 } from '@src/dto/order/order.common.dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { TimeFormatterUtil } from '@utils/time-formatter.util';
@@ -740,6 +741,70 @@ export class OrderService {
     );
     logInput.params = req;
     await this.businessLogService.writeLog(logInput);
+    return updateOrderMain.id;
+  }
+
+  /** 更新订单备注
+   * @param req - 包含订单ID和新的备注信息的请求对象
+   * @param user - 当前操作用户的身份信息
+   * @returns 返回更新后的订单ID
+   */
+  async updateRemarks(
+    req: UpdateOrderRemarks,
+    user: JwtUserPayload,
+  ): Promise<string> {
+    const lastOperateProgram = 'OrderService.updateRemarks';
+    const orderMain = await this.orderCheckService.checkOrderExist(req.orderId);
+
+    // 用于整理待更新字段的本地对象，不参与 ORM 持久化
+    const updateOrderMain: Partial<OrderMainEntity> = {
+      id: req.orderId,
+      remark: req.remark ?? orderMain.remark,
+      orderTimeliness: req.orderTimeliness ?? orderMain.orderTimeliness,
+      processCode: req.processCode ?? orderMain.processCode,
+      deliveryRequirement:
+        req.deliveryRequirement ?? orderMain.deliveryRequirement,
+      lastOperateProgram,
+      reviserId: user.userId,
+      reviserName: user.nickName,
+      revisedTime: dayjs().toDate(),
+    };
+
+    try {
+      await this.dataSource.transaction(async (manager) => {
+        await manager.update(
+          OrderMainEntity,
+          { id: req.orderId },
+          {
+            remark: updateOrderMain.remark,
+            orderTimeliness: updateOrderMain.orderTimeliness,
+            processCode: updateOrderMain.processCode,
+            deliveryRequirement: updateOrderMain.deliveryRequirement,
+            reviserId: updateOrderMain.reviserId,
+            reviserName: updateOrderMain.reviserName,
+            revisedTime: updateOrderMain.revisedTime,
+            lastOperateProgram,
+          },
+        );
+
+        const logInput = OrderLogHelper.getOrderOperate(
+          user,
+          OrderOperateTemplateEnum.UPDATE_ORDER_REMARKS,
+          lastOperateProgram,
+          req.orderId,
+        );
+        logInput.params = req;
+        await this.businessLogService.writeLog(logInput, manager);
+      });
+    } catch (err) {
+      this.logger.error(
+        `更新订单备注异常，orderId: ${req.orderId}, error: ${err.message}`,
+        err.stack,
+        lastOperateProgram,
+      );
+      throw new BusinessException('更新订单备注异常！');
+    }
+
     return updateOrderMain.id;
   }
 

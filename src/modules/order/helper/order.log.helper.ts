@@ -14,7 +14,8 @@ export type OperateCode =
   | 'PROVINCE_APPR'
   | 'DIRECTOR_APPR'
   | 'DELIVERY_ORDER'
-  | 'CLOSE_ORDER';
+  | 'CLOSE_ORDER'
+  | 'UPDATE_ORDER_REMARKS';
 
 // 一条操作的完整定义
 export interface OperateDef {
@@ -59,6 +60,10 @@ export const OrderOperateMap = {
   DELIVERY_ORDER: {
     code: 'DELIVERY_ORDER',
     logTmpl: '聚水潭操作了订单发货',
+  } satisfies OperateDef,
+  UPDATE_ORDER_REMARKS: {
+    code: 'UPDATE_ORDER_REMARKS',
+    logTmpl: '%s更新订单备注信息',
   } satisfies OperateDef,
 } as const;
 

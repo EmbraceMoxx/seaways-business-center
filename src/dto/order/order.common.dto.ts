@@ -98,6 +98,33 @@ export class UpdateOfflineOrderRequest {
   @ApiProperty({ description: '备注信息' })
   remark: string;
 }
+
+export class UpdateOrderRemarks {
+  @ApiProperty({ description: '订单ID', example: 1 })
+  @IsNotEmpty({ message: '订单ID不能为空' })
+  orderId: string;
+
+  @ApiProperty({ description: '备注信息' })
+  @IsNotEmpty({ message: '备注信息不能为空' })
+  @MaxLength(1000, { message: '备注信息过长，请简化描述' })
+  remark: string;
+
+  @ApiProperty({ description: '订单时效' })
+  @IsOptional()
+  @MaxLength(128, { message: '订单时效过长，请简化描述' })
+  orderTimeliness: string;
+
+  @ApiProperty({ description: '流程编码' })
+  @IsOptional()
+  @MaxLength(128, { message: '流程编码过长，请简化描述' })
+  processCode: string;
+
+  @ApiProperty({ description: '发货要求' })
+  @IsOptional()
+  @MaxLength(255, { message: '发货要求过长，请简化描述' })
+  deliveryRequirement: string;
+}
+
 export class CancelOrderRequest {
   @ApiProperty({ description: '订单ID', example: 1 })
   @IsNotEmpty({ message: '订单ID不能为空' })

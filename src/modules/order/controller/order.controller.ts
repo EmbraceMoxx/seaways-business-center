@@ -13,6 +13,7 @@ import {
   QueryOrderDto,
   SuccessResponseDto,
   UpdateOfflineOrderRequest,
+  UpdateOrderRemarks,
 } from '@src/dto';
 import { OrderService } from '@modules/order/service/order.service';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
@@ -65,6 +66,16 @@ export class OrderController {
   ) {
     const result = await this.orderService.update(req, user);
     return new SuccessResponseDto(result, '订单修改成功！');
+  }
+
+  @Post('update-remarks')
+  @ApiOperation({ summary: '更新订单备注' })
+  async updateRemarks(
+    @Body() req: UpdateOrderRemarks,
+    @CurrentUser() user: JwtUserPayload,
+  ) {
+    const result = await this.orderService.updateRemarks(req, user);
+    return new SuccessResponseDto(result, '订单备注更新成功！');
   }
 
   @Post('cancel')
