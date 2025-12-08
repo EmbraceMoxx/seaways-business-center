@@ -486,6 +486,15 @@ export class OrderDetailResponseDto {
   @ApiProperty({ description: '备注' })
   remark: string;
 
+  @ApiProperty({ description: '订单时效' })
+  orderTimeliness: string;
+
+  @ApiProperty({ description: '流程编码备注' })
+  processCodeRemark: string;
+
+  @ApiProperty({ description: '发货要求' })
+  deliveryRequirement: string;
+
   @ApiProperty({ description: '订单总金额(发货金额），单位：元' })
   amount: string;
 
