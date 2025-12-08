@@ -214,10 +214,9 @@ export class CustomerService {
         .andWhere('customer.enabled = :enabled', {
           enabled: GlobalStatusEnum.YES,
         })
-        // todo 未签订合同，但是属于合作状态，目前允许下单
-        // .andWhere('customer.is_contract = :isContract', {
-        //   isContract: 1,
-        // })
+        .andWhere('customer.is_contract = :isContract', {
+          isContract: 1,
+        })
         .andWhere('customer.co_status = :coStatus', {
           coStatus: '1',
         });

@@ -238,6 +238,14 @@ export class CommodityInfoEntity {
   })
   isBundledProducts: number | null;
 
+  @Column('int', {
+    name: 'is_offline_sales',
+    nullable: true,
+    comment: '是否为线下销售商品，1-是，0-否',
+    default: () => "'1'",
+  })
+  isOfflineSales: number | null;
+
   @Column('varchar', {
     name: 'status',
     nullable: true,

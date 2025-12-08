@@ -363,6 +363,15 @@ export class CommodityRequestDto {
   isBundledProducts?: number;
 
   @ApiProperty({
+    description: '是否为线下销售商品',
+    example: 1,
+    required: false,
+  })
+  @IsOptional()
+  @IsIn([0, 1], { message: '是否为线下销售商品必须是1-是，0-否' })
+  isOfflineSales?: number;
+
+  @ApiProperty({
     description: '是否参与额度计算',
     example: 1,
     required: false,
