@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsIn, IsInt } from 'class-validator';
+import { IsOptional, IsString, IsIn, IsInt, IsNumber } from 'class-validator';
 
 /**
  *商品分类响应信息DTO
@@ -167,4 +167,27 @@ export class CategoryRequestDto {
   @IsString({ message: '是否启用必须是字符串' })
   @IsIn(['YES', 'NO'], { message: '是否启用必须是YES或NO' })
   enabled: string;
+}
+
+/**
+ * 商品分类下拉选择数据请求DTO
+ */
+export class CategorySelecRequestDto {
+  @ApiProperty({
+    description: '父级ID',
+    example: '1735123456789012345',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '父级ID必须是字符串' })
+  parentId?: string;
+
+  @ApiProperty({
+    description: '分类层级',
+    example: '1',
+    required: false,
+  })
+  @IsOptional()
+  @IsNumber({}, { message: '分类层级必须是数字' })
+  categoryLevel?: number;
 }

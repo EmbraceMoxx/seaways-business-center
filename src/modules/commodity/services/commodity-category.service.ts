@@ -5,7 +5,11 @@ import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
 import { BusinessException } from '@src/dto/common/common.dto';
-import { CategoryRequestDto, CategoryResponseDto } from '@src/dto';
+import {
+  CategoryRequestDto,
+  CategoryResponseDto,
+  CategorySelecRequestDto,
+} from '@src/dto';
 import { generateId } from '@src/utils';
 import { Not } from 'typeorm';
 import { CommodityCategoryEntity } from '../entities/commodity-category.entity';
@@ -40,7 +44,9 @@ export class CommodityCategoryService {
   /**
    * 商品分类下拉选择列表-树状（未删除且启用）
    */
-  async getCategorySelectTree(): Promise<any[]> {
+  async getCategorySelectTree(params: CategorySelecRequestDto): Promise<any[]> {
+    const { parentId, categoryLevel } = params;
+
     const queryBuilder = this.categoryRepository
       .createQueryBuilder('category')
       .where('category.deleted = :deleted', {
@@ -50,6 +56,20 @@ export class CommodityCategoryService {
         enabled: GlobalStatusEnum.YES,
       })
       .orderBy('category.created_time', 'DESC');
+
+    // 父级id
+    if (parentId) {
+      queryBuilder.andWhere('category.parent_id = :parentId', {
+        parentId,
+      });
+    }
+
+    // 分类级别
+    if (categoryLevel) {
+      queryBuilder.andWhere('category.category_level = :categoryLevel', {
+        categoryLevel,
+      });
+    }
 
     const categoryList = await queryBuilder.getMany();
     const tree = await this.buildCategoryTree(categoryList);

@@ -6,12 +6,13 @@ import {
   Put,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SuccessResponseDto } from '@src/dto';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
-import { CategoryRequestDto } from '@src/dto';
+import { CategoryRequestDto, CategorySelecRequestDto } from '@src/dto';
 import { CommodityCategoryEntity } from '../entities/commodity-category.entity';
 import { CommodityCategoryService } from '../services/commodity-category.service';
 
@@ -32,10 +33,10 @@ export class CommodityCategoryController {
 
   @ApiOperation({ summary: '获取商品分类下拉树形列表' })
   @Get('list-tree-select')
-  async getCategoryListTreeSelect(): Promise<
-    SuccessResponseDto<CommodityCategoryEntity[]>
-  > {
-    const list = await this.categoryService.getCategorySelectTree();
+  async getCategoryListTreeSelect(
+    @Query() params: CategorySelecRequestDto,
+  ): Promise<SuccessResponseDto<CommodityCategoryEntity[]>> {
+    const list = await this.categoryService.getCategorySelectTree(params);
     return new SuccessResponseDto(list);
   }
 
