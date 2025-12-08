@@ -102,7 +102,7 @@ export class OrderController {
     @Param('orderId') orderId: string,
     @CurrentUser() user: JwtUserPayload,
   ) {
-    await this.orderService.confirmPayment(orderId, user);
+    await this.orderService.confirmPayment(orderId, user, true);
     return new SuccessResponseDto('id', '订单已确认回款！');
   }
 
@@ -159,17 +159,11 @@ export class OrderController {
     @Body() body: OrderPushDto,
     @CurrentUser() user: JwtUserPayload,
   ): Promise<SuccessResponseDto<string>> {
-    const result = await this.orderPushService.pushOrderToErp(body.orderId, user);
-    // 确认额度累计
-    try {
-      await this.orderService.confirmPayment(body.orderId,user);
-    }catch (error){
-      this.logger.log(`额度操作失败不影响主推送流程，订单ID为${body.orderId}，打印日志${error}`);
-    }
-    return new SuccessResponseDto(
-      result,
-      '订单推送成功',
+    const result = await this.orderPushService.pushOrderToErp(
+      body.orderId,
+      user,
     );
+    return new SuccessResponseDto(result, '订单推送成功');
   }
 
   @Post('test')

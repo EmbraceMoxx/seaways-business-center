@@ -913,24 +913,30 @@ export class OrderService {
    * 订单推单释放额度
    * @param orderId 订单ID
    * @param user 当前操作用户信息
+   * @param manual
    * @returns 返回订单ID
    */
-  async confirmPayment(orderId: string, user: JwtUserPayload) {
-    const orderMain = await this.orderCheckService.checkOrderExist(orderId);
-    const updateOrder = new OrderMainEntity();
-    updateOrder.id = orderId;
-    updateOrder.reviserId = user.userId;
-    updateOrder.receiverName = user.nickName;
-    updateOrder.revisedTime = dayjs().toDate();
-    await this.dataSource.transaction(async (manager) => {
+  async confirmPayment(orderId: string, user: JwtUserPayload, manual = false) {
+    // 手动调用的确认需要补充修改信息
+    if (manual) {
       // 修改订单信息
-      await manager.update(OrderMainEntity, { id: orderMain.id }, updateOrder);
-      // 释放额度
-      await this.creditLimitDetailService.confirmCustomerOrderCredit(
-        orderId,
-        user,
+      const orderMain = await this.orderCheckService.checkOrderExist(orderId);
+      const updateOrder = new OrderMainEntity();
+      updateOrder.id = orderId;
+      updateOrder.reviserId = user.userId;
+      updateOrder.receiverName = user.nickName;
+      updateOrder.revisedTime = dayjs().toDate();
+      await this.dataSource.manager.update(
+        OrderMainEntity,
+        { id: orderMain.id },
+        updateOrder,
       );
-    });
+    }
+    // 释放额度
+    await this.creditLimitDetailService.confirmCustomerOrderCredit(
+      orderId,
+      user,
+    );
     return orderId;
   }
 

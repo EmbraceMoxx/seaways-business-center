@@ -30,6 +30,7 @@ import { OrderLogHelper } from '../helper/order.log.helper';
 import { OrderOperateTemplateEnum } from '@src/enums/order-operate-template.enum';
 import { BusinessLogService } from '@src/modules/common/business-log/business-log.service';
 import { CustomerCreditLimitDetailEntity } from '@src/modules/customer/entities/customer-credit-limit-detail.entity';
+import { OrderService } from '@modules/order/service/order.service';
 
 @Injectable()
 export class OrderPushService {
@@ -37,6 +38,7 @@ export class OrderPushService {
   constructor(
     private readonly _jstHttpService: JstHttpService,
     private readonly _orderEventService: OrderEventService,
+    private readonly _orderService: OrderService,
 
     @InjectRepository(OrderMainEntity)
     private readonly _orderRepository: Repository<OrderMainEntity>,
@@ -233,6 +235,13 @@ export class OrderPushService {
         user,
         queryRunner.manager,
       );
+      // 释放冻结额度
+      // 确认额度累计
+      try {
+        await this._orderService.confirmPayment(event.businessId,user);
+      }catch (error){
+        this._logger.log(`额度操作失败不影响主推送流程，订单ID为${event.businessId}，打印日志${error}`);
+      }
 
       // 更新事件状态为已完成
       await this._orderEventService.updateEventStatus({
