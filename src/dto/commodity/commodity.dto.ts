@@ -295,26 +295,24 @@ export class CommodityRequestDto {
   @ApiProperty({
     description: '商品一级分类ID',
     example: '1735123456789012355',
-    required: false,
   })
-  @IsOptional()
+  @IsNotEmpty({ message: '商品一级分类不能为空' })
   @IsString({ message: '商品一级分类必须是字符串' })
-  commodityFirstCategory?: string;
+  commodityFirstCategory: string;
 
   @ApiProperty({
     description: '商品二级分类ID',
     example: '1735123456789012356',
-    required: false,
   })
-  @IsOptional()
+  @IsNotEmpty({ message: '商品二级分类不能为空' })
   @IsString({ message: '商品二级分类必须是字符串' })
-  commoditySecondCategory?: string;
+  commoditySecondCategory: string;
 
   @ApiProperty({
     description: '商品名称',
     example: '水卫士校服净托台',
   })
-  @IsNotEmpty()
+  @IsNotEmpty({ message: '商品名称不能为空' })
   @IsString({ message: '商品名称必须是字符串' })
   commodityName: string;
 
@@ -322,7 +320,7 @@ export class CommodityRequestDto {
     description: '商品简称',
     example: '水卫士校服净托台',
   })
-  @IsNotEmpty()
+  @IsNotEmpty({ message: '商品简称不能为空' })
   @IsString({ message: '商品简称必须是字符串' })
   commodityAliaName: string;
 
@@ -347,56 +345,56 @@ export class CommodityRequestDto {
   @ApiProperty({
     description: '商品状态',
     example: '1',
-    required: false,
   })
-  @IsOptional()
+  @IsNotEmpty({ message: '商品状态不能为空' })
   @IsIn(['0', '1', '2'], { message: '商品状态必须是0-下架,1-上架,2-停产' })
-  status?: string;
+  status: string;
 
   @ApiProperty({
     description: '是否组合商品',
-    example: 1,
+    example: 0,
     required: false,
   })
   @IsOptional()
   @IsIn([0, 1], { message: '是否组合商品必须是1-是，0-否' })
   isBundledProducts?: number;
 
+  @ApiProperty({ description: '是否启用', example: 'YES' })
+  @IsNotEmpty({ message: '是否启用不能为空' })
+  @IsIn(['YES', 'NO'], { message: '是否启用必须是YES或NO' })
+  enabled: string;
+
   @ApiProperty({
     description: '是否为线下销售商品',
     example: 1,
-    required: false,
   })
-  @IsOptional()
+  @IsNotEmpty({ message: '是否为线下销售商品不能为空' })
   @IsIn([0, 1], { message: '是否为线下销售商品必须是1-是，0-否' })
-  isOfflineSales?: number;
+  isOfflineSales: number;
 
   @ApiProperty({
     description: '是否参与额度计算',
     example: 1,
-    required: false,
   })
-  @IsOptional()
+  @IsNotEmpty({ message: '是否参与额度计算不能为空' })
   @IsIn([0, 1], { message: '是否参与额度计算必须是1-是，0-否' })
-  isQuotaInvolved?: number;
+  isQuotaInvolved: number;
 
   @ApiProperty({
     description: '是否可做赠品',
     example: 1,
-    required: false,
   })
-  @IsOptional()
+  @IsNotEmpty({ message: '是否可做赠品不能为空' })
   @IsIn([0, 1], { message: '是否可做赠品必须是1-是，0-否' })
-  isGiftEligible?: number;
+  isGiftEligible: number;
 
   @ApiProperty({
     description: '是否参与货补',
     example: 1,
-    required: false,
   })
-  @IsOptional()
+  @IsNotEmpty({ message: '是否参与货补不能为空' })
   @IsIn([0, 1], { message: '是否参与货补必须是1-是，0-否' })
-  isSupplySubsidyInvolved?: number;
+  isSupplySubsidyInvolved: number;
 
   @ApiProperty({
     description: '单件规格',
@@ -457,11 +455,10 @@ export class CommodityRequestDto {
   @ApiProperty({
     description: '单品出厂价（元）',
     example: '4.5',
-    required: false,
   })
-  @IsOptional()
+  @IsNotEmpty({ message: '单品出厂价不能为空' })
   @IsString({ message: '单品出厂价必须是字符串' })
-  itemExFactoryPrice?: string;
+  itemExFactoryPrice: string;
 
   @ApiProperty({
     description: '单品建议零售价（元）',
