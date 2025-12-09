@@ -188,6 +188,6 @@ export class CategorySelecRequestDto {
     required: false,
   })
   @IsOptional()
-  @IsNumber({}, { message: '分类层级必须是数字' })
-  categoryLevel?: number;
+  @IsString({ message: '分类层级必须是字符串' })
+  categoryLevel?: string;
 }

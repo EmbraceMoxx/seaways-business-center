@@ -82,6 +82,7 @@ export class CommodityCategoryService {
         const result: any = {
           label: category.categoryName,
           value: category.id,
+          parentId: category.parentId,
         };
 
         // 只有当存在子节点时才添加children属性
@@ -424,7 +425,7 @@ export class CommodityCategoryService {
       // 2、设置父子关系
 
       category.parentId = parentId;
-      category.categoryLevel = parentCategory.categoryLevel + 1;
+      category.categoryLevel = Number(parentCategory.categoryLevel) + 1;
       category.idRoute = `${parentCategory.idRoute}_${category.id}`;
     } else {
       // 3、创建一级分类
