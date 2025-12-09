@@ -285,10 +285,7 @@ export class OrderCheckService {
       { buttonCode: 'CANCEL', buttonName: '取消订单', isOperate: false },
     ];
     // 修改为：
-    const hasPermission =
-      userResult.isQueryAll ||
-      // userResult.principalUserIds?.includes(orderMain.creatorId) ||
-      user.userId === orderMain.creatorId;
+    const hasPermission = user.userId === orderMain.creatorId;
     this.logger.log(
       `userResult.isQueryAll:${userResult.isQueryAll},orderMain.creatorId:${orderMain.creatorId},user.userId:${user.userId},userResult.principalUserIds:${userResult.principalUserIds}`,
     );
@@ -296,7 +293,7 @@ export class OrderCheckService {
     switch (orderMain.orderStatus) {
       case OrderStatusEnum.PENDING_PUSH:
         // 订单状态为 PENDING_PUSH 仅允许操作 确认推单
-        if (hasPermission) {
+        if (userResult.isQueryAll) {
           buttons.find((btn) => btn.buttonCode === 'CONFIRM_PUSH').isOperate =
             true;
         }
