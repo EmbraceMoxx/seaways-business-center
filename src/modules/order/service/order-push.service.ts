@@ -238,9 +238,11 @@ export class OrderPushService {
       // 释放冻结额度
       // 确认额度累计
       try {
-        await this._orderService.confirmPayment(event.businessId,user);
-      }catch (error){
-        this._logger.log(`额度操作失败不影响主推送流程，订单ID为${event.businessId}，打印日志${error}`);
+        await this._orderService.confirmPayment(event.businessId, user);
+      } catch (error) {
+        this._logger.log(
+          `额度操作失败不影响主推送流程，订单ID为${event.businessId}，打印日志${error}`,
+        );
       }
 
       // 更新事件状态为已完成
@@ -529,6 +531,7 @@ export class OrderPushService {
           user,
           manager,
         );
+
         // 记录操作日志--推单完成
         const sysUser: JwtUserPayload = {
           userId: ORDER_SERVICE_USER.USER_ID,
@@ -536,6 +539,14 @@ export class OrderPushService {
           nickName: ORDER_SERVICE_USER.NICK_NAME,
           ipAddress: ORDER_SERVICE_USER.IP_ADDRESS,
         };
+        // 确认额度累计
+        try {
+          await this._orderService.confirmPayment(orderId, sysUser);
+        } catch (error) {
+          this._logger.log(
+            `额度操作失败不影响主推送流程，订单ID为${orderId}，打印日志${error}`,
+          );
+        }
         const logInput = OrderLogHelper.getOrderOperate(
           sysUser,
           OrderOperateTemplateEnum.PUSH_ORDER_COMPLETION,
