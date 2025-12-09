@@ -117,7 +117,7 @@ export class OrderCheckService {
     const auxRatio = Number(response.auxiliarySalesRatio) || 0;
     const repRatio = Number(response.replenishRatio) || 0;
     const subsidyAmount = Number(response.orderSubsidyAmount) || 0;
-
+    this.logger.log(`response: ${JSON.stringify(response)}`);
     // 2. 是否免审批
     if (this.isFreeApproval(customerInfo, auxRatio, repRatio, subsidyAmount)) {
       this.logger.log(`免审批：auxRatio=${auxRatio}, repRatio=${repRatio}`);
@@ -227,7 +227,6 @@ export class OrderCheckService {
         ),
       )
     ).flat();
-    this.logger.log(`messages.length:${messages.length}`);
     const message = messages.length
       ? `${messages.join('，')}，进入审批流程`
       : '';

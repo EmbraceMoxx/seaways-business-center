@@ -69,7 +69,7 @@ import { ApprovalConfig } from '@src/configs/approval.config';
       provide: REP_THRESHOLD_TOKEN,
       inject: [ApprovalConfig],
       useFactory: (cfg: ApprovalConfig) =>
-        Number(cfg.provinceReplenishmentFreeRatio ?? 0.05), // 读静态字段
+        Number(cfg.provinceReplenishmentFreeRatio ?? 0.0), // 读静态字段
     },
     {
       provide: REP_REGION_THRESHOLD_TOKEN,

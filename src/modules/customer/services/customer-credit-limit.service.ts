@@ -229,7 +229,7 @@ export class CustomerCreditLimitService {
       const total = await countQueryBuilder.getCount();
 
       queryBuilder = queryBuilder
-        .orderBy('credit.created_time', 'DESC')
+        .orderBy('credit.revised_time', 'DESC')
         .orderBy('credit.id', 'DESC')
         .limit(pageSize)
         .offset((page - 1) * pageSize);
