@@ -239,7 +239,7 @@ export class CommodityService {
   /**
    * 获取商品详情
    */
-  async getCommodityById(id: string): Promise<CommodityResponseDto> {
+  async getCommodityById(id: string): Promise<any> {
     try {
       // 使用 QueryBuilder 获取实体对象（不指定字段）
       const commodity = await this.commodityRepository
@@ -281,10 +281,15 @@ export class CommodityService {
       // 构建返回对象
       const response = {
         ...commodity,
+        itemExFactoryPrice: Number(commodity.itemExFactoryPrice),
+        itemSuggestedPrice: Number(commodity.itemSuggestedPrice),
+        itemMinRetailPrice: Number(commodity.itemMinRetailPrice),
+        itemMinRetailDiscount: Number(commodity.itemMinRetailDiscount),
+        itemMinControlledDiscount: Number(commodity.itemMinControlledDiscount),
         commodityFirstCategoryName: firstCategoryName,
         commoditySecondCategoryName: secondCategoryName,
         compositeCommodity: [],
-      } as CommodityResponseDto;
+      };
 
       if (commodity.isBundledProducts === 1) {
         // 获取组合商品信息
