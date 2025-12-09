@@ -19,5 +19,5 @@ role:
 approval:
   freeRatio:
     auxiliary: 0.03          # 辅销免审批比例
-    replenishment: 0.05      # 有省区时货补免审批比例
+    replenishment: 0      # 有省区时货补免审批比例
     replenishmentNoProv: 0.1 # 无省区时货补免审批比例
