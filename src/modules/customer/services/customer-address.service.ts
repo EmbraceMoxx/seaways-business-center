@@ -104,7 +104,7 @@ export class CustomerAddressService {
 
       queryBuilder = queryBuilder
         .orderBy('customerAddress.created_time', 'DESC')
-        .orderBy('customerAddress.id', 'DESC');
+        .addOrderBy('customerAddress.id', 'DESC');
 
       return await queryBuilder.getRawMany();
     } catch (error) {
