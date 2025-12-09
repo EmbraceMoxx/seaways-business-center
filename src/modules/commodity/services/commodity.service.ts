@@ -749,7 +749,7 @@ export class CommodityService {
       //   await this.deleteCommodityBundleInfo(commodity.id);
       // }
     } catch (error) {
-      throw new BusinessException('更新商品失败');
+      throw new BusinessException(error.message);
     }
   }
 }
