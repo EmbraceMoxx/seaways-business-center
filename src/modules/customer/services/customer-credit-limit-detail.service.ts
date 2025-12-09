@@ -168,7 +168,7 @@ export class CustomerCreditLimitDetailService {
 
       queryBuilder = queryBuilder
         .orderBy('creditDetail.created_time', 'DESC')
-        .orderBy('creditDetail.id', 'DESC')
+        .addOrderBy('creditDetail.id', 'DESC')
         .limit(pageSize)
         .offset((page - 1) * pageSize);
 

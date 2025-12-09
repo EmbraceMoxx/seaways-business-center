@@ -230,7 +230,7 @@ export class CustomerCreditLimitService {
 
       queryBuilder = queryBuilder
         .orderBy('credit.revised_time', 'DESC')
-        .orderBy('credit.id', 'DESC')
+        .addOrderBy('credit.id', 'DESC')
         .limit(pageSize)
         .offset((page - 1) * pageSize);
 

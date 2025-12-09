@@ -160,7 +160,7 @@ export class CustomerService {
 
       queryBuilder = queryBuilder
         .orderBy('customer.created_time', 'DESC')
-        .orderBy('customer.id', 'DESC')
+        .addOrderBy('customer.id', 'DESC')
         .limit(pageSize)
         .offset((page - 1) * pageSize);
 
@@ -299,7 +299,7 @@ export class CustomerService {
 
       queryBuilder = queryBuilder
         .orderBy('customer.created_time', 'DESC')
-        .orderBy('customer.id', 'DESC')
+        .addOrderBy('customer.id', 'DESC')
         .limit(pageSize)
         .offset((page - 1) * pageSize);
       const items = await queryBuilder.getRawMany();
