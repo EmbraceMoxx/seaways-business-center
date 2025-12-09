@@ -552,6 +552,44 @@ export class CommodityService {
   }
 
   /**
+   * 根据一级分类自动生成商品编码
+   * @param firstCategoryId 一级分类ID
+   * @returns 自动生成的商品编码
+   */
+  private async generateCommodityCode(
+    firstCategoryId: string,
+  ): Promise<string> {
+    try {
+      // 查询该一级分类下最大的商品编码
+      const result = await this.commodityRepository
+        .createQueryBuilder('commodity')
+        .select('MAX(commodity.commodityCode)', 'maxCode')
+        .where('commodity.commodity_first_category = :firstCategoryId', {
+          firstCategoryId,
+        })
+        .andWhere("commodity.commodityCode LIKE 'CP_%'") // 筛选符合 CP_ 开头格式的编码
+        .getRawOne();
+
+      if (result && result.maxCode) {
+        // 提取下划线后的数字部分
+        const parts = result.maxCode.split('_');
+        if (parts.length >= 2) {
+          const numberPart = parts[1];
+          // 将字符串转换为数字并加1
+          const nextNumber = parseInt(numberPart, 10) + 1;
+          // 保持6位数字格式，不足的前面补0
+          return `CP_${nextNumber.toString().padStart(6, '0')}`;
+        }
+      }
+
+      // 如果没有找到现有编码或解析失败，默认从000001开始
+      return 'CP_000001';
+    } catch (error) {
+      throw new BusinessException('生成商品编码失败');
+    }
+  }
+
+  /**
    * 新增商品
    */
   async addCommodity(
@@ -562,9 +600,16 @@ export class CommodityService {
       // 1、构建商品信息
       const commodity = new CommodityInfoEntity();
 
-      // 2、设置商品信息
+      // 2、出厂价不能大于建议零售价
+      if (commodityData.itemExFactoryPrice > commodityData.itemSuggestedPrice) {
+        throw new BusinessException('零售价要大于等于出厂价');
+      }
+
+      // 3、设置商品信息
       commodity.id = generateId();
-      commodity.commodityCode = commodityData.commodityCode;
+      commodity.commodityCode = await this.generateCommodityCode(
+        commodityData.commodityFirstCategory,
+      );
       commodity.commodityFirstCategory = commodityData.commodityFirstCategory;
       commodity.commoditySecondCategory = commodityData.commoditySecondCategory;
       commodity.commodityName = commodityData.commodityName;
@@ -600,21 +645,21 @@ export class CommodityService {
           ? String(commodityData?.itemMinControlledDiscount)
           : null;
 
-      // 3、默认
+      // 4、默认
       commodity.enabled = GlobalStatusEnum.YES;
       commodity.deleted = GlobalStatusEnum.NO;
 
-      // 4、设置创建时间
+      // 5、设置创建时间
       commodity.creatorId = userPayload.userId;
       commodity.creatorName = userPayload.nickName;
       commodity.createdTime = dayjs().toDate();
 
-      // 5、设置更新时间
+      // 6、设置更新时间
       commodity.reviserId = userPayload.userId;
       commodity.reviserName = userPayload.nickName;
       commodity.revisedTime = dayjs().toDate();
 
-      // 6、保存商品
+      // 7、保存商品
       const savedCommodity = await this.commodityRepository.save(commodity);
 
       // 7、 组合商品
@@ -651,10 +696,15 @@ export class CommodityService {
         throw new BusinessException('商品不存在');
       }
 
-      // 2、构建商品信息
+      // 2、出厂价不能大于建议零售价
+      if (commodityData.itemExFactoryPrice > commodityData.itemSuggestedPrice) {
+        throw new BusinessException('零售价要大于等于出厂价');
+      }
+
+      // 3、构建商品信息
       const commodity = new CommodityInfoEntity();
 
-      // 3、设置商品信息
+      // 4、设置商品信息
       commodity.status = commodityData.status;
       commodity.isQuotaInvolved = commodityData.isQuotaInvolved;
       commodity.isGiftEligible = commodityData.isGiftEligible;
@@ -676,15 +726,15 @@ export class CommodityService {
           ? String(commodityData?.itemMinControlledDiscount)
           : null;
 
-      // 4、设置更新时间
+      // 5、设置更新时间
       commodity.reviserId = userPayload.userId;
       commodity.reviserName = userPayload.nickName;
       commodity.revisedTime = dayjs().toDate();
 
-      // 5、更新客商品信息
+      // 6、更新客商品信息
       await this.commodityRepository.update(id, commodity);
 
-      // 6、 组合商品
+      // 7、 组合商品
       // if (
       //   commodityData.compositeCommodity &&
       //   commodityData.compositeCommodity.length > 0
