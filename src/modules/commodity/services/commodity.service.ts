@@ -578,12 +578,22 @@ export class CommodityService {
       commodity.boxSpecPiece = commodityData.boxSpecPiece;
       commodity.boxSpecInfo = commodityData.boxSpecInfo;
       commodity.material = commodityData.material;
-      commodity.itemExFactoryPrice = commodityData.itemExFactoryPrice;
-      commodity.itemSuggestedPrice = commodityData.itemSuggestedPrice;
-      commodity.itemMinRetailPrice = commodityData.itemMinRetailPrice;
-      commodity.itemMinRetailDiscount = commodityData.itemMinRetailDiscount;
+      commodity.itemExFactoryPrice = commodityData?.itemExFactoryPrice
+        ? String(commodityData?.itemExFactoryPrice)
+        : null;
+      commodity.itemSuggestedPrice = commodityData?.itemSuggestedPrice
+        ? String(commodityData?.itemSuggestedPrice)
+        : null;
+      commodity.itemMinRetailPrice = commodityData?.itemMinRetailPrice
+        ? String(commodityData?.itemMinRetailPrice)
+        : null;
+      commodity.itemMinRetailDiscount = commodityData?.itemMinRetailDiscount
+        ? String(commodityData?.itemMinRetailDiscount)
+        : null;
       commodity.itemMinControlledDiscount =
-        commodityData.itemMinControlledDiscount;
+        commodityData?.itemMinControlledDiscount
+          ? String(commodityData?.itemMinControlledDiscount)
+          : null;
 
       // 3、默认
       commodity.enabled = GlobalStatusEnum.YES;
@@ -644,12 +654,22 @@ export class CommodityService {
       commodity.isQuotaInvolved = commodityData.isQuotaInvolved;
       commodity.isGiftEligible = commodityData.isGiftEligible;
       commodity.isSupplySubsidyInvolved = commodityData.isSupplySubsidyInvolved;
-      commodity.itemExFactoryPrice = commodityData.itemExFactoryPrice;
-      commodity.itemSuggestedPrice = commodityData.itemSuggestedPrice;
-      commodity.itemMinRetailPrice = commodityData.itemMinRetailPrice;
-      commodity.itemMinRetailDiscount = commodityData.itemMinRetailDiscount;
+      commodity.itemExFactoryPrice = commodityData?.itemExFactoryPrice
+        ? String(commodityData?.itemExFactoryPrice)
+        : null;
+      commodity.itemSuggestedPrice = commodityData?.itemSuggestedPrice
+        ? String(commodityData?.itemSuggestedPrice)
+        : null;
+      commodity.itemMinRetailPrice = commodityData?.itemMinRetailPrice
+        ? String(commodityData?.itemMinRetailPrice)
+        : null;
+      commodity.itemMinRetailDiscount = commodityData?.itemMinRetailDiscount
+        ? String(commodityData?.itemMinRetailDiscount)
+        : null;
       commodity.itemMinControlledDiscount =
-        commodityData.itemMinControlledDiscount;
+        commodityData?.itemMinControlledDiscount
+          ? String(commodityData?.itemMinControlledDiscount)
+          : null;
 
       // 4、设置更新时间
       commodity.reviserId = userPayload.userId;

@@ -457,8 +457,8 @@ export class CommodityRequestDto {
     example: '4.5',
   })
   @IsNotEmpty({ message: '单品出厂价不能为空' })
-  @IsString({ message: '单品出厂价必须是字符串' })
-  itemExFactoryPrice: string;
+  @IsNumber({}, { message: '出厂价必须是数字' })
+  itemExFactoryPrice: number;
 
   @ApiProperty({
     description: '单品建议零售价（元）',
@@ -466,8 +466,8 @@ export class CommodityRequestDto {
     required: false,
   })
   @IsOptional()
-  @IsString({ message: '建议零售价必须是字符串' })
-  itemSuggestedPrice?: string;
+  @IsNumber({}, { message: '建议零售价必须是数字' })
+  itemSuggestedPrice?: number;
 
   @ApiProperty({
     description: '单品最低零售价（元）',
@@ -475,8 +475,8 @@ export class CommodityRequestDto {
     required: false,
   })
   @IsOptional()
-  @IsString({ message: '单品最低控价必须是字符串' })
-  itemMinRetailPrice?: string;
+  @IsNumber({}, { message: '最低零售价必须是数字' })
+  itemMinRetailPrice?: number;
 
   @ApiProperty({
     description: '单品最低零售折扣（%）',
@@ -484,8 +484,8 @@ export class CommodityRequestDto {
     required: false,
   })
   @IsOptional()
-  @IsString({ message: '	零售折扣价必须是字符串' })
-  itemMinRetailDiscount?: string;
+  @IsNumber({}, { message: '最低零售折扣必须是数字' })
+  itemMinRetailDiscount?: number;
 
   @ApiProperty({
     description: '单品最低控价零售折扣（%）',
@@ -493,8 +493,8 @@ export class CommodityRequestDto {
     required: false,
   })
   @IsOptional()
-  @IsString({ message: '最低控价折扣必须是字符串' })
-  itemMinControlledDiscount?: string;
+  @IsNumber({}, { message: '最低控价零售折扣必须是数字' })
+  itemMinControlledDiscount?: number;
 
   @ApiProperty({
     description: '组合商品ID',
