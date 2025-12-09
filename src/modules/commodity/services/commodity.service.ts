@@ -677,7 +677,7 @@ export class CommodityService {
       // }
       return savedCommodity;
     } catch (error) {
-      throw new BusinessException('新增商品失败');
+      throw new BusinessException(error.message);
     }
   }
 
