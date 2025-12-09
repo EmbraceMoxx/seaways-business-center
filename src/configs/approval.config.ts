@@ -9,7 +9,7 @@ export class ApprovalConfig{
   /** 有省区时货补免审批比例 */
   get provinceReplenishmentFreeRatio(): number {
     return Number(
-      config.get<string>('approval.freeRatio.replenishment') ?? 0.05,
+      config.get<string>('approval.freeRatio.replenishment') ?? 0.0,
     );
   }
   /** 无省区时货补免审批比例 */

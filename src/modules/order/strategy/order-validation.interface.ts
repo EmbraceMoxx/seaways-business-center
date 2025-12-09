@@ -29,7 +29,7 @@ export class ReplenishRatioValidationStrategy implements ValidationStrategy {
   // 把阈值通过构造器注入，保持策略类无静态依赖
   constructor(
     @Inject(REP_THRESHOLD_TOKEN)
-    private readonly replenishThreshold: number, // 默认 5%，业务层传入
+    private readonly replenishThreshold: number, // 默认 0，业务层传入
     @Inject(REP_REGION_THRESHOLD_TOKEN)
     private readonly replenishRegionThreshold: number, // 默认 10%，业务层传入
   ) {}
