@@ -514,6 +514,10 @@ export class OrderPushService {
       throw new BusinessException('推送订单到ERP系统异常');
     }
 
+    this._logger.log(
+      `Order ${orderId} pushed to ERP with code ${erpOrderCode}`,
+      thisContext,
+    );
     // 推送成功, 更新订单状态和额度流水记录, 记录操作日志
     try {
       await this._dataSource.transaction(async (manager) => {
