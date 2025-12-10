@@ -182,13 +182,14 @@ export class TaskService {
   }
 
   /**
-   * 获取下一个订单状态
+   * 获取订单状态
    */
-  private async getNextOrderStatus(
-    nextTask: ApprovalTaskEntity,
-  ): Promise<OrderStatusEnum> {
+  // Todo：应该是先判断instance的状态，如果是处理中，再通过Task查是什么状态
+  async getOrderStatus(task: ApprovalTaskEntity): Promise<OrderStatusEnum> {
+    if (!task) return OrderStatusEnum.PENDING_PUSH;
+
     const nextNode = await this.nodeRepository.findOneBy({
-      id: nextTask.nodeId,
+      id: task.nodeId,
     });
 
     return nextNode.orderStatus as OrderStatusEnum;
@@ -241,9 +242,7 @@ export class TaskService {
     });
 
     // 获取下一个状态
-    const nextStatus: OrderStatusEnum = nextTask
-      ? await this.getNextOrderStatus(nextTask)
-      : OrderStatusEnum.PENDING_PUSH;
+    const nextStatus: OrderStatusEnum = await this.getOrderStatus(nextTask);
     if (!nextStatus) throw new BusinessException('获取下一个状态失败');
 
     if (nextTask) {

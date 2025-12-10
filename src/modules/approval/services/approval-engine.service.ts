@@ -19,6 +19,7 @@ import {
   ApprovalActionEnum,
 } from '@src/enums/approval.enum';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
+import { OrderStatusEnum } from '@src/enums/order-status.enum';
 // Service
 import { InstanceService } from './instance.service';
 import { TaskService } from './task.service';
@@ -163,10 +164,26 @@ export class ApprovalEngineService {
         task.autoApproved === GlobalStatusEnum.NO,
     );
 
+    // 查找当前任务
+    // Todo: 其实这里是查当前节点，如果是任务的话，可能有多个
+    const currentTask = await this.taskRepository.findOne({
+      where: {
+        instanceId: instance.id,
+        taskStep: instance.currentStep,
+        status: ApprovalTaskStatusEnum.PENDING,
+      },
+      order: { taskStep: 'ASC' },
+    });
+
+    const orderStatus: OrderStatusEnum = await this.taskService.getOrderStatus(
+      currentTask,
+    );
+
     const { id, currentNodeId, currentStep, status } = instance;
     return {
       canCancel: !hasManualApproval,
       instance: { id, currentNodeId, currentStep, status },
+      orderStatus,
       tasks: tasks.map(
         ({
           id,
