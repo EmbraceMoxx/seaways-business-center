@@ -37,7 +37,12 @@ export class StandardUpdateStrategy
       vec.newReplenishingUsed,
       vec.oldReplenishingUsed,
     );
-
+    console.log('before update strategy amount:', JSON.stringify(c));
+    console.log('before update deltaShipped:', deltaShipped);
+    console.log('before update deltaAuxiliary:', deltaAuxiliary);
+    console.log('before update deltaAuxiliaryUsed:', deltaAuxiliaryUsed);
+    console.log('before update deltaReplenishing:', deltaReplenishing);
+    console.log('before update deltaReplenishingUsed:', deltaReplenishingUsed);
     // 2. 锁定字段 += 差额
     c.frozenShippedAmount = MoneyUtil.add(c.frozenShippedAmount, deltaShipped);
     c.frozenSaleGoodsAmount = MoneyUtil.add(
@@ -56,5 +61,6 @@ export class StandardUpdateStrategy
       c.frozenUsedReplenishingGoodsAmount,
       deltaReplenishingUsed,
     );
+    console.log('after update strategy amount:', JSON.stringify(c));
   }
 }

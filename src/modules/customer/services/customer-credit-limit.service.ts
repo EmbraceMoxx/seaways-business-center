@@ -562,13 +562,25 @@ export class CustomerCreditLimitService {
       const result = CancelStrategyFactory.get('STANDARD');
       result.apply(credit, cancelVector);
     }
+    // 最终对剩余金额进行计算
     credit.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
       credit.auxiliarySaleGoodsAmount,
     )
       .sub(MoneyUtil.fromYuan(credit.usedAuxiliarySaleGoodsAmount))
       .sub(MoneyUtil.fromYuan(credit.frozenUsedSaleGoodsAmount))
       .toYuan();
-
+    this.logger.log(
+      `credit.remainAuxiliarySaleGoodsAmount : ${credit.remainAuxiliarySaleGoodsAmount}`,
+    );
+    this.logger.log(
+      `credit.auxiliarySaleGoodsAmount : ${credit.auxiliarySaleGoodsAmount}`,
+    );
+    this.logger.log(
+      `credit.usedAuxiliarySaleGoodsAmount : ${credit.usedAuxiliarySaleGoodsAmount}`,
+    );
+    this.logger.log(
+      `credit.frozenUsedSaleGoodsAmount : ${credit.frozenUsedSaleGoodsAmount}`,
+    );
     credit.remainReplenishingGoodsAmount = MoneyUtil.fromYuan(
       credit.replenishingGoodsAmount,
     )

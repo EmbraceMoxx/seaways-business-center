@@ -600,6 +600,8 @@ export class OrderService {
       updateOrderMain,
       req.receiverAddress,
     );
+    updateOrderMain.regionalHeadId = orderMain.regionalHeadId;
+    updateOrderMain.provincialHeadId = orderMain.provincialHeadId;
     // 备注信息
     updateOrderMain.remark = req.remark?.trim() ?? '';
     updateOrderMain.orderTimeliness = req.orderTimeliness?.trim() ?? '';
@@ -737,7 +739,10 @@ export class OrderService {
       }
 
       // 调用审批流程
-      const approvalDto = OrderConvertHelper.buildApprovalDto(orderMain, user);
+      const approvalDto = OrderConvertHelper.buildApprovalDto(
+        updateOrderMain,
+        user,
+      );
       this.logger.log(`修改订单，审批信息为：${JSON.stringify(approvalDto)}`);
       await this.approvalEngineService.startApprovalProcess(approvalDto);
     });
