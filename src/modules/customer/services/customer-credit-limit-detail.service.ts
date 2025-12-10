@@ -132,6 +132,22 @@ export class CustomerCreditLimitDetailService {
             },
           );
         }
+      } else {
+        // 默认查询近三个月的数据
+        const now = dayjs();
+        const defaultStartTime = now
+          .subtract(2, 'month')
+          .startOf('month')
+          .toDate(); // 三个月前的第一天
+        const defaultEndTime = now.endOf('month').toDate(); // 当月最后一天
+
+        queryBuilder = queryBuilder.andWhere(
+          'creditDetail.created_time BETWEEN :startTime AND :endTime',
+          {
+            startTime: defaultStartTime,
+            endTime: defaultEndTime,
+          },
+        );
       }
 
       // 获取权限
