@@ -49,20 +49,9 @@ export class CustomerCreditLimitService {
   ): Promise<CustomerCreditAmountInfoEntity> {
     const creditAmountInfo = new CustomerCreditAmountInfoEntity();
     creditAmountInfo.id = IdUtil.generateId();
+    creditAmountInfo.customerId = customerInfo.id;
     creditAmountInfo.customerName = customerInfo.customerName;
     creditAmountInfo.region = customerInfo.region;
-    // creditAmountInfo.shippedAmount = '0';
-    // creditAmountInfo.repaymentAmount = '0';
-    // creditAmountInfo.auxiliarySaleGoodsAmount = '0';
-    // creditAmountInfo.replenishingGoodsAmount = '0';
-    // creditAmountInfo.usedAuxiliarySaleGoodsAmount = '0';
-    // creditAmountInfo.frozenSaleGoodsAmount = '0';
-    // creditAmountInfo.frozenUsedSaleGoodsAmount = '0';
-    // creditAmountInfo.remainAuxiliarySaleGoodsAmount = '0';
-    // creditAmountInfo.usedReplenishingGoodsAmount = '0';
-    // creditAmountInfo.frozenReplenishingGoodsAmount = '0';
-    // creditAmountInfo.frozenUsedReplenishingGoodsAmount = '0';
-    // creditAmountInfo.remainReplenishingGoodsAmount = '0';
     creditAmountInfo.deleted = GlobalStatusEnum.NO;
     creditAmountInfo.creatorId = user.userId;
     creditAmountInfo.creatorName = user.nickName;

@@ -422,7 +422,6 @@ export class CustomerCreditLimitDetailService {
       creditDetail.reviserId = userPayload.userId;
       creditDetail.reviserName = userPayload.nickName;
       creditDetail.revisedTime = dayjs().toDate();
-
       return await this.creditDetailRepository.save(creditDetail);
     } catch (error) {
       throw new BusinessException('新增客户额度流水失败' + error.message);
