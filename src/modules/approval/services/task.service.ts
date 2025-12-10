@@ -119,7 +119,8 @@ export class TaskService {
         };
       }
 
-      const isSelfApproval = createDto.provincialHeadId === createDto.creatorId;
+      const isSelfApproval =
+        String(createDto.provincialHeadId) === String(createDto.creatorId);
       return {
         approverUserId: createDto.provincialHeadId,
         status: isSelfApproval
@@ -137,7 +138,8 @@ export class TaskService {
       if (!createDto.regionalHeadId) {
         throw new BusinessException('客户必须有大区负责人');
       }
-      const isSelfApproval = createDto.regionalHeadId === createDto.creatorId;
+      const isSelfApproval =
+        String(createDto.regionalHeadId) === String(createDto.creatorId);
       return {
         approverUserId: createDto.regionalHeadId,
         status: isSelfApproval
@@ -167,7 +169,8 @@ export class TaskService {
     autoApproved: string;
     remark: string;
   } {
-    const isSelfApproval = node.assigneeValue === createDto.creatorId;
+    const isSelfApproval =
+      String(node.assigneeValue) === String(createDto.creatorId);
     return {
       approverUserId: node.assigneeValue,
       status: isSelfApproval
