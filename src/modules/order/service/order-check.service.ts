@@ -266,9 +266,17 @@ export class OrderCheckService {
     );
 
     // 获取审批明细
-    const approvalResult = await this.approvalEngineService.getApprovalStatus(
-      orderId,
-    );
+    let approvalResult;
+    try {
+      approvalResult = await this.approvalEngineService.getApprovalStatus(
+        orderId,
+      );
+    } catch (error) {
+      this.logger.warn(
+        '理论上审批实例不应该与订单无关联，但不能影响订单详情展示，因此catch住异常',
+      );
+    }
+
     this.logger.log(
       `根据订单号${orderId},得到的审批结果为：${JSON.stringify(
         approvalResult,
