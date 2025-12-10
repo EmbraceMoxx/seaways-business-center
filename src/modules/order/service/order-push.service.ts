@@ -236,14 +236,6 @@ export class OrderPushService {
         queryRunner.manager,
       );
       // 释放冻结额度
-      // 确认额度累计
-      try {
-        await this._orderService.confirmPayment(event.businessId, user);
-      } catch (error) {
-        this._logger.log(
-          `额度操作失败不影响主推送流程，订单ID为${event.businessId}，打印日志${error}`,
-        );
-      }
 
       // 更新事件状态为已完成
       await this._orderEventService.updateEventStatus({
@@ -265,8 +257,15 @@ export class OrderPushService {
       );
       logInput.params = { orderId: event.businessId };
       await this._businessLogService.writeLog(logInput, queryRunner.manager);
-
       await queryRunner.commitTransaction();
+      // 无需与事务进行绑定确认额度累计
+      try {
+        await this._orderService.confirmPayment(event.businessId, user);
+      } catch (error) {
+        this._logger.log(
+          `额度操作失败不影响主推送流程，订单ID为${event.businessId}，打印日志${error}`,
+        );
+      }
     } catch (err) {
       await queryRunner.rollbackTransaction();
       this._logger.error(
@@ -520,6 +519,13 @@ export class OrderPushService {
     );
     // 推送成功, 更新订单状态和额度流水记录, 记录操作日志
     try {
+      // 记录操作日志--推单完成
+      const sysUser: JwtUserPayload = {
+        userId: ORDER_SERVICE_USER.USER_ID,
+        username: ORDER_SERVICE_USER.USERNAME,
+        nickName: ORDER_SERVICE_USER.NICK_NAME,
+        ipAddress: ORDER_SERVICE_USER.IP_ADDRESS,
+      };
       await this._dataSource.transaction(async (manager) => {
         const order = await this._updatePushedOrder(
           orderId,
@@ -535,22 +541,6 @@ export class OrderPushService {
           user,
           manager,
         );
-
-        // 记录操作日志--推单完成
-        const sysUser: JwtUserPayload = {
-          userId: ORDER_SERVICE_USER.USER_ID,
-          username: ORDER_SERVICE_USER.USERNAME,
-          nickName: ORDER_SERVICE_USER.NICK_NAME,
-          ipAddress: ORDER_SERVICE_USER.IP_ADDRESS,
-        };
-        // 确认额度累计
-        try {
-          await this._orderService.confirmPayment(orderId, sysUser);
-        } catch (error) {
-          this._logger.log(
-            `额度操作失败不影响主推送流程，订单ID为${orderId}，打印日志${error}`,
-          );
-        }
         const logInput = OrderLogHelper.getOrderOperate(
           sysUser,
           OrderOperateTemplateEnum.PUSH_ORDER_COMPLETION,
@@ -560,6 +550,14 @@ export class OrderPushService {
         logInput.params = { orderId: orderId };
         await this._businessLogService.writeLog(logInput, manager);
       });
+      // 确认额度累计
+      try {
+        await this._orderService.confirmPayment(orderId, sysUser);
+      } catch (error) {
+        this._logger.log(
+          `额度操作失败不影响主推送流程，订单ID为${orderId}，打印日志${error}`,
+        );
+      }
     } catch (err) {
       this._logger.error(
         `Failed to update info after push for orderId=${orderId}: ${err?.message}`,

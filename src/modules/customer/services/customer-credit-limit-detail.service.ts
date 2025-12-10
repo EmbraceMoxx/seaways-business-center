@@ -355,6 +355,7 @@ export class CustomerCreditLimitDetailService {
       const flowRepo = manager.getRepository(CustomerCreditLimitDetailEntity);
       const flow = await flowRepo.findOne({
         where: { orderId, deleted: GlobalStatusEnum.NO },
+        lock: { mode: 'pessimistic_write' },
       });
       if (!flow) throw new BusinessException('订单流水不存在');
       if (flow.status === CreditStatusEnum.FINISH) return;
