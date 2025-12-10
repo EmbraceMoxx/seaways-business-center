@@ -285,7 +285,7 @@ export class OrderCheckService {
       { buttonCode: 'CANCEL', buttonName: '取消订单', isOperate: false },
     ];
     // 修改为：
-    const hasPermission = user.userId === orderMain.creatorId;
+    const isCreator = user.userId === orderMain.creatorId;
     this.logger.log(
       `userResult.isQueryAll:${userResult.isQueryAll},orderMain.creatorId:${orderMain.creatorId},user.userId:${user.userId},userResult.principalUserIds:${userResult.principalUserIds}`,
     );
@@ -297,7 +297,7 @@ export class OrderCheckService {
           buttons.find((btn) => btn.buttonCode === 'CONFIRM_PUSH').isOperate =
             true;
         }
-        if (approvalResult.canCancel) {
+        if (isCreator && approvalResult.canCancel) {
           buttons.find((btn) => btn.buttonCode === 'MODIFY').isOperate = true;
         }
         break;
@@ -310,7 +310,7 @@ export class OrderCheckService {
         break;
       case OrderStatusEnum.REJECTED:
         // 订单状态为 REJECTED 允许修改订单
-        if (hasPermission) {
+        if (isCreator) {
           buttons.find((btn) => btn.buttonCode === 'MODIFY').isOperate = true;
           buttons.find((btn) => btn.buttonCode === 'CANCEL').isOperate = true;
         }
@@ -321,7 +321,7 @@ export class OrderCheckService {
       case OrderStatusEnum.PROVINCE_REVIEWING:
         // 1. 确认当前用户是否是客户的负责人，若为负责人，
         //  需要判断是否有审批记录，若存在审批通过记录，则不允许修改，若需要修改则需要审批驳回后回到驳回状态才允许修改
-        if (hasPermission && approvalResult.canCancel) {
+        if (isCreator && approvalResult.canCancel) {
           buttons.find((btn) => btn.buttonCode === 'MODIFY').isOperate = true;
           buttons.find((btn) => btn.buttonCode === 'CANCEL').isOperate = true;
         }
