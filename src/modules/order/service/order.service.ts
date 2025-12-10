@@ -258,6 +258,8 @@ export class OrderService {
           'order.contact as contact',
           'order.used_replenish_ratio as usedReplenishRatio',
           'order.used_auxiliary_sales_ratio as usedAuxiliarySalesRatio',
+          'used_replenish_amount as usedReplenishAmount',
+          'order.used_auxiliary_sales_amount as usedAuxiliarySalesAmount',
           'order.approval_reason as approvalReason',
           'order.approval_remark as approvalRemark',
           'order.contact_phone as contactPhone',
