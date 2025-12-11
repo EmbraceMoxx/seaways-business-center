@@ -200,6 +200,7 @@ export class CommodityService {
           'commodity.is_quota_involved AS isQuotaInvolved',
           'commodity.is_supply_subsidy_involved AS isSupplySubsidyInvolved',
           'commodity.is_gift_eligible AS isGiftEligible',
+          'commodity.gift_ex_factory_price AS giftExFactoryPrice',
           'commodity.status AS status',
           'commodity.enabled AS enabled',
           'commodity.creator_id AS creatorId',
@@ -235,6 +236,7 @@ export class CommodityService {
             },
           );
         } else if (commodityClassify === '2') {
+          // todo
           queryBuilder = queryBuilder.andWhere(
             'commodity.is_gift_eligible = :isGiftEligible',
             {
@@ -292,6 +294,11 @@ export class CommodityService {
         .offset((page - 1) * pageSize);
 
       const commodity = await queryBuilder.getRawMany();
+      commodity.forEach((e) => {
+        if (e.isGiftEligible === 1) {
+          e.itemExFactoryPrice = e.giftExFactoryPrice;
+        }
+      });
       return { items: commodity, total };
     } catch (error) {
       throw new BusinessException('获取选择商品列表失败');

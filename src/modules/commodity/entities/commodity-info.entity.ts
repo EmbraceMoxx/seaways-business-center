@@ -230,6 +230,15 @@ export class CommodityInfoEntity {
   })
   isGiftEligible: number | null;
 
+  @Column('decimal', {
+    name: 'gift_ex_factory_price',
+    nullable: true,
+    comment: '作为赠品的出厂价（元）',
+    precision: 10,
+    scale: 2,
+  })
+  giftExFactoryPrice: string | null;
+
   @Column('int', {
     name: 'is_bundled_products',
     nullable: true,
