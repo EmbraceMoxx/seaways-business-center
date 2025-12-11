@@ -129,7 +129,7 @@ export class CustomerCreditLimitService {
     creditInfo.reviserId = user.userId;
     creditInfo.reviserName = user.nickName;
     creditInfo.revisedTime = dayjs().toDate();
-    console.log('frozen final creditInfo:', JSON.stringify(creditInfo));
+    this.logger.log(`frozen final creditInfo:${JSON.stringify(creditInfo)}`);
     await this.creditRepository.update({ id: creditInfo.id }, creditInfo);
   }
 
@@ -616,10 +616,26 @@ export class CustomerCreditLimitService {
     const strategy = CreditUpdateStrategyFactory.get();
     strategy.apply(credit, updateVector);
 
+    // 剩余货补金额
+    credit.remainReplenishingGoodsAmount = MoneyUtil.fromYuan(
+      credit.replenishingGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(credit.usedReplenishingGoodsAmount))
+      .sub(MoneyUtil.fromYuan(credit.frozenUsedReplenishingGoodsAmount))
+      .toYuan();
+    // 剩余辅销金额
+    credit.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
+      credit.auxiliarySaleGoodsAmount,
+    )
+      .sub(MoneyUtil.fromYuan(credit.usedAuxiliarySaleGoodsAmount))
+      .sub(MoneyUtil.fromYuan(credit.frozenUsedSaleGoodsAmount))
+      .toYuan();
+
     // 允许剩余额度为负
     credit.reviserId = user.userId;
     credit.reviserName = user.nickName;
     credit.revisedTime = dayjs().toDate();
+    this.logger.log(`credit:${JSON.stringify(credit)}`);
     await repo.update({ id: credit.id }, credit);
   }
 }
