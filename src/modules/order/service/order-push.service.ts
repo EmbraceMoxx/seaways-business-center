@@ -160,20 +160,24 @@ export class OrderPushService {
       amount: Number(orderMain.amount), // 支付金额
     };
 
-    postDataItem['items'] = orderItems.map((item) => ({
-      sku_id: item.internalCode || '', // 商品SKU编码
-      shop_sku_id: item.internalCode || '', // 店铺商品SKU编码
-      amount: Number(item.amount), // 商品总价
-      price: Number(item.exFactoryPrice), // 商品单价
-      base_price: Number(item.exFactoryPrice), // 原价
-      qty: item.qty, // 商品数量
-      name: item.name, // 商品名称
-      outer_oi_id: item.id, // 外部订单明细项ID
-      is_gift: [
+    postDataItem['items'] = orderItems.map((item) => {
+      const isGift = [
         String(OrderItemTypeEnum.REPLENISH_PRODUCT),
         String(OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT),
-      ].includes(item.type), // 是否为赠品
-    }));
+      ].includes(item.type);
+
+      return {
+        sku_id: item.internalCode || '', // 商品SKU编码
+        shop_sku_id: item.internalCode || '', // 店铺商品SKU编码
+        amount: isGift ? 0 : Number(item.amount), // 商品总价（赠品为0）
+        price: isGift ? 0 : Number(item.exFactoryPrice), // 商品单价（赠品为0）
+        base_price: isGift ? 0 : Number(item.exFactoryPrice), // 原价（赠品为0）
+        qty: item.qty, // 商品数量
+        name: item.name, // 商品名称
+        outer_oi_id: item.id, // 外部订单明细项ID
+        is_gift: isGift, // 是否为赠品
+      };
+    });
 
     return [postDataItem];
   }
