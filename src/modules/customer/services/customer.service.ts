@@ -219,6 +219,9 @@ export class CustomerService {
         })
         .andWhere('customer.co_status = :coStatus', {
           coStatus: '1',
+        })
+        .andWhere('customer.customer_type > :customerType', {
+          customerType: 0,
         });
 
       // 客户名称
