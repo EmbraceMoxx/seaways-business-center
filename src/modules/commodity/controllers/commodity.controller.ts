@@ -23,7 +23,18 @@ export class CommodityController {
   ): Promise<
     SuccessResponseDto<{ items: CommodityResponseDto[]; total: number }>
   > {
-    const list = await this.commodityService.getcommodityPageList(body);
+    const list = await this.commodityService.getCommodityPageList(body);
+    return new SuccessResponseDto(list);
+  }
+
+  @ApiOperation({ summary: '获取选择商品列表' })
+  @Post('select-list')
+  async getSelectCommodityList(
+    @Body() body: QueryCommodityDto,
+  ): Promise<
+    SuccessResponseDto<{ items: CommodityResponseDto[]; total: number }>
+  > {
+    const list = await this.commodityService.getSelectCommodityPageList(body);
     return new SuccessResponseDto(list);
   }
 

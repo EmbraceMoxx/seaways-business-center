@@ -401,21 +401,27 @@ export class CustomerService {
       customer.isEarnestMoney = customerData?.isEarnestMoney;
       customer.distributorType = customerData?.distributorType;
       customer.contractValidityPeriod = customerData?.contractValidityPeriod;
+
+      // 5、合同有效期存在则修改为已签订
+      if (customerData?.contractValidityPeriod) {
+        customer.isContract = 1;
+      }
+
       customer.contractAmount = customerData?.contractAmount
         ? String(customerData?.contractAmount)
         : null;
       customer.reconciliationMail = customerData?.reconciliationMail;
       customer.coStatus = customerData?.coStatus;
 
-      // 5、当前更新人信息
+      // 6、当前更新人信息
       customer.reviserId = user.userId;
       customer.reviserName = user.nickName;
       customer.revisedTime = dayjs().toDate();
 
-      // 6、执行更新
+      // 7、执行更新
       await this.customerRepository.update(customerId, customer);
 
-      // 7、写入操作日志
+      // 8、写入操作日志
       const logInput = CustomerLogHelper.getCustomerOperate(
         user,
         'CustomerService.updateCustomerInfo',

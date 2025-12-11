@@ -62,30 +62,6 @@ export class QueryCommodityDto extends PageRequestDto {
   status?: string;
 
   @ApiProperty({
-    description: '是否参与额度计算',
-    required: false,
-  })
-  @IsOptional()
-  @IsIn([1, 0], { message: '是否参与额度计算必须是1-是，0-否' })
-  isQuotaInvolved?: number;
-
-  @ApiProperty({
-    description: '是否参与货补',
-    required: false,
-  })
-  @IsOptional()
-  @IsIn([1, 0], { message: '是否参与货补必须是1-是，0-否' })
-  isSupplySubsidyInvolved?: number;
-
-  @ApiProperty({
-    description: '是否可做赠品',
-    required: false,
-  })
-  @IsOptional()
-  @IsIn([1, 0], { message: '是否可做赠品必须是1-是，0-否' })
-  isGiftEligible?: number;
-
-  @ApiProperty({
     description: '是否启用',
     required: false,
   })
