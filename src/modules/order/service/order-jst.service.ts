@@ -5,6 +5,7 @@ import { SyncOrderStatusDto } from '@src/dto/order/order.sync.dto';
 import { ERP_JST_API } from '@modules/erp/jushuitan/jst-http.constant';
 import { BusinessException } from '@src/dto/common/common.dto';
 import { withRetry } from '@src/utils';
+import { groupBy } from 'lodash';
 
 interface JstOrderStatus {
   soId: string;
@@ -20,6 +21,7 @@ export class OrderJstService {
   private readonly ORDER_STATUS = {
     SENT: 'Sent', // 已发货
     CANCELLED: 'Cancelled', // 已取消
+    QUESTION: 'Question', // 异常
   };
 
   private readonly OPERATE_TYPE = {
@@ -89,15 +91,11 @@ export class OrderJstService {
   private buildSyncRequests(
     jstOrderStatuses: JstOrderStatus[],
   ): SyncOrderStatusDto[] {
-    const groupedOrders = jstOrderStatuses.reduce((map, order) => {
-      const orders = map.get(order.soId) || [];
-      orders.push(order);
-      return map.set(order.soId, orders);
-    }, new Map<string, JstOrderStatus[]>());
+    const groupedOrders = groupBy(jstOrderStatuses, 'soId');
 
     const syncRequests: SyncOrderStatusDto[] = [];
 
-    for (const [soId, orders] of groupedOrders) {
+    for (const [soId, orders] of Object.entries(groupedOrders)) {
       // 找出第一条非拆单的数据
       const mainOrder = orders.find((order) => !order.isSplit);
 
@@ -108,7 +106,10 @@ export class OrderJstService {
           syncRequests.push(
             this.createSyncRequest(soId, this.OPERATE_TYPE.SENT),
           );
-        } else if (mainOrder.status === this.ORDER_STATUS.CANCELLED) {
+        } else if (
+          mainOrder.status === this.ORDER_STATUS.CANCELLED ||
+          mainOrder.status === this.ORDER_STATUS.QUESTION
+        ) {
           // 已取消
           syncRequests.push(
             this.createSyncRequest(soId, this.OPERATE_TYPE.CANCELLED),
