@@ -10,7 +10,6 @@ import {
   CreditLimitStatisticsResponseDto,
   QueryMonthlyCreditDto,
   CreditToMonthResponseDto,
-  MonthCreditInfoResponseDto,
 } from '@src/dto';
 
 @Injectable()
@@ -83,40 +82,25 @@ export class CustomerMonthlyCreditLimitService {
    */
   async updateWithIncrement(
     creditDetail: CreditToMonthResponseDto,
-    existingRecord: MonthCreditInfoResponseDto,
+    existingRecordId: string,
     user: JwtUserPayload,
   ) {
-    // 1、使用 MoneyUtil 进行金额累加计算
-    const updatedFields: Partial<CustomerMonthlyCreditLimitEntity> = {
-      contractMissionAmount: MoneyUtil.fromYuan(
-        existingRecord.contractMissionAmount,
-      )
-        .add(MoneyUtil.fromYuan(creditDetail.shippedAmount || 0))
-        .toYuan(),
-      shippedAmount: MoneyUtil.fromYuan(existingRecord.shippedAmount)
-        .add(MoneyUtil.fromYuan(creditDetail.shippedAmount || 0))
-        .toYuan(),
-      auxiliarySaleGoodsAmount: MoneyUtil.fromYuan(
-        existingRecord.auxiliarySaleGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(creditDetail.auxiliarySaleGoodsAmount || 0))
-        .toYuan(),
-      replenishingGoodsAmount: MoneyUtil.fromYuan(
-        existingRecord.replenishingGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(creditDetail.replenishingGoodsAmount || 0))
-        .toYuan(),
-      usedAuxiliarySaleGoodsAmount: MoneyUtil.fromYuan(
-        existingRecord.usedAuxiliarySaleGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(creditDetail.usedAuxiliarySaleGoodsAmount || 0))
-        .toYuan(),
+    const {
+      shippedAmount,
+      auxiliarySaleGoodsAmount,
+      replenishingGoodsAmount,
+      usedAuxiliarySaleGoodsAmount,
+      usedReplenishingGoodsAmount,
+    } = creditDetail;
 
-      usedReplenishingGoodsAmount: MoneyUtil.fromYuan(
-        existingRecord.usedReplenishingGoodsAmount,
-      )
-        .add(MoneyUtil.fromYuan(creditDetail.usedReplenishingGoodsAmount || 0))
-        .toYuan(),
+    // 1、更新字段（覆盖式）
+    const updatedFields: Partial<CustomerMonthlyCreditLimitEntity> = {
+      contractMissionAmount: shippedAmount,
+      shippedAmount: shippedAmount,
+      auxiliarySaleGoodsAmount: auxiliarySaleGoodsAmount,
+      replenishingGoodsAmount: replenishingGoodsAmount,
+      usedAuxiliarySaleGoodsAmount: usedAuxiliarySaleGoodsAmount,
+      usedReplenishingGoodsAmount: usedReplenishingGoodsAmount,
       reviserId: user.userId,
       reviserName: user.nickName,
       revisedTime: dayjs().toDate(),
@@ -136,7 +120,7 @@ export class CustomerMonthlyCreditLimitService {
 
     // 3、更新
     return await this.customerMonthlyCreditRepository.update(
-      existingRecord.id,
+      existingRecordId,
       updatedFields,
     );
   }

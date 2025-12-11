@@ -558,10 +558,14 @@ export class CustomerCreditLimitDetailService {
             );
         }
 
-        // 6.2 修改累加金额 (此时 monthlyCredit 一定不为 null)
+        // 6.2 检测是否已存在
+        if (monthlyCredit?.id) {
+          new BusinessException('客户月度流水不存在');
+        }
+        // 6.3 修改累加金额 (此时 monthlyCredit 一定不为 null)
         await this.customerMonthlyCreditLimitService.updateWithIncrement(
           item,
-          monthlyCredit,
+          monthlyCredit?.id,
           user,
         );
       }
