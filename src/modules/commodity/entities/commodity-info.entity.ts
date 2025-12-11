@@ -255,6 +255,14 @@ export class CommodityInfoEntity {
   })
   isOfflineSales: number | null;
 
+  @Column('int', {
+    name: 'is_default',
+    nullable: true,
+    comment: '默认可选产品，1-是，0-否',
+    default: () => "'1'",
+  })
+  isDefault: number | null;
+
   @Column('varchar', {
     name: 'status',
     nullable: true,

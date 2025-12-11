@@ -19,6 +19,7 @@ import { CommodityInfoEntity } from '../entities/commodity-info.entity';
 import { CommodityBundledSkuInfoEntity } from '../entities/commodity-bundled-sku-info.entity';
 import { CommodityCategoryEntity } from '../entities/commodity-category.entity';
 import { CommodityCategoryService } from './commodity-category.service';
+import { CustomerCommodityConfigEntity } from '@modules/commodity/entities/customer-commodity-config.entity';
 
 @Injectable()
 export class CommodityService {
@@ -28,6 +29,9 @@ export class CommodityService {
 
     @InjectRepository(CommodityBundledSkuInfoEntity)
     private commodityBundledSkuInfoEntityRepository: Repository<CommodityBundledSkuInfoEntity>,
+
+    @InjectRepository(CustomerCommodityConfigEntity)
+    private customerCommodityConfigEntityRepository: Repository<CustomerCommodityConfigEntity>,
 
     @Inject(forwardRef(() => CommodityCategoryService))
     private commodityCategoryService: CommodityCategoryService,
@@ -177,6 +181,7 @@ export class CommodityService {
         pageSize,
         commodityAliaName,
         commodityClassify,
+        customerId,
       } = params;
 
       let queryBuilder = this.commodityRepository
@@ -223,7 +228,25 @@ export class CommodityService {
         .andWhere('commodity.enabled = :enabled', {
           enabled: GlobalStatusEnum.YES,
         });
+      // 如果没有 customerId，或查不到配置，都走默认商品
+      let specCommodityIds: string[] = [];
+      if (customerId) {
+        specCommodityIds = await this.customerCommodityConfigEntityRepository
+          .createQueryBuilder('c')
+          .where('c.customerId = :customerId', { customerId })
+          .select('c.excludeCommodityId', 'id')
+          .getRawMany()
+          .then((rows) => rows.map((r) => r.id));
+      }
 
+      if (specCommodityIds.length) {
+        queryBuilder = queryBuilder.andWhere(
+          'commodity.id NOT IN (:...specCommodityIds)',
+          { specCommodityIds },
+        );
+      } else {
+        queryBuilder = queryBuilder.andWhere('commodity.is_default = 1');
+      }
       // 商品类型,1-成品、2-辅销、3-货补
       if (commodityClassify) {
         if (commodityClassify === '1') {
@@ -236,7 +259,6 @@ export class CommodityService {
             },
           );
         } else if (commodityClassify === '2') {
-          // todo
           queryBuilder = queryBuilder.andWhere(
             'commodity.is_gift_eligible = :isGiftEligible',
             {
