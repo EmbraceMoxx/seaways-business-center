@@ -58,7 +58,7 @@ export class MoneyUtil {
 
   /* =============== 输出 =============== */
   toYuan(): string {
-    return (this.cents / 100).toFixed(2);
+    return (this.cents / 100).toFixed(3);
   }
 
   toCent(): number {

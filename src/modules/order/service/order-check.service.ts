@@ -351,7 +351,10 @@ export class OrderCheckService {
 
   async checkIsCloseOrder(orderMain: OrderMainEntity): Promise<boolean> {
     // 校验是否被驳回，驳回后才可以关闭订单
-    if (orderMain.orderStatus.includes('20001')) {
+    if (
+      orderMain.orderStatus.includes('20001') ||
+      orderMain.orderStatus === OrderStatusEnum.PENDING_PUSH
+    ) {
       // 校验是否有审批，有上级审批同意的情况需要驳回后再关闭订单,审批结果返回true表示允许取消
       const approvalResult = await this.approvalEngineService.getApprovalStatus(
         orderMain.id,
