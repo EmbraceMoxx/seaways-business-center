@@ -298,8 +298,12 @@ export class OrderCheckService {
       `userResult.isQueryAll:${userResult.isQueryAll},orderMain.creatorId:${orderMain.creatorId},user.userId:${user.userId},userResult.principalUserIds:${userResult.principalUserIds}`,
     );
     // 根据不同订单状态设置可操作按钮
+    this.logger.log(
+      `是否允许操作编辑 ${isCreator},${approvalResult.canCancel}`,
+    );
     switch (orderMain.orderStatus) {
       case OrderStatusEnum.PENDING_PUSH:
+        this.logger.log('进入待推单路径！');
         // 订单状态为 PENDING_PUSH 仅允许操作 确认推单
         if (userResult.isQueryAll) {
           buttons.find((btn) => btn.buttonCode === 'CONFIRM_PUSH').isOperate =
@@ -307,7 +311,9 @@ export class OrderCheckService {
         }
         if (isCreator && approvalResult.canCancel) {
           buttons.find((btn) => btn.buttonCode === 'MODIFY').isOperate = true;
+          buttons.find((btn) => btn.buttonCode === 'CANCEL').isOperate = true;
         }
+        this.logger.log(buttons);
         break;
 
       case OrderStatusEnum.CLOSED:
