@@ -51,7 +51,7 @@ export class CustomerCreditLimitDetailEntity {
     nullable: true,
     comment: '发货金额 = 订单金额，元',
     precision: 12,
-    scale: 2,
+    scale: 3,
   })
   shippedAmount: string | null;
 
@@ -60,7 +60,7 @@ export class CustomerCreditLimitDetailEntity {
     nullable: true,
     comment: '3%辅销品金额，元',
     precision: 12,
-    scale: 2,
+    scale: 3,
   })
   auxiliarySaleGoodsAmount: string | null;
 
@@ -69,7 +69,7 @@ export class CustomerCreditLimitDetailEntity {
     nullable: true,
     comment: '10%货补金额，元',
     precision: 12,
-    scale: 2,
+    scale: 3,
   })
   replenishingGoodsAmount: string | null;
 
@@ -78,7 +78,7 @@ export class CustomerCreditLimitDetailEntity {
     nullable: true,
     comment: '已提辅销金额，元',
     precision: 12,
-    scale: 2,
+    scale: 3,
   })
   usedAuxiliarySaleGoodsAmount: string | null;
 
@@ -87,7 +87,7 @@ export class CustomerCreditLimitDetailEntity {
     nullable: true,
     comment: '已提货补金额，元',
     precision: 12,
-    scale: 2,
+    scale: 3,
   })
   usedReplenishingGoodsAmount: string | null;
 

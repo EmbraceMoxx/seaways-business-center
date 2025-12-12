@@ -43,7 +43,7 @@ export class CustomerCreditAmountInfoEntity {
     name: 'shipped_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '发货金额 = 订单金额，元',
   })
@@ -53,7 +53,7 @@ export class CustomerCreditAmountInfoEntity {
     name: 'frozen_shipped_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '冻结订单发货金额，元',
   })
@@ -63,7 +63,7 @@ export class CustomerCreditAmountInfoEntity {
     name: 'repayment_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '回款金额，元',
   })
@@ -73,7 +73,7 @@ export class CustomerCreditAmountInfoEntity {
     name: 'auxiliary_sale_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '3%辅销品金额，元',
   })
@@ -83,7 +83,7 @@ export class CustomerCreditAmountInfoEntity {
     name: 'replenishing_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '10%货补金额，元',
   })
@@ -93,7 +93,7 @@ export class CustomerCreditAmountInfoEntity {
     name: 'used_auxiliary_sale_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '已提辅销金额，元',
   })
@@ -103,7 +103,7 @@ export class CustomerCreditAmountInfoEntity {
     name: 'frozen_sale_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '冻结产生辅销金额，元',
   })
@@ -113,7 +113,7 @@ export class CustomerCreditAmountInfoEntity {
     name: 'frozen_used_sale_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '冻结使用辅销品金额，元',
   })
@@ -123,7 +123,7 @@ export class CustomerCreditAmountInfoEntity {
     name: 'remain_auxiliary_sale_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '剩余辅销金额，元',
   })
@@ -133,7 +133,7 @@ export class CustomerCreditAmountInfoEntity {
     name: 'used_replenishing_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '已提货补金额，元',
   })
@@ -143,7 +143,7 @@ export class CustomerCreditAmountInfoEntity {
     name: 'frozen_replenishing_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '冻结产生货补金额，元',
   })
@@ -153,7 +153,7 @@ export class CustomerCreditAmountInfoEntity {
     name: 'frozen_used_replenishing_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '冻结使用货补金额，元',
   })
@@ -163,7 +163,7 @@ export class CustomerCreditAmountInfoEntity {
     name: 'remain_replenishing_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '剩余货补金额，元',
   })

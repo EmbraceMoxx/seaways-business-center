@@ -66,7 +66,7 @@ export class CustomerMonthlyCreditLimitEntity {
     name: 'contract_mission_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '合同任务金额，元',
   })
@@ -76,7 +76,7 @@ export class CustomerMonthlyCreditLimitEntity {
     name: 'shipped_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '发货金额 = 订单金额，元',
   })
@@ -86,7 +86,7 @@ export class CustomerMonthlyCreditLimitEntity {
     name: 'repayment_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '回款金额，元',
   })
@@ -96,7 +96,7 @@ export class CustomerMonthlyCreditLimitEntity {
     name: 'auxiliary_sale_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '3%辅销品金额，元',
   })
@@ -106,7 +106,7 @@ export class CustomerMonthlyCreditLimitEntity {
     name: 'replenishing_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '10%货补金额，元',
   })
@@ -116,7 +116,7 @@ export class CustomerMonthlyCreditLimitEntity {
     name: 'used_auxiliary_sale_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '已提辅销金额，元',
   })
@@ -126,7 +126,7 @@ export class CustomerMonthlyCreditLimitEntity {
     name: 'remain_auxiliary_sale_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '剩余辅销金额，元',
   })
@@ -136,7 +136,7 @@ export class CustomerMonthlyCreditLimitEntity {
     name: 'used_replenishing_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '已提货补金额，元',
   })
@@ -146,7 +146,7 @@ export class CustomerMonthlyCreditLimitEntity {
     name: 'remain_replenishing_goods_amount',
     type: 'decimal',
     precision: 12,
-    scale: 2,
+    scale: 3,
     nullable: true,
     comment: '剩余货补金额，元',
   })
