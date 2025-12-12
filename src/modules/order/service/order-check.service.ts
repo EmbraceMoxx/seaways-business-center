@@ -230,14 +230,15 @@ export class OrderCheckService {
     const message = messages.length
       ? `${messages.join('，')}，进入审批流程`
       : '';
+    this.logger.log(`auxiliaryAmount:${auxiliaryAmount}`);
     return plainToInstance(CheckOrderAmountResponse, {
       customerName: customer.customerName,
       customerId: customer.id,
-      orderAmount: orderAmount.toFixed(2),
-      orderSubsidyAmount: subsidyAmount.toFixed(2),
-      replenishAmount: replenishAmount.toFixed(2),
+      orderAmount: MoneyUtil.fromYuan3(orderAmount).toYuan3(),
+      orderSubsidyAmount: MoneyUtil.fromYuan3(subsidyAmount).toYuan3(),
+      replenishAmount: MoneyUtil.fromYuan3(replenishAmount).toYuan3(),
       replenishRatio: replenishRatio.toFixed(4),
-      auxiliarySalesAmount: auxiliaryAmount.toFixed(2),
+      auxiliarySalesAmount: MoneyUtil.fromYuan3(auxiliaryAmount).toYuan3(),
       auxiliarySalesRatio: auxiliarySalesRatio.toFixed(4),
       isNeedApproval: needApproval || messages.length > 0,
       message,

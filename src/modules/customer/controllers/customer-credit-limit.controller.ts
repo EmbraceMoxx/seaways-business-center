@@ -119,40 +119,40 @@ export class CustomerCreditLimitController {
         worksheet.addRow(
           {
             ...item,
-            shippedAmount: MoneyUtil.fromYuan(item.shippedAmount).toYuan(),
-            frozenShippedAmount: MoneyUtil.fromYuan(
+            shippedAmount: MoneyUtil.fromYuan3(item.shippedAmount).toYuan3(),
+            frozenShippedAmount: MoneyUtil.fromYuan3(
               item.frozenShippedAmount,
-            ).toYuan(),
-            auxiliarySaleGoodsAmount: MoneyUtil.fromYuan(
+            ).toYuan3(),
+            auxiliarySaleGoodsAmount: MoneyUtil.fromYuan3(
               item.auxiliarySaleGoodsAmount,
-            ).toYuan(),
-            usedAuxiliarySaleGoodsAmount: MoneyUtil.fromYuan(
+            ).toYuan3(),
+            usedAuxiliarySaleGoodsAmount: MoneyUtil.fromYuan3(
               item.usedAuxiliarySaleGoodsAmount,
-            ).toYuan(),
-            frozenSaleGoodsAmount: MoneyUtil.fromYuan(
+            ).toYuan3(),
+            frozenSaleGoodsAmount: MoneyUtil.fromYuan3(
               item.frozenSaleGoodsAmount,
-            ).toYuan(),
-            frozenUsedSaleGoodsAmount: MoneyUtil.fromYuan(
+            ).toYuan3(),
+            frozenUsedSaleGoodsAmount: MoneyUtil.fromYuan3(
               item.frozenUsedSaleGoodsAmount,
-            ).toYuan(),
-            remainAuxiliarySaleGoodsAmount: MoneyUtil.fromYuan(
+            ).toYuan3(),
+            remainAuxiliarySaleGoodsAmount: MoneyUtil.fromYuan3(
               item.remainAuxiliarySaleGoodsAmount,
-            ).toYuan(),
-            replenishingGoodsAmount: MoneyUtil.fromYuan(
+            ).toYuan3(),
+            replenishingGoodsAmount: MoneyUtil.fromYuan3(
               item.replenishingGoodsAmount,
-            ).toYuan(),
-            usedReplenishingGoodsAmount: MoneyUtil.fromYuan(
+            ).toYuan3(),
+            usedReplenishingGoodsAmount: MoneyUtil.fromYuan3(
               item.usedReplenishingGoodsAmount,
-            ).toYuan(),
-            frozenReplenishingGoodsAmount: MoneyUtil.fromYuan(
+            ).toYuan3(),
+            frozenReplenishingGoodsAmount: MoneyUtil.fromYuan3(
               item.frozenReplenishingGoodsAmount,
-            ).toYuan(),
-            frozenUsedReplenishingGoodsAmount: MoneyUtil.fromYuan(
+            ).toYuan3(),
+            frozenUsedReplenishingGoodsAmount: MoneyUtil.fromYuan3(
               item.frozenUsedReplenishingGoodsAmount,
-            ).toYuan(),
-            remainReplenishingGoodsAmount: MoneyUtil.fromYuan(
+            ).toYuan3(),
+            remainReplenishingGoodsAmount: MoneyUtil.fromYuan3(
               item.remainReplenishingGoodsAmount,
-            ).toYuan(),
+            ).toYuan3(),
           },
           'n',
         );

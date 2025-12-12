@@ -84,47 +84,47 @@ export class CustomerCreditLimitService {
     }
     this.logger.log('额度汇总操作前数据:', JSON.stringify(creditInfo));
     // 发货金额冻结
-    creditInfo.frozenShippedAmount = MoneyUtil.fromYuan(
+    creditInfo.frozenShippedAmount = MoneyUtil.fromYuan3(
       creditInfo.frozenShippedAmount,
     )
-      .add(MoneyUtil.fromYuan(creditParam.shippedAmount || '0'))
-      .toYuan();
+      .add(MoneyUtil.fromYuan3(creditParam.shippedAmount || '0'))
+      .toYuan3();
     // 辅销金额
-    creditInfo.frozenSaleGoodsAmount = MoneyUtil.fromYuan(
+    creditInfo.frozenSaleGoodsAmount = MoneyUtil.fromYuan3(
       creditInfo.frozenSaleGoodsAmount,
     )
-      .add(MoneyUtil.fromYuan(creditParam.auxiliarySaleGoodsAmount))
-      .toYuan();
-    creditInfo.frozenUsedSaleGoodsAmount = MoneyUtil.fromYuan(
+      .add(MoneyUtil.fromYuan3(creditParam.auxiliarySaleGoodsAmount))
+      .toYuan3();
+    creditInfo.frozenUsedSaleGoodsAmount = MoneyUtil.fromYuan3(
       creditInfo.frozenUsedSaleGoodsAmount,
     )
-      .add(MoneyUtil.fromYuan(creditParam.usedAuxiliarySaleGoodsAmount))
-      .toYuan();
+      .add(MoneyUtil.fromYuan3(creditParam.usedAuxiliarySaleGoodsAmount))
+      .toYuan3();
     // 货补金额
-    creditInfo.frozenReplenishingGoodsAmount = MoneyUtil.fromYuan(
+    creditInfo.frozenReplenishingGoodsAmount = MoneyUtil.fromYuan3(
       creditInfo.frozenReplenishingGoodsAmount,
     )
-      .add(MoneyUtil.fromYuan(creditParam.replenishingGoodsAmount))
-      .toYuan();
-    creditInfo.frozenUsedReplenishingGoodsAmount = MoneyUtil.fromYuan(
+      .add(MoneyUtil.fromYuan3(creditParam.replenishingGoodsAmount))
+      .toYuan3();
+    creditInfo.frozenUsedReplenishingGoodsAmount = MoneyUtil.fromYuan3(
       creditInfo.frozenUsedReplenishingGoodsAmount,
     )
-      .add(MoneyUtil.fromYuan(creditParam.usedReplenishingGoodsAmount))
-      .toYuan();
+      .add(MoneyUtil.fromYuan3(creditParam.usedReplenishingGoodsAmount))
+      .toYuan3();
     // 剩余货补金额
-    creditInfo.remainReplenishingGoodsAmount = MoneyUtil.fromYuan(
+    creditInfo.remainReplenishingGoodsAmount = MoneyUtil.fromYuan3(
       creditInfo.replenishingGoodsAmount,
     )
-      .sub(MoneyUtil.fromYuan(creditInfo.usedReplenishingGoodsAmount))
-      .sub(MoneyUtil.fromYuan(creditInfo.frozenUsedReplenishingGoodsAmount))
-      .toYuan();
+      .sub(MoneyUtil.fromYuan3(creditInfo.usedReplenishingGoodsAmount))
+      .sub(MoneyUtil.fromYuan3(creditInfo.frozenUsedReplenishingGoodsAmount))
+      .toYuan3();
     // 剩余辅销金额
-    creditInfo.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
+    creditInfo.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan3(
       creditInfo.auxiliarySaleGoodsAmount,
     )
-      .sub(MoneyUtil.fromYuan(creditInfo.usedAuxiliarySaleGoodsAmount))
-      .sub(MoneyUtil.fromYuan(creditInfo.frozenUsedSaleGoodsAmount))
-      .toYuan();
+      .sub(MoneyUtil.fromYuan3(creditInfo.usedAuxiliarySaleGoodsAmount))
+      .sub(MoneyUtil.fromYuan3(creditInfo.frozenUsedSaleGoodsAmount))
+      .toYuan3();
 
     creditInfo.reviserId = user.userId;
     creditInfo.reviserName = user.nickName;
@@ -495,12 +495,12 @@ export class CustomerCreditLimitService {
       result.apply(credit, cancelVector);
     }
     // 最终对剩余金额进行计算
-    credit.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
+    credit.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan3(
       credit.auxiliarySaleGoodsAmount,
     )
-      .sub(MoneyUtil.fromYuan(credit.usedAuxiliarySaleGoodsAmount))
-      .sub(MoneyUtil.fromYuan(credit.frozenUsedSaleGoodsAmount))
-      .toYuan();
+      .sub(MoneyUtil.fromYuan3(credit.usedAuxiliarySaleGoodsAmount))
+      .sub(MoneyUtil.fromYuan3(credit.frozenUsedSaleGoodsAmount))
+      .toYuan3();
     this.logger.log(
       `credit.remainAuxiliarySaleGoodsAmount : ${credit.remainAuxiliarySaleGoodsAmount}`,
     );
@@ -513,12 +513,12 @@ export class CustomerCreditLimitService {
     this.logger.log(
       `credit.frozenUsedSaleGoodsAmount : ${credit.frozenUsedSaleGoodsAmount}`,
     );
-    credit.remainReplenishingGoodsAmount = MoneyUtil.fromYuan(
+    credit.remainReplenishingGoodsAmount = MoneyUtil.fromYuan3(
       credit.replenishingGoodsAmount,
     )
-      .sub(MoneyUtil.fromYuan(credit.usedReplenishingGoodsAmount))
-      .sub(MoneyUtil.fromYuan(credit.frozenUsedReplenishingGoodsAmount))
-      .toYuan();
+      .sub(MoneyUtil.fromYuan3(credit.usedReplenishingGoodsAmount))
+      .sub(MoneyUtil.fromYuan3(credit.frozenUsedReplenishingGoodsAmount))
+      .toYuan3();
 
     credit.reviserId = user.userId;
     credit.reviserName = user.nickName;
@@ -549,19 +549,19 @@ export class CustomerCreditLimitService {
     strategy.apply(credit, updateVector);
 
     // 剩余货补金额
-    credit.remainReplenishingGoodsAmount = MoneyUtil.fromYuan(
+    credit.remainReplenishingGoodsAmount = MoneyUtil.fromYuan3(
       credit.replenishingGoodsAmount,
     )
-      .sub(MoneyUtil.fromYuan(credit.usedReplenishingGoodsAmount))
-      .sub(MoneyUtil.fromYuan(credit.frozenUsedReplenishingGoodsAmount))
-      .toYuan();
+      .sub(MoneyUtil.fromYuan3(credit.usedReplenishingGoodsAmount))
+      .sub(MoneyUtil.fromYuan3(credit.frozenUsedReplenishingGoodsAmount))
+      .toYuan3();
     // 剩余辅销金额
-    credit.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
+    credit.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan3(
       credit.auxiliarySaleGoodsAmount,
     )
-      .sub(MoneyUtil.fromYuan(credit.usedAuxiliarySaleGoodsAmount))
-      .sub(MoneyUtil.fromYuan(credit.frozenUsedSaleGoodsAmount))
-      .toYuan();
+      .sub(MoneyUtil.fromYuan3(credit.usedAuxiliarySaleGoodsAmount))
+      .sub(MoneyUtil.fromYuan3(credit.frozenUsedSaleGoodsAmount))
+      .toYuan3();
 
     // 允许剩余额度为负
     credit.reviserId = user.userId;

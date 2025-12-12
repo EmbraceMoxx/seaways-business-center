@@ -107,16 +107,16 @@ export class CustomerMonthlyCreditLimitService {
     };
 
     // 2、重新计算剩余额度
-    updatedFields.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan(
+    updatedFields.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan3(
       updatedFields.auxiliarySaleGoodsAmount,
     )
-      .sub(MoneyUtil.fromYuan(updatedFields.usedAuxiliarySaleGoodsAmount))
-      .toYuan();
-    updatedFields.remainReplenishingGoodsAmount = MoneyUtil.fromYuan(
+      .sub(MoneyUtil.fromYuan3(updatedFields.usedAuxiliarySaleGoodsAmount))
+      .toYuan3();
+    updatedFields.remainReplenishingGoodsAmount = MoneyUtil.fromYuan3(
       updatedFields.replenishingGoodsAmount,
     )
-      .sub(MoneyUtil.fromYuan(updatedFields.usedReplenishingGoodsAmount))
-      .toYuan();
+      .sub(MoneyUtil.fromYuan3(updatedFields.usedReplenishingGoodsAmount))
+      .toYuan3();
 
     // 3、更新
     return await this.customerMonthlyCreditRepository.update(

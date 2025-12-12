@@ -14,7 +14,14 @@ export class MoneyUtil {
   static fromCent(cent: number): MoneyUtil {
     return new MoneyUtil(cent);
   }
+  static fromYuan3(v?: string | number | null): MoneyUtil {
+    const y = Number(v || 0);
+    return new MoneyUtil(Math.round(y * 1000)); // 以厘为单位
+  }
 
+  toYuan3(): string {
+    return (this.cents / 1000).toFixed(3);
+  }
   /* =============== 运算 =============== */
   add(other: MoneyUtil | number): MoneyUtil {
     const otherCent =
