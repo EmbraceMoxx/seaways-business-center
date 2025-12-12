@@ -214,7 +214,7 @@ export class OrderMainEntity {
     name: 'amount',
     comment: '订单总金额(发货金额），单位：元',
     precision: 12,
-    scale: 2,
+    scale: 3,
   })
   amount: string;
 
@@ -222,7 +222,7 @@ export class OrderMainEntity {
     name: 'credit_amount',
     comment: '额度计算总额，单位：元',
     precision: 12,
-    scale: 2,
+    scale: 3,
     default: () => "'0.00'",
   })
   creditAmount: string;
@@ -231,7 +231,7 @@ export class OrderMainEntity {
     name: 'replenish_amount',
     comment: '产生的货补金额, 单位：元',
     precision: 12,
-    scale: 2,
+    scale: 3,
     default: () => "'0.00'",
   })
   replenishAmount: string;
@@ -249,7 +249,7 @@ export class OrderMainEntity {
     name: 'used_replenish_amount',
     comment: '使用货补金额, 单位：元',
     precision: 12,
-    scale: 2,
+    scale: 3,
     default: () => "'0.00'",
   })
   usedReplenishAmount: string;
@@ -267,7 +267,7 @@ export class OrderMainEntity {
     name: 'used_auxiliary_sales_amount',
     comment: '使用辅销金额, 单位：元',
     precision: 12,
-    scale: 2,
+    scale: 3,
     default: () => "'0.00'",
   })
   usedAuxiliarySalesAmount: string;
@@ -306,7 +306,7 @@ export class OrderMainEntity {
     name: 'paid_amount',
     comment: '已付金额, 单位：元',
     precision: 12,
-    scale: 2,
+    scale: 3,
     default: () => "'0.00'",
   })
   paidAmount: string;
@@ -315,7 +315,7 @@ export class OrderMainEntity {
     name: 'unpaid_amount',
     comment: '未付金额, 单位：元',
     precision: 12,
-    scale: 2,
+    scale: 3,
     default: () => "'0.00'",
   })
   unpaidAmount: string;

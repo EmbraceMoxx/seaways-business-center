@@ -91,7 +91,7 @@ export class OrderItemEntity {
     nullable: true,
     comment: '单品出厂价（元）',
     precision: 10,
-    scale: 2,
+    scale: 3,
   })
   exFactoryPrice: string | null;
 
@@ -100,7 +100,7 @@ export class OrderItemEntity {
     nullable: true,
     comment: '单箱出厂价（元）',
     precision: 10,
-    scale: 2,
+    scale: 3,
   })
   exFactoryBoxPrice: string | null;
 
@@ -121,7 +121,7 @@ export class OrderItemEntity {
     name: 'amount',
     comment: '商品总价，单位：元',
     precision: 12,
-    scale: 2,
+    scale: 3,
     default: () => "'0.00'",
   })
   amount: string;
@@ -130,7 +130,7 @@ export class OrderItemEntity {
     name: 'replenish_amount',
     comment: '货补金额，单位：元',
     precision: 12,
-    scale: 2,
+    scale: 3,
     default: () => "'0.00'",
   })
   replenishAmount: string;
@@ -139,7 +139,7 @@ export class OrderItemEntity {
     name: 'auxiliary_sales_amount',
     comment: '辅销金额，单位：元',
     precision: 12,
-    scale: 2,
+    scale: 3,
     default: () => "'0.00'",
   })
   auxiliarySalesAmount: string;

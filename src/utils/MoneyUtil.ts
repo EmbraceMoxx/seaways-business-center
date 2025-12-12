@@ -25,7 +25,7 @@ export class MoneyUtil {
   static add(a: string, b: string): string {
     const aCent = Math.round(Number(a || 0) * 100);
     const bCent = Math.round(Number(b || 0) * 100);
-    return ((aCent + bCent) / 100).toFixed(2);
+    return ((aCent + bCent) / 100).toFixed(3);
   }
   sub(other: MoneyUtil | number): MoneyUtil {
     const otherCent =
@@ -41,7 +41,7 @@ export class MoneyUtil {
   static sub(a: string, b: string): string {
     const aCent = Math.round(Number(a || 0) * 100);
     const bCent = Math.round(Number(b || 0) * 100);
-    return ((aCent - bCent) / 100).toFixed(2);
+    return ((aCent - bCent) / 100).toFixed(3);
   }
   /**
    * 安全除法

@@ -82,10 +82,10 @@ export class OrderConvertHelper {
       switch (itemType) {
         case OrderItemTypeEnum.FINISHED_PRODUCT:
           orderItem.replenishAmount = commodityInfo.isQuotaInvolved
-            ? (amount * config.maxReplenishmentFreeApprovalRatio).toFixed(2)
+            ? (amount * config.maxReplenishmentFreeApprovalRatio).toFixed(3)
             : '0';
           orderItem.auxiliarySalesAmount = commodityInfo.isQuotaInvolved
-            ? (amount * config.auxiliaryFreeRatio).toFixed(2)
+            ? (amount * config.auxiliaryFreeRatio).toFixed(3)
             : '0';
           break;
         case OrderItemTypeEnum.REPLENISH_PRODUCT:
@@ -123,7 +123,7 @@ export class OrderConvertHelper {
     orderItem.boxQty = Number(item.boxQty || 0);
     orderItem.qty = Number(item.qty || 0);
     const amount = orderItem.qty * parseFloat(commodityInfo.itemExFactoryPrice);
-    orderItem.amount = amount.toFixed(2);
+    orderItem.amount = amount.toFixed(3);
     orderItem.deleted = GlobalStatusEnum.NO;
     return { orderItem, commodityInfo };
   }
@@ -268,7 +268,7 @@ export class OrderConvertHelper {
         existing.boxQty += item.boxQty ?? 0;
         existing.amount = (
           Number(existing.qty) * parseFloat(existing.exFactoryPrice)
-        ).toFixed(2);
+        ).toFixed(3);
       } else {
         map.set(key, item);
       }

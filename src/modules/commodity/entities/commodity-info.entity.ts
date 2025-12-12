@@ -108,7 +108,7 @@ export class CommodityInfoEntity {
     nullable: true,
     comment: '单品出厂价（元）',
     precision: 10,
-    scale: 2,
+    scale: 3,
   })
   itemExFactoryPrice: string | null;
 
@@ -117,7 +117,7 @@ export class CommodityInfoEntity {
     nullable: true,
     comment: '单品建议零售价（元）',
     precision: 10,
-    scale: 2,
+    scale: 3,
   })
   itemSuggestedPrice: string | null;
 
@@ -126,7 +126,7 @@ export class CommodityInfoEntity {
     nullable: true,
     comment: '单品最低零售价（元）',
     precision: 10,
-    scale: 2,
+    scale: 3,
   })
   itemMinRetailPrice: string | null;
 
@@ -153,7 +153,7 @@ export class CommodityInfoEntity {
     nullable: true,
     comment: '单箱出厂价（元）',
     precision: 10,
-    scale: 2,
+    scale: 3,
   })
   boxExFactoryPrice: string | null;
 
@@ -162,7 +162,7 @@ export class CommodityInfoEntity {
     nullable: true,
     comment: '单箱最低零售价（元）',
     precision: 10,
-    scale: 2,
+    scale: 3,
   })
   boxMinRetailPrice: string | null;
 
@@ -171,7 +171,7 @@ export class CommodityInfoEntity {
     nullable: true,
     comment: '单箱最低整件价（元）',
     precision: 10,
-    scale: 2,
+    scale: 3,
   })
   boxMinWholesalePrice: string | null;
 
@@ -235,7 +235,7 @@ export class CommodityInfoEntity {
     nullable: true,
     comment: '作为赠品的出厂价（元）',
     precision: 10,
-    scale: 2,
+    scale: 3,
   })
   giftExFactoryPrice: string | null;
 
