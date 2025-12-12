@@ -182,6 +182,7 @@ export class CommodityService {
         commodityAliaName,
         commodityClassify,
         customerId,
+        commodityBarcode,
       } = params;
 
       let queryBuilder = this.commodityRepository
@@ -301,6 +302,16 @@ export class CommodityService {
           '(commodity.commodity_first_category = :categoryId OR commodity.commodity_second_category = :categoryId)',
           {
             categoryId,
+          },
+        );
+      }
+
+      // 商品条码
+      if (commodityBarcode) {
+        queryBuilder = queryBuilder.andWhere(
+          'commodity.commodity_barcode LIKE :commodityBarcode',
+          {
+            commodityBarcode: `%${commodityBarcode}%`,
           },
         );
       }
