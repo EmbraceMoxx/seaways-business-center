@@ -20,6 +20,7 @@ import { CommodityBundledSkuInfoEntity } from '../entities/commodity-bundled-sku
 import { CommodityCategoryEntity } from '../entities/commodity-category.entity';
 import { CommodityCategoryService } from './commodity-category.service';
 import { CommodityCustomerPriceMappingEntity } from '@modules/commodity/entities/commodity-customer-price-mapping.entity';
+import { CommodityClassifyTypeEnum } from '@src/enums/commodity-classify-type.enum';
 
 @Injectable()
 export class CommodityService {
@@ -232,30 +233,36 @@ export class CommodityService {
         });
       // 商品类型,1-成品、2-辅销、3-货补
       if (commodityClassify) {
-        if (commodityClassify === '1') {
-          const { id: fistCategoryId } =
-            await this.commodityCategoryService.getCategoryByName('成品商品');
-          queryBuilder = queryBuilder.andWhere(
-            'commodity.commodity_first_category = :fistCategoryId',
-            {
-              fistCategoryId,
-            },
-          );
-        } else if (commodityClassify === '2') {
-          queryBuilder = queryBuilder.andWhere(
-            'commodity.is_gift_eligible = :isGiftEligible',
-            {
-              isGiftEligible: BooleanStatusEnum.TRUE,
-            },
-          );
-        } else if (commodityClassify === '3') {
-          queryBuilder = queryBuilder.andWhere(
-            'commodity.is_supply_subsidy_involved = :isSupplySubsidyInvolved',
-            {
-              isSupplySubsidyInvolved: BooleanStatusEnum.TRUE,
-            },
-          );
+        let clause = '';
+        let params: any = {};
+
+        switch (commodityClassify) {
+          case CommodityClassifyTypeEnum.FINISHED_PRODUCT:
+            clause = 'commodity.commodity_first_category = :fistCategoryId';
+            params = {
+              fistCategoryId: (
+                await this.commodityCategoryService.getCategoryByName(
+                  '成品商品',
+                )
+              ).id,
+            };
+            break;
+
+          case CommodityClassifyTypeEnum.AUXILIARY_SALES_PRODUCT:
+            clause = 'commodity.is_gift_eligible = :isGiftEligible';
+            params = { isGiftEligible: BooleanStatusEnum.TRUE };
+            break;
+
+          case CommodityClassifyTypeEnum.REPLENISH_PRODUCT:
+            clause =
+              'commodity.is_supply_subsidy_involved = :isSupplySubsidyInvolved';
+            params = { isSupplySubsidyInvolved: BooleanStatusEnum.TRUE };
+            break;
+
+          default:
+            return; // 或者抛错，按业务需要
         }
+        queryBuilder = queryBuilder.andWhere(clause, params);
       }
 
       // 商品内部编码
@@ -323,11 +330,6 @@ export class CommodityService {
           .then((list) => list.map((m) => [m.commodityId, m])),
       );
       commodityResponseDtos.forEach((dto) => {
-        /* ---- 第 1 步：如果本体就是赠品，先用赠品价 ---- */
-        if (dto.isGiftEligible === 1 && dto.giftExFactoryPrice != null) {
-          dto.itemExFactoryPrice = dto.giftExFactoryPrice;
-        }
-        /* ---- 第 2 步：客户映射表存在就整体覆盖 ---- */
         const mapping = priceMap.get(dto.id);
         if (mapping) {
           // 统一覆盖四个字段
@@ -335,6 +337,15 @@ export class CommodityService {
           dto.isQuotaInvolved = mapping.isQuotaInvolved;
           dto.isSupplySubsidyInvolved = mapping.isSupplySubsidyInvolved;
           dto.isGiftEligible = mapping.isGiftEligible;
+        }
+        /* 2. 只有辅销品才允许用赠品价，其余一律用当前 itemExFactoryPrice（映射表或原始） */
+        if (
+          commodityClassify ===
+            CommodityClassifyTypeEnum.AUXILIARY_SALES_PRODUCT &&
+          dto.isGiftEligible === 1 &&
+          dto.giftExFactoryPrice != null
+        ) {
+          dto.itemExFactoryPrice = dto.giftExFactoryPrice;
         }
       });
       return { items: commodityResponseDtos, total };
@@ -600,13 +611,14 @@ export class CommodityService {
    * 获取客户商品映射信息
    * @param customerId 客户ID
    * @param commodityIds 商品ID数组
+   * @param useGiftPrice
    * @returns 返回商品信息实体数组，包含价格映射后的商品信息
    */
   async getCommodityCustomerMap(
     customerId: string,
     commodityIds: string[],
+    useGiftPrice = false,
   ): Promise<CommodityInfoEntity[]> {
-    this.logger.log(`customerId:${customerId}`);
     const commodityInfos = await this.getCommodityListByCommodityIds(
       commodityIds,
     );
@@ -621,10 +633,6 @@ export class CommodityService {
     );
     // 处理商品价格映射逻辑
     commodityInfos.forEach((dto) => {
-      /* ---- 第 1 步：如果本体就是赠品，先用赠品价 ---- */
-      if (dto.isGiftEligible === 1 && dto.giftExFactoryPrice != null) {
-        dto.itemExFactoryPrice = dto.giftExFactoryPrice;
-      }
       /* ---- 第 2 步：客户映射表存在就整体覆盖 ---- */
       const mapping = priceMap.get(dto.id);
       if (mapping) {
@@ -633,6 +641,13 @@ export class CommodityService {
         dto.isQuotaInvolved = mapping.isQuotaInvolved;
         dto.isSupplySubsidyInvolved = mapping.isSupplySubsidyInvolved;
         dto.isGiftEligible = mapping.isGiftEligible;
+      }
+      if (
+        useGiftPrice &&
+        dto.isGiftEligible === 1 &&
+        dto.giftExFactoryPrice != null
+      ) {
+        dto.itemExFactoryPrice = dto.giftExFactoryPrice;
       }
     });
     return commodityInfos;

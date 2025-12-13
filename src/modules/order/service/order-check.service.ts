@@ -186,6 +186,7 @@ export class OrderCheckService {
       auxiliaryGoods,
       customerId,
       false,
+      true,
     );
 
     /* ---------- 2. 比例 & 审批标志 ---------- */
@@ -379,12 +380,14 @@ export class OrderCheckService {
    * @param goods 商品列表
    * @param customerId
    * @param onlySubsidyInvolved
+   * @param useGiftPrice
    * @returns 计算后的总金额
    */
   private async calculateAmountWithQuery(
     goods: OrderItem[],
     customerId: string,
     onlySubsidyInvolved = false,
+    useGiftPrice = false,
   ): Promise<number> {
     if (!goods || goods.length === 0) return 0;
     const commodityIds = goods.map((item) => item.commodityId);
@@ -392,6 +395,7 @@ export class OrderCheckService {
     const commodityInfos = await this.commodityService.getCommodityCustomerMap(
       customerId,
       commodityIds,
+      useGiftPrice,
     );
     return OrderConvertHelper.calculateTotalAmount(
       goods,
