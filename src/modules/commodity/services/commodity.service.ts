@@ -264,7 +264,6 @@ export class CommodityService {
         }
         queryBuilder = queryBuilder.andWhere(clause, params);
       }
-
       // 商品内部编码
       if (commodityInternalCode) {
         queryBuilder = queryBuilder.andWhere(
@@ -316,9 +315,11 @@ export class CommodityService {
         .offset((page - 1) * pageSize);
 
       const commodityResponseDtos = await queryBuilder.getRawMany();
-      // this.logger.log(`查询商品获得的结果为：${commodityResponseDtos}`);
+      this.logger.log(`查询商品获得的结果为：${commodityResponseDtos}`);
       const commodityIds = commodityResponseDtos.map((e) => e.id);
-
+      if (commodityIds.length === 0) {
+        return { items: commodityResponseDtos, total };
+      }
       // 2. 取客户映射（一次性查完）
       this.logger.log(`customerId:${customerId}`);
       const priceMap = new Map(
@@ -619,9 +620,15 @@ export class CommodityService {
     commodityIds: string[],
     useGiftPrice = false,
   ): Promise<CommodityInfoEntity[]> {
+    if (commodityIds.length === 0) {
+      return [];
+    }
     const commodityInfos = await this.getCommodityListByCommodityIds(
       commodityIds,
     );
+    if (commodityInfos.length === 0) {
+      return [];
+    }
     // 构建客户商品价格映射表
     const priceMap = new Map(
       await this.commodityCustomerPriceMappingRepository
