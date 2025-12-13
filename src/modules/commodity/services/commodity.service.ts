@@ -1,4 +1,4 @@
-import { Injectable, forwardRef, Inject } from '@nestjs/common';
+import { Injectable, forwardRef, Inject, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -19,10 +19,11 @@ import { CommodityInfoEntity } from '../entities/commodity-info.entity';
 import { CommodityBundledSkuInfoEntity } from '../entities/commodity-bundled-sku-info.entity';
 import { CommodityCategoryEntity } from '../entities/commodity-category.entity';
 import { CommodityCategoryService } from './commodity-category.service';
-import { CustomerCommodityConfigEntity } from '@modules/commodity/entities/customer-commodity-config.entity';
+import { CommodityCustomerPriceMappingEntity } from '@modules/commodity/entities/commodity-customer-price-mapping.entity';
 
 @Injectable()
 export class CommodityService {
+  private readonly logger = new Logger(CommodityService.name);
   constructor(
     @InjectRepository(CommodityInfoEntity)
     private commodityRepository: Repository<CommodityInfoEntity>,
@@ -30,8 +31,8 @@ export class CommodityService {
     @InjectRepository(CommodityBundledSkuInfoEntity)
     private commodityBundledSkuInfoEntityRepository: Repository<CommodityBundledSkuInfoEntity>,
 
-    @InjectRepository(CustomerCommodityConfigEntity)
-    private customerCommodityConfigEntityRepository: Repository<CustomerCommodityConfigEntity>,
+    @InjectRepository(CommodityCustomerPriceMappingEntity)
+    private commodityCustomerPriceMappingRepository: Repository<CommodityCustomerPriceMappingEntity>,
 
     @Inject(forwardRef(() => CommodityCategoryService))
     private commodityCategoryService: CommodityCategoryService,
@@ -229,25 +230,6 @@ export class CommodityService {
         .andWhere('commodity.enabled = :enabled', {
           enabled: GlobalStatusEnum.YES,
         });
-      // 如果没有 customerId，或查不到配置，都走默认商品
-      let specCommodityIds: string[] = [];
-      if (customerId) {
-        specCommodityIds = await this.customerCommodityConfigEntityRepository
-          .createQueryBuilder('c')
-          .where('c.customerId = :customerId', { customerId })
-          .select('c.excludeCommodityId', 'id')
-          .getRawMany()
-          .then((rows) => rows.map((r) => r.id));
-      }
-
-      if (specCommodityIds.length) {
-        queryBuilder = queryBuilder.andWhere(
-          'commodity.id NOT IN (:...specCommodityIds)',
-          { specCommodityIds },
-        );
-      } else {
-        queryBuilder = queryBuilder.andWhere('commodity.is_default = 1');
-      }
       // 商品类型,1-成品、2-辅销、3-货补
       if (commodityClassify) {
         if (commodityClassify === '1') {
@@ -326,13 +308,36 @@ export class CommodityService {
         .limit(pageSize)
         .offset((page - 1) * pageSize);
 
-      const commodity = await queryBuilder.getRawMany();
-      commodity.forEach((e) => {
-        if (e.isGiftEligible === 1) {
-          e.itemExFactoryPrice = e.giftExFactoryPrice;
+      const commodityResponseDtos = await queryBuilder.getRawMany();
+      // this.logger.log(`查询商品获得的结果为：${commodityResponseDtos}`);
+      const commodityIds = commodityResponseDtos.map((e) => e.id);
+
+      // 2. 取客户映射（一次性查完）
+      this.logger.log(`customerId:${customerId}`);
+      const priceMap = new Map(
+        await this.commodityCustomerPriceMappingRepository
+          .createQueryBuilder('m')
+          .where('m.customer_id = :customerId', { customerId })
+          .andWhere('m.commodity_id IN (:...commodityIds)', { commodityIds })
+          .getMany()
+          .then((list) => list.map((m) => [m.commodityId, m])),
+      );
+      commodityResponseDtos.forEach((dto) => {
+        /* ---- 第 1 步：如果本体就是赠品，先用赠品价 ---- */
+        if (dto.isGiftEligible === 1 && dto.giftExFactoryPrice != null) {
+          dto.itemExFactoryPrice = dto.giftExFactoryPrice;
+        }
+        /* ---- 第 2 步：客户映射表存在就整体覆盖 ---- */
+        const mapping = priceMap.get(dto.id);
+        if (mapping) {
+          // 统一覆盖四个字段
+          dto.itemExFactoryPrice = mapping.itemExFactoryPrice;
+          dto.isQuotaInvolved = mapping.isQuotaInvolved;
+          dto.isSupplySubsidyInvolved = mapping.isSupplySubsidyInvolved;
+          dto.isGiftEligible = mapping.isGiftEligible;
         }
       });
-      return { items: commodity, total };
+      return { items: commodityResponseDtos, total };
     } catch (error) {
       throw new BusinessException('获取选择商品列表失败');
     }
@@ -590,6 +595,47 @@ export class CommodityService {
         enabled: GlobalStatusEnum.YES,
       })
       .getMany();
+  }
+  /**
+   * 获取客户商品映射信息
+   * @param customerId 客户ID
+   * @param commodityIds 商品ID数组
+   * @returns 返回商品信息实体数组，包含价格映射后的商品信息
+   */
+  async getCommodityCustomerMap(
+    customerId: string,
+    commodityIds: string[],
+  ): Promise<CommodityInfoEntity[]> {
+    this.logger.log(`customerId:${customerId}`);
+    const commodityInfos = await this.getCommodityListByCommodityIds(
+      commodityIds,
+    );
+    // 构建客户商品价格映射表
+    const priceMap = new Map(
+      await this.commodityCustomerPriceMappingRepository
+        .createQueryBuilder('m')
+        .where('m.customer_id = :customerId', { customerId })
+        .andWhere('m.commodity_id IN (:...commodityIds)', { commodityIds })
+        .getMany()
+        .then((list) => list.map((m) => [m.commodityId, m])),
+    );
+    // 处理商品价格映射逻辑
+    commodityInfos.forEach((dto) => {
+      /* ---- 第 1 步：如果本体就是赠品，先用赠品价 ---- */
+      if (dto.isGiftEligible === 1 && dto.giftExFactoryPrice != null) {
+        dto.itemExFactoryPrice = dto.giftExFactoryPrice;
+      }
+      /* ---- 第 2 步：客户映射表存在就整体覆盖 ---- */
+      const mapping = priceMap.get(dto.id);
+      if (mapping) {
+        // 统一覆盖四个字段
+        dto.itemExFactoryPrice = mapping.itemExFactoryPrice;
+        dto.isQuotaInvolved = mapping.isQuotaInvolved;
+        dto.isSupplySubsidyInvolved = mapping.isSupplySubsidyInvolved;
+        dto.isGiftEligible = mapping.isGiftEligible;
+      }
+    });
+    return commodityInfos;
   }
 
   /**

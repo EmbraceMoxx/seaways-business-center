@@ -10,7 +10,7 @@ import { CommodityCategoryEntity } from './entities/commodity-category.entity';
 import { CommodityCategoryController } from './controllers/commodity-category.controller';
 import { CommodityCategoryService } from './services/commodity-category.service';
 import { CommodityBundledSkuInfoEntity } from '@modules/commodity/entities/commodity-bundled-sku-info.entity';
-import { CustomerCommodityConfigEntity } from '@modules/commodity/entities/customer-commodity-config.entity';
+import { CommodityCustomerPriceMappingEntity } from '@modules/commodity/entities/commodity-customer-price-mapping.entity';
 
 @Module({
   imports: [
@@ -18,7 +18,7 @@ import { CustomerCommodityConfigEntity } from '@modules/commodity/entities/custo
       CommodityInfoEntity,
       CommodityCategoryEntity,
       CommodityBundledSkuInfoEntity,
-      CustomerCommodityConfigEntity,
+      CommodityCustomerPriceMappingEntity,
     ]),
   ],
   providers: [CommodityService, CommodityCategoryService],
