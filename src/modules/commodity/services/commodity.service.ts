@@ -249,14 +249,37 @@ export class CommodityService {
             break;
 
           case CommodityClassifyTypeEnum.AUXILIARY_SALES_PRODUCT:
-            clause = 'commodity.is_gift_eligible = :isGiftEligible';
-            params = { isGiftEligible: BooleanStatusEnum.TRUE };
+            clause =
+              '(exists(select 1\n' +
+              '              from commodity_customer_price_mapping m\n' +
+              '              where commodity.id = m.commodity_id\n' +
+              '                and m.deleted = :deleted \n' +
+              '                and m.enabled = :enabled \n' +
+              '                and m.customer_id = :customerId\n' +
+              '                and m.is_gift_eligible = :isGiftEligible) or commodity.is_gift_eligible = :isGiftEligible)';
+            params = {
+              deleted: GlobalStatusEnum.NO,
+              enabled: GlobalStatusEnum.YES,
+              customerId: customerId,
+              isGiftEligible: BooleanStatusEnum.TRUE,
+            };
             break;
 
           case CommodityClassifyTypeEnum.REPLENISH_PRODUCT:
             clause =
-              'commodity.is_supply_subsidy_involved = :isSupplySubsidyInvolved';
-            params = { isSupplySubsidyInvolved: BooleanStatusEnum.TRUE };
+              '(exists(select 1\n' +
+              '              from commodity_customer_price_mapping m\n' +
+              '              where commodity.id = m.commodity_id\n' +
+              '                and m.deleted = :deleted \n' +
+              '                and m.enabled = :enabled \n' +
+              '                and m.customer_id = :customerId\n' +
+              '                and m.is_supply_subsidy_involved = :isSupplySubsidyInvolved) or commodity.is_supply_subsidy_involved = :isSupplySubsidyInvolved)';
+            params = {
+              deleted: GlobalStatusEnum.NO,
+              enabled: GlobalStatusEnum.YES,
+              customerId: customerId,
+              isSupplySubsidyInvolved: BooleanStatusEnum.TRUE,
+            };
             break;
 
           default:
@@ -303,7 +326,7 @@ export class CommodityService {
           },
         );
       }
-
+      this.logger.log(`${queryBuilder.getSql()}`);
       // 先执行计数查询（在添加分页条件之前）
       const countQueryBuilder = queryBuilder.clone();
       const total = await countQueryBuilder.getCount();
@@ -315,7 +338,6 @@ export class CommodityService {
         .offset((page - 1) * pageSize);
 
       const commodityResponseDtos = await queryBuilder.getRawMany();
-      this.logger.log(`查询商品获得的结果为：${commodityResponseDtos}`);
       const commodityIds = commodityResponseDtos.map((e) => e.id);
       if (commodityIds.length === 0) {
         return { items: commodityResponseDtos, total };

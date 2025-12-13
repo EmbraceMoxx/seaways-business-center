@@ -187,6 +187,12 @@ export class CommodityResponseDto {
   isGiftEligible: number;
 
   @ApiProperty({
+    description: '赠品销售价',
+    example: '13.97',
+  })
+  giftExFactoryPrice: string;
+
+  @ApiProperty({
     description: '商品状态',
     example: '1',
   })
