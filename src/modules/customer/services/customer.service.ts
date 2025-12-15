@@ -698,4 +698,20 @@ export class CustomerService {
       throw new BusinessException(error.message);
     }
   }
+
+  /**
+   * 删除客户
+   */
+  async deleteCustomer(id: string, user: JwtUserPayload) {
+    try {
+      await this.customerRepository.update(id, {
+        deleted: GlobalStatusEnum.YES,
+        revisedTime: dayjs().toDate(),
+        reviserId: user.userId,
+        reviserName: user.nickName,
+      });
+    } catch (error) {
+      throw new BusinessException('删除失败');
+    }
+  }
 }

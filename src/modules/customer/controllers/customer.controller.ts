@@ -1,4 +1,12 @@
-import { Controller, Post, Body, Param, Get, Put } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  Get,
+  Put,
+  Delete,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import {
   SuccessResponseDto,
@@ -77,5 +85,15 @@ export class CustomerController {
   ): Promise<SuccessResponseDto<CustomerInfoResponseDto>> {
     await this.customerService.addCustomer(cstomerInfo, user, token);
     return new SuccessResponseDto(null, '新增成功');
+  }
+
+  @ApiOperation({ summary: '新增客户' })
+  @Delete('delete/:id')
+  async deleteCustomer(
+    @Param('id') id: string,
+    @CurrentUser() user: JwtUserPayload,
+  ): Promise<SuccessResponseDto<CustomerInfoResponseDto>> {
+    await this.customerService.deleteCustomer(id, user);
+    return new SuccessResponseDto(null, '删除成功');
   }
 }

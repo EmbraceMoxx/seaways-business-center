@@ -29,7 +29,7 @@ export class CommodityCustomerPriceService {
     manager: EntityManager,
   ) {
     // 先删除该客户的所有商品价格记录（软删除）
-    await this.deleteCustomerCommodityPrices(customerId, manager);
+    await this.deleteCustomerCommodityPrices(customerId, user, manager);
 
     // 如果传入为空，则只执行删除操作
     if (!commodityPriceList || commodityPriceList.length === 0) {
@@ -113,6 +113,7 @@ export class CommodityCustomerPriceService {
 
   private async deleteCustomerCommodityPrices(
     customerId: string,
+    user: JwtUserPayload,
     manager: EntityManager,
   ): Promise<void> {
     await manager.update(
@@ -122,6 +123,9 @@ export class CommodityCustomerPriceService {
       },
       {
         deleted: GlobalStatusEnum.YES,
+        revisedTime: dayjs().toDate(),
+        reviserId: user.userId,
+        reviserName: user.nickName,
       },
     );
   }
