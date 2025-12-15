@@ -374,9 +374,41 @@ export class CustomerInfoCreditResponseDto {
 }
 
 /**
- * 客户信息更新请求DTO
+ * 客户信息请求DTO
  */
-export class CustomerInfoUpdateDto {
+export class CustomerRequestDto {
+  @ApiProperty({
+    description: '客户名称',
+    example: '真市美供应链（沈阳）有限公司',
+  })
+  @IsNotEmpty()
+  @IsString({ message: '客户名称必须是字符串' })
+  customerName: string;
+
+  @ApiProperty({
+    description: '客户所属区域',
+    example: '东区业务组',
+  })
+  @IsNotEmpty()
+  @IsString({ message: '客户所属区域必须是字符串' })
+  region: string;
+
+  @ApiProperty({
+    description: '省份',
+    example: '江苏省',
+  })
+  @IsNotEmpty()
+  @IsString({ message: '客户地区-省份必须是字符串' })
+  province: string;
+
+  @ApiProperty({
+    description: '城市',
+    example: '南京市',
+  })
+  @IsNotEmpty()
+  @IsString({ message: '客户地区-城市必须是字符串' })
+  city: string;
+
   @ApiProperty({
     description: '客户聚水潭ID',
     example: '16205412',
@@ -415,11 +447,10 @@ export class CustomerInfoUpdateDto {
   @ApiProperty({
     description: '合同有效期',
     example: '2023-01-01至2023-12-31',
-    required: false,
   })
-  @IsOptional()
+  @IsNotEmpty()
   @IsString({ message: '合同有效期必须是字符串' })
-  contractValidityPeriod?: string;
+  contractValidityPeriod: string;
 
   @ApiProperty({
     description: '合同任务金额，元',

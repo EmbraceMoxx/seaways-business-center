@@ -6,7 +6,7 @@ import { BusinessException } from '@src/dto/common/common.dto';
 import {
   CustomerInfoCreditResponseDto,
   CustomerInfoResponseDto,
-  CustomerInfoUpdateDto,
+  CustomerRequestDto,
   QueryCustomerDto,
 } from '@src/dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
@@ -19,6 +19,7 @@ import { UserService } from '@modules/common/user/user.service';
 import { HttpProxyService } from '@shared/http-proxy.service';
 import { UserEndpoints } from '@src/constants/index';
 import { forwardRef, Inject } from '@nestjs/common';
+import { generateId } from '@src/utils';
 
 @Injectable()
 export class CustomerService {
@@ -313,7 +314,7 @@ export class CustomerService {
     }
   }
   /**
-   * 获取客户额详情
+   * 获取客户详情
    */
   async getCustomerInfoCreditById(id: string): Promise<
     CustomerInfoResponseDto & {
@@ -353,7 +354,7 @@ export class CustomerService {
    */
   async updateCustomerInfo(
     customerId: string,
-    customerData: CustomerInfoUpdateDto,
+    customerData: CustomerRequestDto,
     user: JwtUserPayload,
     token: string,
   ) {
@@ -441,5 +442,102 @@ export class CustomerService {
       .andWhere('customer.deleted = :deleted', { deleted: GlobalStatusEnum.NO })
       .getMany();
     return userCustomerRelation.map((relation) => relation.id);
+  }
+
+  /**
+   * 新增客户
+   */
+  async addCustomer(
+    customerData: CustomerRequestDto,
+    user: JwtUserPayload,
+    token: string,
+  ) {
+    try {
+      // 1、构建客户信息
+      const customer = new CustomerInfoEntity();
+
+      // 2、生成客户ID
+      customer.id = generateId();
+
+      // 3、大区负责人
+      if (customerData?.regionalHeadId) {
+        // 3.1、判断大区负责人id是否有效
+        const userExit = await this.httpProxyServices.get(
+          UserEndpoints.USER_by_id(customerData?.regionalHeadId),
+          token,
+        );
+
+        if (!userExit) {
+          throw new BusinessException('大区负责人无效');
+        }
+        customer.regionalHead = userExit?.nickName;
+        customer.regionalHeadId = customerData?.regionalHeadId;
+      }
+
+      // 4、省区负责人
+      if (customerData?.provincialHeadId) {
+        // 4.1、判断省区负责人id是否有效
+        const userExit = await this.httpProxyServices.get(
+          UserEndpoints.USER_by_id(customerData?.provincialHeadId),
+          token,
+        );
+
+        if (!userExit) {
+          throw new BusinessException('省区负责人无效');
+        }
+        customer.provincialHead = userExit?.nickName;
+        customer.provincialHeadId = customerData?.provincialHeadId;
+      }
+
+      customer.customerName = customerData?.customerName;
+      customer.region = customerData?.region;
+      customer.province = customerData?.province;
+      customer.city = customerData?.city;
+      customer.customerJstId = customerData?.customerJstId;
+      customer.customerType = customerData?.customerType;
+      customer.isEarnestMoney = customerData?.isEarnestMoney;
+      customer.distributorType = customerData?.distributorType;
+      customer.contractValidityPeriod = customerData?.contractValidityPeriod;
+
+      // 5、合同有效期存在则修改为已签订
+      if (customerData?.contractValidityPeriod) {
+        customer.isContract = 1;
+      }
+
+      customer.contractAmount = customerData?.contractAmount
+        ? String(customerData?.contractAmount)
+        : null;
+      customer.reconciliationMail = customerData?.reconciliationMail;
+      customer.coStatus = customerData?.coStatus;
+
+      // 6、默认
+      customer.enabled = GlobalStatusEnum.YES;
+      customer.deleted = GlobalStatusEnum.NO;
+
+      // 7、设置创建时间
+      customer.creatorId = user.userId;
+      customer.creatorName = user.nickName;
+      customer.createdTime = dayjs().toDate();
+
+      // 8、当前更新人信息
+      customer.reviserId = user.userId;
+      customer.reviserName = user.nickName;
+      customer.revisedTime = dayjs().toDate();
+
+      // 9、执行新增
+      await this.customerRepository.save(customer);
+
+      // 10、写入操作日志
+      const logInput = CustomerLogHelper.getCustomerOperate(
+        user,
+        'CustomerService.updateCustomerInfo',
+        customer.id,
+        customer.customerName,
+      );
+      logInput.params = customer;
+      this.businessLogService.writeLog(logInput);
+    } catch (error) {
+      throw new BusinessException(error.message);
+    }
   }
 }

@@ -4,7 +4,7 @@ import {
   SuccessResponseDto,
   QueryCustomerDto,
   CustomerInfoResponseDto,
-  CustomerInfoUpdateDto,
+  CustomerRequestDto,
 } from '@src/dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
@@ -60,11 +60,22 @@ export class CustomerController {
   @Put('update/:id')
   async updateCustomerInfo(
     @Param('id') id: string,
-    @Body() cstomerInfo: CustomerInfoUpdateDto,
+    @Body() cstomerInfo: CustomerRequestDto,
     @CurrentUser() user: JwtUserPayload,
     @CurrentToken() token: string,
   ): Promise<SuccessResponseDto<CustomerInfoResponseDto>> {
     await this.customerService.updateCustomerInfo(id, cstomerInfo, user, token);
     return new SuccessResponseDto(null, '更新成功');
+  }
+
+  @ApiOperation({ summary: '新增客户' })
+  @Post('create')
+  async addCustomer(
+    @Body() cstomerInfo: CustomerRequestDto,
+    @CurrentUser() user: JwtUserPayload,
+    @CurrentToken() token: string,
+  ): Promise<SuccessResponseDto<CustomerInfoResponseDto>> {
+    await this.customerService.addCustomer(cstomerInfo, user, token);
+    return new SuccessResponseDto(null, '新增成功');
   }
 }
