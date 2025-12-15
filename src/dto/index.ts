@@ -7,6 +7,9 @@ export * from './commodity/commodity-category.dto';
 // 商品管理相关DTO
 export * from './commodity/commodity.dto';
 
+// 商品价格客户管理相关DTO
+export * from './commodity/commodity-customer-price.dto';
+
 // 客户额度管理相关DTO
 export * from './customer/customer-credit-limit.dto';
 

@@ -12,6 +12,10 @@ import { CommodityCategoryService } from './services/commodity-category.service'
 import { CommodityBundledSkuInfoEntity } from '@modules/commodity/entities/commodity-bundled-sku-info.entity';
 import { CustomerCommodityConfigEntity } from '@modules/commodity/entities/customer-commodity-config.entity';
 
+// 商品价格客户管理
+import { CommodityCustomerPriceEntity } from './entities/commodity-customer-price.entity';
+import { CommodityCustomerPriceService } from './services/commodity-customer-price.server';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -19,10 +23,19 @@ import { CustomerCommodityConfigEntity } from '@modules/commodity/entities/custo
       CommodityCategoryEntity,
       CommodityBundledSkuInfoEntity,
       CustomerCommodityConfigEntity,
+      CommodityCustomerPriceEntity,
     ]),
   ],
-  providers: [CommodityService, CommodityCategoryService],
+  providers: [
+    CommodityService,
+    CommodityCategoryService,
+    CommodityCustomerPriceService,
+  ],
   controllers: [CommodityController, CommodityCategoryController],
-  exports: [CommodityService, CommodityCategoryService],
+  exports: [
+    CommodityService,
+    CommodityCategoryService,
+    CommodityCustomerPriceService,
+  ],
 })
 export class CommodityModule {}

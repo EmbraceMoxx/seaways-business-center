@@ -412,7 +412,7 @@ export class CommodityService {
   }
 
   /**
-   * 获取商品基本信息
+   * 根据ID获取商品基本信息
    */
   async getCommodityInfoById(id: string): Promise<CommodityInfoEntity> {
     try {
@@ -427,6 +427,34 @@ export class CommodityService {
         })
         .andWhere('commodity.id = :id', { id })
         .getOne();
+      return commodity;
+    } catch (error) {
+      if (error instanceof BusinessException) {
+        throw error;
+      }
+      throw new BusinessException('获取商品详情失败');
+    }
+  }
+
+  /**
+   * 根据商品内部编码获取商品基本信息
+   */
+  async getCommodityInfoByInternalCode(
+    code: string,
+  ): Promise<CommodityInfoEntity> {
+    try {
+      // 根据id获取启用未删除的商品
+      const commodity = await this.commodityRepository
+        .createQueryBuilder('commodity')
+        .where('commodity.deleted = :deleted', {
+          deleted: GlobalStatusEnum.NO,
+        })
+        .andWhere('commodity.enabled = :enabled', {
+          enabled: GlobalStatusEnum.YES,
+        })
+        .andWhere('commodity.commodity_internal_code = :code', { code })
+        .getOne();
+
       return commodity;
     } catch (error) {
       if (error instanceof BusinessException) {

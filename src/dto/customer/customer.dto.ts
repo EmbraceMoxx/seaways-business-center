@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, IsIn, IsNotEmpty } from 'class-validator';
 import { PageRequestDto } from '@src/dto/common/common.dto';
 import { CreditLimitStatisticsResponseDto } from './customer-credit-limit.dto';
+import { CommodityCustomerPriceRequestDto } from '../commodity/commodity-customer-price.dto';
 
 /**
  * 客户列表查询参数DTO
@@ -436,6 +437,14 @@ export class CustomerRequestDto {
   provincialHeadId?: string;
 
   @ApiProperty({
+    description: '客户负责销售ID',
+    example: '123456789012346',
+  })
+  @IsNotEmpty()
+  @IsString({ message: '客户负责销售ID必须是字符串' })
+  principalUserId: string;
+
+  @ApiProperty({
     description: '经销商类型，多个使用逗号间隔',
     example: '一级经销商,二级经销商',
     required: false,
@@ -493,4 +502,13 @@ export class CustomerRequestDto {
   @IsOptional()
   @IsIn([1, 2, -1], { message: '类型只能是1或2或-1' })
   customerType?: number;
+
+  @ApiProperty({
+    description: '商品列表',
+    example: 1,
+    required: false,
+    type: [CommodityCustomerPriceRequestDto],
+  })
+  @IsOptional()
+  commodityList?: CommodityCustomerPriceRequestDto[];
 }

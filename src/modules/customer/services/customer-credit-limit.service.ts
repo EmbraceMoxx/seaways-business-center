@@ -380,7 +380,7 @@ export class CustomerCreditLimitService {
         cumulativeCredit: cumulativeCredit || defaultCreditInfo,
       };
     } catch (error) {
-      throw new BusinessException('获取客户详情失败');
+      throw new BusinessException('获取客户额度信息失败');
     }
   }
 
