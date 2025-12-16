@@ -1,14 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, EntityManager } from 'typeorm';
+import { Repository } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
 import { generateId } from '@src/utils';
 import { BusinessException } from '@src/dto/common/common.dto';
 import {
+  QueryCommodityCustomerDto,
   CommodityCustomerPriceResponseDto,
   CommodityCustomerPriceRequestDto,
+  QueryCommodityCustomerOtherDto,
 } from '@src/dto';
 import { CommodityCustomerPriceEntity } from '../entities/commodity-customer-price.entity';
 import { CommodityInfoEntity } from '../entities/commodity-info.entity';
@@ -31,12 +33,18 @@ export class CommodityCustomerPriceService {
    * 商品客户价格列表
    */
   async getCommodityCustomerPriceList(
-    params: any,
+    params: QueryCommodityCustomerDto,
     user: JwtUserPayload,
     token: string,
   ): Promise<{ items: CommodityCustomerPriceResponseDto[]; total: number }> {
     try {
-      const { commodityName, customerName, page, pageSize } = params;
+      const {
+        commodityName,
+        customerName,
+        commodityInternalCode,
+        page,
+        pageSize,
+      } = params;
 
       let queryBuilder =
         await this.CommodityCustomerRepository.createQueryBuilder(
@@ -89,6 +97,16 @@ export class CommodityCustomerPriceService {
         );
       }
 
+      // 内部编码
+      if (commodityInternalCode) {
+        queryBuilder = queryBuilder.andWhere(
+          'commodityCustomer.commodity_internal_code LIKE :commodityInternalCode',
+          {
+            commodityInternalCode: `%${commodityInternalCode}%`,
+          },
+        );
+      }
+
       // 获取权限
       const checkResult = await this.userService.getRangeOfOrderQueryUser(
         token,
@@ -114,6 +132,78 @@ export class CommodityCustomerPriceService {
           { customerIds },
         );
       }
+      // 执行计数查询
+      const countQueryBuilder = queryBuilder.clone();
+      const total = await countQueryBuilder.getCount();
+
+      queryBuilder = queryBuilder
+        .orderBy('commodityCustomer.created_time', 'DESC')
+        .addOrderBy('commodityCustomer.id', 'DESC')
+        .limit(pageSize)
+        .offset((page - 1) * pageSize);
+      const items = await queryBuilder.getRawMany();
+
+      return { items, total };
+    } catch (error) {
+      throw new BusinessException('获取列表失败' + error.message);
+    }
+  }
+
+  /**
+   * 商品客户价格列表-用于客户详情（无权限）
+   */
+  async getCommodityCustomerPriceListOther(
+    params: QueryCommodityCustomerOtherDto,
+  ): Promise<{ items: CommodityCustomerPriceResponseDto[]; total: number }> {
+    try {
+      const { keyValue, customerId, page, pageSize } = params;
+
+      let queryBuilder =
+        await this.CommodityCustomerRepository.createQueryBuilder(
+          'commodityCustomer',
+        )
+          .select([
+            'commodityCustomer.id as id',
+            'commodityCustomer.commodity_id as commodityId',
+            'commodity.commodity_barcode as commodityBarcode',
+            `COALESCE(NULLIF(commodityCustomer.commodity_name, ''), commodity.commodity_name) as commodityName`,
+            'commodityCustomer.commodity_internal_code as commodityInternalCode',
+            'commodityCustomer.customer_id as customerId',
+            'customer.customer_name as customerName',
+            'commodityCustomer.item_ex_factory_price as itemExFactoryPrice',
+            'commodityCustomer.is_supply_subsidy_involved as isSupplySubsidyInvolved',
+            'commodityCustomer.is_quota_involved as isQuotaInvolved',
+            'commodityCustomer.is_gift_eligible as isGiftEligible',
+            'commodityCustomer.enabled as enabled',
+            'commodityCustomer.creator_id as creatorId',
+            'commodityCustomer.created_time as createdTime',
+            'commodityCustomer.creator_name as creatorName',
+          ])
+          .leftJoin(
+            CommodityInfoEntity,
+            'commodity',
+            'commodity.id=commodityCustomer.commodity_id',
+          )
+          .leftJoin(
+            CustomerInfoEntity,
+            'customer',
+            'customer.id=commodityCustomer.customer_id',
+          )
+          .where('commodityCustomer.deleted = :deleted', {
+            deleted: GlobalStatusEnum.NO,
+          })
+          .andWhere('commodityCustomer.customer_id = :customerId', {
+            customerId: customerId,
+          });
+
+      // 搜索关键字-商品名称（自定义名称或标准名称）、内部编码
+      if (keyValue) {
+        queryBuilder = queryBuilder.andWhere(
+          '(commodityCustomer.commodity_name LIKE :keyValue OR commodity.commodity_name LIKE :keyValue OR commodityCustomer.commodity_internal_code LIKE :keyValue)',
+          { keyValue: `%${keyValue}%` },
+        );
+      }
+
       // 执行计数查询
       const countQueryBuilder = queryBuilder.clone();
       const total = await countQueryBuilder.getCount();

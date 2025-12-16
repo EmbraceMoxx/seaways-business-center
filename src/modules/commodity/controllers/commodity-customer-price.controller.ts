@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Body,
-  Put,
-  Param,
-  Delete,
-  Query,
-} from '@nestjs/common';
+import { Controller, Post, Body, Put, Param, Delete } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SuccessResponseDto } from '@src/dto';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
@@ -15,9 +6,10 @@ import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import {
   CommodityCustomerPriceResponseDto,
   CommodityCustomerPriceRequestDto,
+  QueryCommodityCustomerOtherDto,
+  QueryCommodityCustomerDto,
 } from '@src/dto';
 import { CurrentToken } from '@src/decorators/current-token.decorator';
-import { CommodityCustomerPriceEntity } from '../entities/commodity-customer-price.entity';
 import { CommodityCustomerPriceService } from '../services/commodity-customer-price.server';
 
 @ApiTags('商品价格客户管理')
@@ -31,7 +23,7 @@ export class CommodityCustomerPriceController {
   @ApiOperation({ summary: '商品价格客户映射列表' })
   @Post('list')
   async getCommodityCustomerList(
-    @Body() body: any,
+    @Body() body: QueryCommodityCustomerDto,
     @CurrentUser() user: JwtUserPayload,
     @CurrentToken() token: string,
   ): Promise<
@@ -45,6 +37,23 @@ export class CommodityCustomerPriceController {
         body,
         user,
         token,
+      );
+    return new SuccessResponseDto(list);
+  }
+
+  @ApiOperation({ summary: '商品价格客户映射列表' })
+  @Post('list-view')
+  async getCommodityCustomerPriceListOther(
+    @Body() body: QueryCommodityCustomerOtherDto,
+  ): Promise<
+    SuccessResponseDto<{
+      items: CommodityCustomerPriceResponseDto[];
+      total: number;
+    }>
+  > {
+    const list =
+      await this.commodityCustomerService.getCommodityCustomerPriceListOther(
+        body,
       );
     return new SuccessResponseDto(list);
   }

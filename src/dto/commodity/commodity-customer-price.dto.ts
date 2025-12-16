@@ -7,6 +7,56 @@ import {
   IsNumber,
   Min,
 } from 'class-validator';
+import { PageRequestDto } from '../../dto/common/common.dto';
+
+/**
+ * 商品价格客户映射查询列表参数DTO
+ */
+export class QueryCommodityCustomerDto extends PageRequestDto {
+  @ApiProperty({
+    description: '商品名称',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '商品名称必须是字符串' })
+  commodityName?: string;
+
+  @ApiProperty({
+    description: '客户名称',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '客户名称必须是字符串' })
+  customerName?: string;
+
+  @ApiProperty({
+    description: '内部编码',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '内部编码必须是字符串' })
+  commodityInternalCode?: string;
+}
+
+/**
+ * 商品价格客户映射查询列表参数DTO2
+ */
+export class QueryCommodityCustomerOtherDto extends PageRequestDto {
+  @ApiProperty({
+    description: '客户ID',
+  })
+  @IsNotEmpty()
+  @IsString({ message: '客户ID必须是字符串' })
+  customerId: string;
+
+  @ApiProperty({
+    description: '搜索关键字-商品别名、内部编码',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '搜索关键字必须是字符串' })
+  keyValue?: string;
+}
 
 /**
  * 商品价格客户映射信息响应DTO
