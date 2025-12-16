@@ -20,6 +20,9 @@ import { CommodityCustomerPriceService } from './services/commodity-customer-pri
 // 客户管理
 import { CustomerModule } from '@modules/customer/customer.module';
 
+// 用户服务
+import { UserService } from '@modules/common/user/user.service';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -35,6 +38,7 @@ import { CustomerModule } from '@modules/customer/customer.module';
     CommodityService,
     CommodityCategoryService,
     CommodityCustomerPriceService,
+    UserService,
   ],
   controllers: [
     CommodityController,

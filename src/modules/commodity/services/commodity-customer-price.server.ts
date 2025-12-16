@@ -15,6 +15,7 @@ import { CommodityInfoEntity } from '../entities/commodity-info.entity';
 import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
 import { CommodityService } from '@modules/commodity/services/commodity.service';
 import { CustomerService } from '@modules/customer/services/customer.service';
+import { UserService } from '@modules/common/user/user.service';
 
 @Injectable()
 export class CommodityCustomerPriceService {
@@ -23,6 +24,7 @@ export class CommodityCustomerPriceService {
     private CommodityCustomerRepository: Repository<CommodityCustomerPriceEntity>,
     private commodityService: CommodityService,
     private customerService: CustomerService,
+    private userService: UserService,
   ) {}
 
   /**
@@ -34,7 +36,7 @@ export class CommodityCustomerPriceService {
     token: string,
   ): Promise<{ items: CommodityCustomerPriceResponseDto[]; total: number }> {
     try {
-      const { page, pageSize } = params;
+      const { commodityName, customerName, page, pageSize } = params;
 
       let queryBuilder =
         await this.CommodityCustomerRepository.createQueryBuilder(
@@ -44,7 +46,7 @@ export class CommodityCustomerPriceService {
             'commodityCustomer.id as id',
             'commodityCustomer.commodity_id as commodityId',
             'commodity.commodity_barcode as commodityBarcode',
-            'commodityCustomer.commodity_name as commodityName',
+            `COALESCE(NULLIF(commodityCustomer.commodity_name, ''), commodity.commodity_name) as commodityName`,
             'commodityCustomer.commodity_internal_code as commodityInternalCode',
             'commodityCustomer.customer_id as customerId',
             'customer.customer_name as customerName',
@@ -71,6 +73,47 @@ export class CommodityCustomerPriceService {
             deleted: GlobalStatusEnum.NO,
           });
 
+      // 商品名称
+      if (commodityName) {
+        queryBuilder = queryBuilder.andWhere(
+          '(commodityCustomer.commodity_name LIKE :commodityName OR commodity.commodity_name LIKE :commodityName)',
+          { commodityName: `%${commodityName}%` },
+        );
+      }
+
+      // 客户名称
+      if (customerName) {
+        queryBuilder = queryBuilder.andWhere(
+          'customer.customer_name LIKE :customerName',
+          { customerName: `%${customerName}%` },
+        );
+      }
+
+      // 获取权限
+      const checkResult = await this.userService.getRangeOfOrderQueryUser(
+        token,
+        user.userId,
+      );
+      if (!checkResult || checkResult.isQueryAll) {
+        // 不限制客户范围，继续查询
+      } else if (!checkResult.principalUserIds?.length) {
+        return { items: [], total: 0 };
+      } else {
+        // 收集所有人负责的客户ID，去查询订单对应的客户ID
+        const customerIds = await this.customerService.getManagedCustomerIds(
+          checkResult.principalUserIds,
+        );
+
+        // 如果没有客户ID，则返回空
+        if (!customerIds.length) {
+          return { items: [], total: 0 };
+        }
+
+        queryBuilder = queryBuilder.andWhere(
+          'commodityCustomer.customer_id IN (:customerIds)',
+          { customerIds },
+        );
+      }
       // 执行计数查询
       const countQueryBuilder = queryBuilder.clone();
       const total = await countQueryBuilder.getCount();

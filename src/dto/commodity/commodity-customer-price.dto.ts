@@ -43,6 +43,12 @@ export class CommodityCustomerPriceResponseDto {
   customerId: string;
 
   @ApiProperty({
+    description: '客户名称',
+    example: '张三',
+  })
+  customerName: string;
+
+  @ApiProperty({
     description: '单品出厂价（元）',
     example: '4.5',
   })
