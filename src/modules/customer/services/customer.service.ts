@@ -8,8 +8,6 @@ import {
   CustomerInfoResponseDto,
   CustomerRequestDto,
   QueryCustomerDto,
-  CommodityCustomerPriceRequestDto,
-  CommodityCustomerPriceResponseDto,
 } from '@src/dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { UserEndpoints } from '@src/constants/index';
@@ -23,8 +21,6 @@ import { CustomerInfoEntity } from '../entities/customer.entity';
 import { CustomerCreditLimitService } from '../services/customer-credit-limit.service';
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
 import { UserService } from '@modules/common/user/user.service';
-import { CommodityService } from '@modules/commodity/services/commodity.service';
-import { CommodityCustomerPriceService } from '@modules/commodity/services/commodity-customer-price.server';
 
 @Injectable()
 export class CustomerService {
@@ -36,8 +32,6 @@ export class CustomerService {
     private businessLogService: BusinessLogService,
     private userService: UserService,
     private httpProxyServices: HttpProxyService,
-    private commodityService: CommodityService,
-    private commodityCustomerPriceService: CommodityCustomerPriceService,
     private dataSource: DataSource,
   ) {}
 
@@ -327,7 +321,6 @@ export class CustomerService {
   async getCustomerInfoCreditById(id: string): Promise<
     CustomerInfoResponseDto & {
       creditInfo: CustomerInfoCreditResponseDto;
-      commodityList: CommodityCustomerPriceResponseDto[];
     }
   > {
     try {
@@ -341,19 +334,7 @@ export class CustomerService {
       const creditInfo =
         await this.customerCreditLimitService.getCustomerCreditInfo(id);
 
-      // 3、获取商品客户价格列表并进行类型适配
-      const rawCommodityList =
-        await this.commodityCustomerPriceService.getCommodityCustomerPriceList(
-          id,
-        );
-
-      const commodityList: CommodityCustomerPriceResponseDto[] =
-        rawCommodityList.map((item) => ({
-          ...item,
-          itemExFactoryPrice: Number(item.itemExFactoryPrice),
-        }));
-
-      return { ...customerInfo, creditInfo, commodityList };
+      return { ...customerInfo, creditInfo };
     } catch (error) {
       throw new BusinessException('获取客户详情失败');
     }
@@ -371,7 +352,6 @@ export class CustomerService {
       where: {
         id,
         deleted: GlobalStatusEnum.NO,
-        enabled: GlobalStatusEnum.YES,
       },
     });
   }
@@ -388,9 +368,8 @@ export class CustomerService {
     const queryBuilder = this.customerRepository
       .createQueryBuilder('customer')
       .where('customer.customerName = :customerName', { customerName })
-      .andWhere('customer.deleted = :deleted', { deleted: GlobalStatusEnum.NO })
-      .andWhere('customer.enabled = :enabled', {
-        enabled: GlobalStatusEnum.YES,
+      .andWhere('customer.deleted = :deleted', {
+        deleted: GlobalStatusEnum.NO,
       });
 
     // 如果提供了excludeId，则排除该ID的客户
@@ -493,23 +472,15 @@ export class CustomerService {
         customer.reconciliationMail = customerData?.reconciliationMail;
         customer.coStatus = customerData?.coStatus;
 
-        // 8、处理客户关联的商品列表
-        await this.processCustomerCommodityList(
-          customer.id,
-          customerData.commodityList,
-          user,
-          manager,
-        );
-
-        // 9、当前更新人信息
+        // 8、当前更新人信息
         customer.reviserId = user.userId;
         customer.reviserName = user.nickName;
         customer.revisedTime = dayjs().toDate();
 
-        // 10、执行更新
+        // 9、执行更新
         await manager.update(CustomerInfoEntity, { id: customerId }, customer);
 
-        // 11、写入操作日志
+        // 10、写入操作日志
         const logInput = CustomerLogHelper.getCustomerOperate(
           user,
           'CustomerService.updateCustomerInfo',
@@ -530,43 +501,6 @@ export class CustomerService {
       .andWhere('customer.deleted = :deleted', { deleted: GlobalStatusEnum.NO })
       .getMany();
     return userCustomerRelation.map((relation) => relation.id);
-  }
-
-  /**
-   * 处理客户关联的商品列表
-   * @param customerId 客户ID
-   * @param commodityList 商品列表
-   */
-  private async processCustomerCommodityList(
-    customerId: string,
-    commodityList: CommodityCustomerPriceRequestDto[],
-    user: JwtUserPayload,
-    manager: EntityManager,
-  ) {
-    // 1、查询该编码是否存在，并查出商品id和商品名
-    for (const item of commodityList) {
-      const commodityInfo =
-        await this.commodityService.getCommodityInfoByInternalCode(
-          item.commodityInternalCode,
-        );
-
-      if (!commodityInfo) {
-        throw new BusinessException(
-          `商品内部编码 ${item.commodityInternalCode} 不存在或不可用`,
-        );
-      }
-
-      // 1.2 赋值商品信息
-      item.commodityId = commodityInfo.id;
-    }
-
-    // 7、保存commodityList至商品价格客户映射表
-    await this.commodityCustomerPriceService.addCommodityCustomerPrice(
-      customerId,
-      commodityList,
-      user,
-      manager,
-    );
   }
 
   /**
@@ -659,32 +593,24 @@ export class CustomerService {
         customer.reconciliationMail = customerData?.reconciliationMail;
         customer.coStatus = customerData?.coStatus;
 
-        // 8、处理客户关联的商品列表
-        await this.processCustomerCommodityList(
-          customer.id,
-          customerData.commodityList,
-          user,
-          manager,
-        );
-
-        // 9、默认
+        // 8、默认
         customer.enabled = GlobalStatusEnum.YES;
         customer.deleted = GlobalStatusEnum.NO;
 
-        // 10、设置创建时间
+        // 9、设置创建时间
         customer.creatorId = user.userId;
         customer.creatorName = user.nickName;
         customer.createdTime = dayjs().toDate();
 
-        // 11、当前更新人信息
+        // 10、当前更新人信息
         customer.reviserId = user.userId;
         customer.reviserName = user.nickName;
         customer.revisedTime = dayjs().toDate();
 
-        // 12、执行新增
+        // 11、执行新增
         await manager.save(CustomerInfoEntity, customer);
 
-        // 13、写入操作日志
+        // 12、写入操作日志
         const logInput = CustomerLogHelper.getCustomerOperate(
           user,
           'CustomerService.updateCustomerInfo',

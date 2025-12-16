@@ -2,7 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, IsIn, IsNotEmpty } from 'class-validator';
 import { PageRequestDto } from '@src/dto/common/common.dto';
 import { CreditLimitStatisticsResponseDto } from './customer-credit-limit.dto';
-import { CommodityCustomerPriceRequestDto } from '../commodity/commodity-customer-price.dto';
 
 /**
  * 客户列表查询参数DTO
@@ -456,10 +455,11 @@ export class CustomerRequestDto {
   @ApiProperty({
     description: '合同有效期',
     example: '2023-01-01至2023-12-31',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString({ message: '合同有效期必须是字符串' })
-  contractValidityPeriod: string;
+  contractValidityPeriod?: string;
 
   @ApiProperty({
     description: '合同任务金额，元',
@@ -502,13 +502,4 @@ export class CustomerRequestDto {
   @IsOptional()
   @IsIn([1, 2, -1], { message: '类型只能是1或2或-1' })
   customerType?: number;
-
-  @ApiProperty({
-    description: '商品列表',
-    example: 1,
-    required: false,
-    type: [CommodityCustomerPriceRequestDto],
-  })
-  @IsOptional()
-  commodityList?: CommodityCustomerPriceRequestDto[];
 }

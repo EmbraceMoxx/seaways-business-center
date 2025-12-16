@@ -87,7 +87,7 @@ export class CustomerController {
     return new SuccessResponseDto(null, '新增成功');
   }
 
-  @ApiOperation({ summary: '新增客户' })
+  @ApiOperation({ summary: '删除客户' })
   @Delete('delete/:id')
   async deleteCustomer(
     @Param('id') id: string,

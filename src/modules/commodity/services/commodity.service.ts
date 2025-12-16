@@ -437,34 +437,6 @@ export class CommodityService {
   }
 
   /**
-   * 根据商品内部编码获取商品基本信息
-   */
-  async getCommodityInfoByInternalCode(
-    code: string,
-  ): Promise<CommodityInfoEntity> {
-    try {
-      // 根据id获取启用未删除的商品
-      const commodity = await this.commodityRepository
-        .createQueryBuilder('commodity')
-        .where('commodity.deleted = :deleted', {
-          deleted: GlobalStatusEnum.NO,
-        })
-        .andWhere('commodity.enabled = :enabled', {
-          enabled: GlobalStatusEnum.YES,
-        })
-        .andWhere('commodity.commodity_internal_code = :code', { code })
-        .getOne();
-
-      return commodity;
-    } catch (error) {
-      if (error instanceof BusinessException) {
-        throw error;
-      }
-      throw new BusinessException('获取商品详情失败');
-    }
-  }
-
-  /**
    * 根据商品ID获取绑定的组合商品信息
    */
   async getBundledSkusWithCommodityInfoByCommodityId(
@@ -774,9 +746,9 @@ export class CommodityService {
         commodityData?.itemMinControlledDiscount
           ? String(commodityData?.itemMinControlledDiscount)
           : null;
+      commodity.enabled = commodityData.enabled;
 
       // 4、默认
-      commodity.enabled = GlobalStatusEnum.YES;
       commodity.deleted = GlobalStatusEnum.NO;
 
       // 5、设置创建时间

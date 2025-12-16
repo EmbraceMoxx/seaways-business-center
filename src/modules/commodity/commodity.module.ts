@@ -14,7 +14,11 @@ import { CustomerCommodityConfigEntity } from '@modules/commodity/entities/custo
 
 // 商品价格客户管理
 import { CommodityCustomerPriceEntity } from './entities/commodity-customer-price.entity';
+import { CommodityCustomerPriceController } from './controllers/commodity-customer-price.controller';
 import { CommodityCustomerPriceService } from './services/commodity-customer-price.server';
+
+// 客户管理
+import { CustomerModule } from '@modules/customer/customer.module';
 
 @Module({
   imports: [
@@ -25,13 +29,18 @@ import { CommodityCustomerPriceService } from './services/commodity-customer-pri
       CustomerCommodityConfigEntity,
       CommodityCustomerPriceEntity,
     ]),
+    CustomerModule,
   ],
   providers: [
     CommodityService,
     CommodityCategoryService,
     CommodityCustomerPriceService,
   ],
-  controllers: [CommodityController, CommodityCategoryController],
+  controllers: [
+    CommodityController,
+    CommodityCategoryController,
+    CommodityCustomerPriceController,
+  ],
   exports: [
     CommodityService,
     CommodityCategoryService,

@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsIn, IsNotEmpty } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsIn,
+  IsNotEmpty,
+  IsNumber,
+  Min,
+} from 'class-validator';
 
 /**
  * 商品价格客户映射信息响应DTO
@@ -115,15 +122,17 @@ export class CommodityCustomerPriceRequestDto {
   @ApiProperty({
     description: '商品内部编码,与金蝶匹配',
     example: '19110201226',
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString({ message: '商品内部编码不能为空' })
-  commodityInternalCode: string;
+  commodityInternalCode?: string;
 
   @ApiProperty({
     description: '商品ID',
     example: '某某公司',
   })
+  @IsNotEmpty()
   commodityId: string;
 
   @ApiProperty({
@@ -147,7 +156,8 @@ export class CommodityCustomerPriceRequestDto {
     example: '4.5',
   })
   @IsNotEmpty()
-  @IsString({ message: '单品出厂价不能为空' })
+  @IsNumber({}, { message: '出厂价必须是数字' })
+  @Min(1, { message: '出厂价要大于0' })
   itemExFactoryPrice: number;
 
   @ApiProperty({
@@ -173,4 +183,12 @@ export class CommodityCustomerPriceRequestDto {
   @IsNotEmpty()
   @IsIn([0, 1], { message: '是否参与货补只能为0或1' })
   isSupplySubsidyInvolved: number;
+
+  @ApiProperty({
+    description: '是否启用，YES-启用，NO-未启用',
+    example: 'YES',
+    required: false,
+  })
+  @IsOptional()
+  enabled?: string;
 }
