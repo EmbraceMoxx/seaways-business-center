@@ -221,12 +221,15 @@ export class CustomerService {
         .andWhere('customer.enabled = :enabled', {
           enabled: GlobalStatusEnum.YES,
         })
+        // 已签订合同
         .andWhere('customer.is_contract = :isContract', {
           isContract: 1,
         })
+        // 已合作客户
         .andWhere('customer.co_status = :coStatus', {
           coStatus: '1',
         })
+        // 已开通聚水潭店铺
         .andWhere('customer.customer_type > :customerType', {
           customerType: 0,
         });
@@ -340,12 +343,15 @@ export class CustomerService {
         .andWhere('customer.enabled = :enabled', {
           enabled: GlobalStatusEnum.YES,
         })
+        // 已签订合同
         .andWhere('customer.is_contract = :isContract', {
           isContract: 1,
         })
+        // 已合作客户
         .andWhere('customer.co_status = :coStatus', {
           coStatus: '1',
         })
+        // 已开通聚水潭店铺
         .andWhere('customer.customer_type > :customerType', {
           customerType: 0,
         });
@@ -544,6 +550,8 @@ export class CustomerService {
           customer.principalUserId = customerData?.principalUserId;
         }
 
+        customer.province = customerData?.province;
+        customer.city = customerData?.city;
         customer.customerJstId = customerData?.customerJstId;
         customer.customerType = customerData?.customerType;
         customer.isEarnestMoney = customerData?.isEarnestMoney;

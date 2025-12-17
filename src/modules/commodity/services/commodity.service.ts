@@ -197,6 +197,10 @@ export class CommodityService {
         })
         .andWhere('commodity.enabled = :enabled', {
           enabled: GlobalStatusEnum.YES,
+        })
+        // 筛选上架商品
+        .andWhere('commodity.status = :status', {
+          status: '1',
         });
 
       // 商品名称
@@ -287,7 +291,12 @@ export class CommodityService {
         })
         .andWhere('commodity.enabled = :enabled', {
           enabled: GlobalStatusEnum.YES,
+        })
+        // 筛选上架商品
+        .andWhere('commodity.status = :status', {
+          status: '1',
         });
+
       // 商品类型,1-成品、2-辅销、3-货补
       if (commodityClassify) {
         let clause = '';

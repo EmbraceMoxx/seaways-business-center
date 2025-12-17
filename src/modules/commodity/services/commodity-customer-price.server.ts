@@ -202,6 +202,9 @@ export class CommodityCustomerPriceService {
           .where('commodityCustomer.deleted = :deleted', {
             deleted: GlobalStatusEnum.NO,
           })
+          .andWhere('commodityCustomer.enabled = :enabled', {
+            enabled: GlobalStatusEnum.YES,
+          })
           .andWhere('commodityCustomer.customer_id = :customerId', {
             customerId: customerId,
           });
@@ -271,6 +274,9 @@ export class CommodityCustomerPriceService {
           )
           .where('commodityCustomer.deleted = :deleted', {
             deleted: GlobalStatusEnum.NO,
+          })
+          .andWhere('commodityCustomer.enabled = :enabled', {
+            enabled: GlobalStatusEnum.YES,
           })
           .andWhere('commodityCustomer.customer_id = :customerId', {
             customerId: customerId,
@@ -356,6 +362,9 @@ export class CommodityCustomerPriceService {
           .where('commodityCustomer.deleted = :deleted', {
             deleted: GlobalStatusEnum.NO,
           })
+          .andWhere('commodityCustomer.enabled = :enabled', {
+            enabled: GlobalStatusEnum.YES,
+          })
           .andWhere('commodityCustomer.commodity_id = :commodityId', {
             commodityId: commodityId,
           });
@@ -427,10 +436,10 @@ export class CommodityCustomerPriceService {
         priceData.isSupplySubsidyInvolved;
       commodityCustomer.isQuotaInvolved = priceData.isQuotaInvolved;
       commodityCustomer.isGiftEligible = priceData.isGiftEligible;
-      commodityCustomer.enabled = priceData.enabled;
 
       // 6、默认
       commodityCustomer.deleted = GlobalStatusEnum.NO;
+      commodityCustomer.enabled = priceData.enabled || GlobalStatusEnum.YES;
 
       // 7、设置创建时间
       commodityCustomer.creatorId = userPayload.userId;
@@ -503,7 +512,7 @@ export class CommodityCustomerPriceService {
         priceData.isSupplySubsidyInvolved;
       commodityCustomer.isQuotaInvolved = priceData.isQuotaInvolved;
       commodityCustomer.isGiftEligible = priceData.isGiftEligible;
-      commodityCustomer.enabled = priceData.enabled;
+      commodityCustomer.enabled = priceData.enabled || GlobalStatusEnum.YES;
 
       // 5、设置更新时间
       commodityCustomer.reviserId = userPayload.userId;
