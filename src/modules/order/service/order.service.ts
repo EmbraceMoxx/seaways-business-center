@@ -591,6 +591,7 @@ export class OrderService {
     const updateOrderMain = new OrderMainEntity();
     updateOrderMain.id = orderMain.id;
     updateOrderMain.customerId = orderMain.customerId;
+    updateOrderMain.creatorId = orderMain.creatorId;
     // 仅允许非客户部份的信息
     // 1. 订单下单联系人
     updateOrderMain.contact = req.contact;

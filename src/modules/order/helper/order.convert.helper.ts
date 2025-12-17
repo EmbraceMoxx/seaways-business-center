@@ -63,6 +63,7 @@ export class OrderConvertHelper {
         orderId,
         item,
         commodityPriceMap,
+        itemType,
       );
       // 按商品级别判断：有 itemId → 更新，没有 → 新增
       if (item.id) {
@@ -105,6 +106,7 @@ export class OrderConvertHelper {
     orderId: string,
     item: OrderItem,
     commodityPriceMap: Map<string, CommodityInfoEntity>,
+    itemType: OrderItemTypeEnum,
   ) {
     const orderItem = new OrderItemEntity();
     orderItem.orderId = orderId;
@@ -117,12 +119,19 @@ export class OrderConvertHelper {
     orderItem.specInfo = commodityInfo.itemSpecInfo;
     orderItem.boxSpecPiece = commodityInfo.boxSpecPiece;
     orderItem.boxSpecInfo = commodityInfo.boxSpecInfo;
-    orderItem.exFactoryPrice = commodityInfo.itemExFactoryPrice;
-    orderItem.exFactoryBoxPrice = commodityInfo.boxExFactoryPrice;
+
     orderItem.isQuotaInvolved = commodityInfo.isQuotaInvolved;
+    let exFactoryPrice = commodityInfo.itemExFactoryPrice;
+    if (
+      OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT === itemType &&
+      commodityInfo.isGiftEligible === BooleanStatusEnum.TRUE
+    ) {
+      exFactoryPrice = commodityInfo.giftExFactoryPrice ?? '0';
+    }
+    orderItem.exFactoryPrice = exFactoryPrice;
     orderItem.boxQty = Number(item.boxQty || 0);
     orderItem.qty = Number(item.qty || 0);
-    const amount = orderItem.qty * parseFloat(commodityInfo.itemExFactoryPrice);
+    const amount = orderItem.qty * parseFloat(exFactoryPrice);
     orderItem.amount = amount.toFixed(3);
     orderItem.deleted = GlobalStatusEnum.NO;
     return { orderItem, commodityInfo };

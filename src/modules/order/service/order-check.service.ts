@@ -171,18 +171,22 @@ export class OrderCheckService {
     finishGoods = finishGoods ?? [];
     replenishGoods = replenishGoods ?? [];
     auxiliaryGoods = auxiliaryGoods ?? [];
+    const customerId = customer.id;
     /* ---------- 1. 金额计算 ---------- */
     const [orderAmount, subsidyAmount] = await Promise.all([
-      this.calculateAmountWithQuery(finishGoods, false),
-      this.calculateAmountWithQuery(finishGoods, true),
+      this.calculateAmountWithQuery(finishGoods, customerId, false),
+      this.calculateAmountWithQuery(finishGoods, customerId, true),
     ]);
     const replenishAmount = await this.calculateAmountWithQuery(
       replenishGoods,
+      customerId,
       false,
     );
     const auxiliaryAmount = await this.calculateAmountWithQuery(
       auxiliaryGoods,
+      customerId,
       false,
+      true,
     );
 
     /* ---------- 2. 比例 & 审批标志 ---------- */
@@ -374,17 +378,25 @@ export class OrderCheckService {
   /**
    * 查询商品并计算总金额
    * @param goods 商品列表
+   * @param customerId
    * @param onlySubsidyInvolved
+   * @param useGiftPrice
    * @returns 计算后的总金额
    */
   private async calculateAmountWithQuery(
     goods: OrderItem[],
+    customerId: string,
     onlySubsidyInvolved = false,
+    useGiftPrice = false,
   ): Promise<number> {
     if (!goods || goods.length === 0) return 0;
     const commodityIds = goods.map((item) => item.commodityId);
-    const commodityInfos =
-      await this.commodityService.getCommodityListByCommodityIds(commodityIds);
+    // 查询映射关系
+    const commodityInfos = await this.commodityService.getCommodityCustomerMap(
+      customerId,
+      commodityIds,
+      useGiftPrice,
+    );
     return OrderConvertHelper.calculateTotalAmount(
       goods,
       commodityInfos,

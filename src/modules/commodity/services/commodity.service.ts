@@ -1,4 +1,4 @@
-import { Injectable, forwardRef, Inject } from '@nestjs/common';
+import { Injectable, forwardRef, Inject, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -24,6 +24,7 @@ import { CommodityCustomerPriceService } from './commodity-customer-price.server
 
 @Injectable()
 export class CommodityService {
+  private readonly logger = new Logger(CommodityService.name);
   constructor(
     @InjectRepository(CommodityInfoEntity)
     private commodityRepository: Repository<CommodityInfoEntity>,
@@ -286,53 +287,62 @@ export class CommodityService {
         .andWhere('commodity.enabled = :enabled', {
           enabled: GlobalStatusEnum.YES,
         });
-      // 如果没有 customerId，或查不到配置，都走默认商品
-      let specCommodityIds: string[] = [];
-      if (customerId) {
-        specCommodityIds = await this.customerCommodityConfigEntityRepository
-          .createQueryBuilder('c')
-          .where('c.customerId = :customerId', { customerId })
-          .select('c.excludeCommodityId', 'id')
-          .getRawMany()
-          .then((rows) => rows.map((r) => r.id));
-      }
-
-      if (specCommodityIds.length) {
-        queryBuilder = queryBuilder.andWhere(
-          'commodity.id NOT IN (:...specCommodityIds)',
-          { specCommodityIds },
-        );
-      } else {
-        queryBuilder = queryBuilder.andWhere('commodity.is_default = 1');
-      }
       // 商品类型,1-成品、2-辅销、3-货补
       if (commodityClassify) {
-        if (commodityClassify === '1') {
-          const { id: fistCategoryId } =
-            await this.commodityCategoryService.getCategoryByName('成品商品');
-          queryBuilder = queryBuilder.andWhere(
-            'commodity.commodity_first_category = :fistCategoryId',
-            {
-              fistCategoryId,
-            },
-          );
-        } else if (commodityClassify === '2') {
-          queryBuilder = queryBuilder.andWhere(
-            'commodity.is_gift_eligible = :isGiftEligible',
-            {
-              isGiftEligible: BooleanStatusEnum.TRUE,
-            },
-          );
-        } else if (commodityClassify === '3') {
-          queryBuilder = queryBuilder.andWhere(
-            'commodity.is_supply_subsidy_involved = :isSupplySubsidyInvolved',
-            {
-              isSupplySubsidyInvolved: BooleanStatusEnum.TRUE,
-            },
-          );
-        }
-      }
+        let clause = '';
+        let params: any = {};
 
+        switch (commodityClassify) {
+          case CommodityClassifyTypeEnum.FINISHED_PRODUCT:
+            clause = 'commodity.commodity_first_category = :fistCategoryId';
+            params = {
+              fistCategoryId: (
+                await this.commodityCategoryService.getCategoryByName(
+                  '成品商品',
+                )
+              ).id,
+            };
+            break;
+
+          case CommodityClassifyTypeEnum.AUXILIARY_SALES_PRODUCT:
+            clause =
+              '(exists(select 1\n' +
+              '              from commodity_customer_price_mapping m\n' +
+              '              where commodity.id = m.commodity_id\n' +
+              '                and m.deleted = :deleted \n' +
+              '                and m.enabled = :enabled \n' +
+              '                and m.customer_id = :customerId\n' +
+              '                and m.is_gift_eligible = :isGiftEligible) or commodity.is_gift_eligible = :isGiftEligible)';
+            params = {
+              deleted: GlobalStatusEnum.NO,
+              enabled: GlobalStatusEnum.YES,
+              customerId: customerId,
+              isGiftEligible: BooleanStatusEnum.TRUE,
+            };
+            break;
+
+          case CommodityClassifyTypeEnum.REPLENISH_PRODUCT:
+            clause =
+              '(exists(select 1\n' +
+              '              from commodity_customer_price_mapping m\n' +
+              '              where commodity.id = m.commodity_id\n' +
+              '                and m.deleted = :deleted \n' +
+              '                and m.enabled = :enabled \n' +
+              '                and m.customer_id = :customerId\n' +
+              '                and m.is_supply_subsidy_involved = :isSupplySubsidyInvolved) or commodity.is_supply_subsidy_involved = :isSupplySubsidyInvolved)';
+            params = {
+              deleted: GlobalStatusEnum.NO,
+              enabled: GlobalStatusEnum.YES,
+              customerId: customerId,
+              isSupplySubsidyInvolved: BooleanStatusEnum.TRUE,
+            };
+            break;
+
+          default:
+            return; // 或者抛错，按业务需要
+        }
+        queryBuilder = queryBuilder.andWhere(clause, params);
+      }
       // 商品内部编码
       if (commodityInternalCode) {
         queryBuilder = queryBuilder.andWhere(
@@ -372,7 +382,7 @@ export class CommodityService {
           },
         );
       }
-
+      this.logger.log(`${queryBuilder.getSql()}`);
       // 先执行计数查询（在添加分页条件之前）
       const countQueryBuilder = queryBuilder.clone();
       const total = await countQueryBuilder.getCount();
@@ -383,13 +393,41 @@ export class CommodityService {
         .limit(pageSize)
         .offset((page - 1) * pageSize);
 
-      const commodity = await queryBuilder.getRawMany();
-      commodity.forEach((e) => {
-        if (e.isGiftEligible === 1) {
-          e.itemExFactoryPrice = e.giftExFactoryPrice;
+      const commodityResponseDtos = await queryBuilder.getRawMany();
+      const commodityIds = commodityResponseDtos.map((e) => e.id);
+      if (commodityIds.length === 0) {
+        return { items: commodityResponseDtos, total };
+      }
+      // 2. 取客户映射（一次性查完）
+      this.logger.log(`customerId:${customerId}`);
+      const priceMap = new Map(
+        await this.commodityCustomerPriceMappingRepository
+          .createQueryBuilder('m')
+          .where('m.customer_id = :customerId', { customerId })
+          .andWhere('m.commodity_id IN (:...commodityIds)', { commodityIds })
+          .getMany()
+          .then((list) => list.map((m) => [m.commodityId, m])),
+      );
+      commodityResponseDtos.forEach((dto) => {
+        const mapping = priceMap.get(dto.id);
+        if (mapping) {
+          // 统一覆盖四个字段
+          dto.itemExFactoryPrice = mapping.itemExFactoryPrice;
+          dto.isQuotaInvolved = mapping.isQuotaInvolved;
+          dto.isSupplySubsidyInvolved = mapping.isSupplySubsidyInvolved;
+          dto.isGiftEligible = mapping.isGiftEligible;
+        }
+        /* 2. 只有辅销品才允许用赠品价，其余一律用当前 itemExFactoryPrice（映射表或原始） */
+        if (
+          commodityClassify ===
+            CommodityClassifyTypeEnum.AUXILIARY_SALES_PRODUCT &&
+          dto.isGiftEligible === 1 &&
+          dto.giftExFactoryPrice != null
+        ) {
+          dto.itemExFactoryPrice = dto.giftExFactoryPrice;
         }
       });
-      return { items: commodity, total };
+      return { items: commodityResponseDtos, total };
     } catch (error) {
       throw new BusinessException('获取选择商品列表失败');
     }
@@ -653,6 +691,57 @@ export class CommodityService {
         enabled: GlobalStatusEnum.YES,
       })
       .getMany();
+  }
+  /**
+   * 获取客户商品映射信息
+   * @param customerId 客户ID
+   * @param commodityIds 商品ID数组
+   * @param useGiftPrice
+   * @returns 返回商品信息实体数组，包含价格映射后的商品信息
+   */
+  async getCommodityCustomerMap(
+    customerId: string,
+    commodityIds: string[],
+    useGiftPrice = false,
+  ): Promise<CommodityInfoEntity[]> {
+    if (commodityIds.length === 0) {
+      return [];
+    }
+    const commodityInfos = await this.getCommodityListByCommodityIds(
+      commodityIds,
+    );
+    if (commodityInfos.length === 0) {
+      return [];
+    }
+    // 构建客户商品价格映射表
+    const priceMap = new Map(
+      await this.commodityCustomerPriceMappingRepository
+        .createQueryBuilder('m')
+        .where('m.customer_id = :customerId', { customerId })
+        .andWhere('m.commodity_id IN (:...commodityIds)', { commodityIds })
+        .getMany()
+        .then((list) => list.map((m) => [m.commodityId, m])),
+    );
+    // 处理商品价格映射逻辑
+    commodityInfos.forEach((dto) => {
+      /* ---- 第 2 步：客户映射表存在就整体覆盖 ---- */
+      const mapping = priceMap.get(dto.id);
+      if (mapping) {
+        // 统一覆盖四个字段
+        dto.itemExFactoryPrice = mapping.itemExFactoryPrice;
+        dto.isQuotaInvolved = mapping.isQuotaInvolved;
+        dto.isSupplySubsidyInvolved = mapping.isSupplySubsidyInvolved;
+        dto.isGiftEligible = mapping.isGiftEligible;
+      }
+      if (
+        useGiftPrice &&
+        dto.isGiftEligible === 1 &&
+        dto.giftExFactoryPrice != null
+      ) {
+        dto.itemExFactoryPrice = dto.giftExFactoryPrice;
+      }
+    });
+    return commodityInfos;
   }
 
   /**
