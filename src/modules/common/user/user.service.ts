@@ -39,6 +39,7 @@ export class UserService{
           UserEndpoints.USER_SUB_LEVEL(userId),
           token,
         );
+        this.logger.log(`查询用户及下级返回ID结果：${JSON.stringify(userList)}`);
         // 收集所有用户的 id 字段
         if (userList && Array.isArray(userList)) {
           userDto.principalUserIds = userList.map((user) => user.id);
