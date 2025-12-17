@@ -19,8 +19,9 @@ import { CommodityInfoEntity } from '../entities/commodity-info.entity';
 import { CommodityBundledSkuInfoEntity } from '../entities/commodity-bundled-sku-info.entity';
 import { CommodityCategoryEntity } from '../entities/commodity-category.entity';
 import { CommodityCategoryService } from './commodity-category.service';
-import { CustomerCommodityConfigEntity } from '@modules/commodity/entities/customer-commodity-config.entity';
 import { CommodityCustomerPriceService } from './commodity-customer-price.server';
+import { CommodityClassifyTypeEnum } from '@src/enums/commodity-classify-type.enum';
+import { CommodityCustomerPriceEntity } from '@modules/commodity/entities/commodity-customer-price.entity';
 
 @Injectable()
 export class CommodityService {
@@ -32,8 +33,8 @@ export class CommodityService {
     @InjectRepository(CommodityBundledSkuInfoEntity)
     private commodityBundledSkuInfoEntityRepository: Repository<CommodityBundledSkuInfoEntity>,
 
-    @InjectRepository(CustomerCommodityConfigEntity)
-    private customerCommodityConfigEntityRepository: Repository<CustomerCommodityConfigEntity>,
+    @InjectRepository(CommodityCustomerPriceEntity)
+    private commodityCustomerPriceEntityRepository: Repository<CommodityCustomerPriceEntity>,
 
     @Inject(forwardRef(() => CommodityCategoryService))
     private commodityCategoryService: CommodityCategoryService,
@@ -401,7 +402,7 @@ export class CommodityService {
       // 2. 取客户映射（一次性查完）
       this.logger.log(`customerId:${customerId}`);
       const priceMap = new Map(
-        await this.commodityCustomerPriceMappingRepository
+        await this.commodityCustomerPriceEntityRepository
           .createQueryBuilder('m')
           .where('m.customer_id = :customerId', { customerId })
           .andWhere('m.commodity_id IN (:...commodityIds)', { commodityIds })
@@ -715,7 +716,7 @@ export class CommodityService {
     }
     // 构建客户商品价格映射表
     const priceMap = new Map(
-      await this.commodityCustomerPriceMappingRepository
+      await this.commodityCustomerPriceEntityRepository
         .createQueryBuilder('m')
         .where('m.customer_id = :customerId', { customerId })
         .andWhere('m.commodity_id IN (:...commodityIds)', { commodityIds })

@@ -1028,6 +1028,7 @@ export class OrderService {
         boxSpecPiece: item.boxSpecPiece,
         boxQty: item.boxQty,
         qty: item.qty,
+        isUseBoxUnit: item.isUseBoxUnit > 0,
         exFactoryPrice: item.exFactoryPrice ?? '0',
         isQuotaInvolved: item.isQuotaInvolved,
         amount: item.amount ?? '0',

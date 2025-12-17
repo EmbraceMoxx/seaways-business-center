@@ -119,7 +119,7 @@ export class OrderConvertHelper {
     orderItem.specInfo = commodityInfo.itemSpecInfo;
     orderItem.boxSpecPiece = commodityInfo.boxSpecPiece;
     orderItem.boxSpecInfo = commodityInfo.boxSpecInfo;
-
+    orderItem.isUseBoxUnit = item.isUseBoxUnit ? 1 : 0;
     orderItem.isQuotaInvolved = commodityInfo.isQuotaInvolved;
     let exFactoryPrice = commodityInfo.itemExFactoryPrice;
     if (
@@ -127,6 +127,7 @@ export class OrderConvertHelper {
       commodityInfo.isGiftEligible === BooleanStatusEnum.TRUE
     ) {
       exFactoryPrice = commodityInfo.giftExFactoryPrice ?? '0';
+      orderItem.isUseBoxUnit = 0;
     }
     orderItem.exFactoryPrice = exFactoryPrice;
     orderItem.boxQty = Number(item.boxQty || 0);

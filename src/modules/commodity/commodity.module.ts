@@ -10,10 +10,8 @@ import { CommodityCategoryEntity } from './entities/commodity-category.entity';
 import { CommodityCategoryController } from './controllers/commodity-category.controller';
 import { CommodityCategoryService } from './services/commodity-category.service';
 import { CommodityBundledSkuInfoEntity } from '@modules/commodity/entities/commodity-bundled-sku-info.entity';
-import { CustomerCommodityConfigEntity } from '@modules/commodity/entities/customer-commodity-config.entity';
 
 // 商品价格客户管理
-import { CommodityCustomerPriceEntity } from './entities/commodity-customer-price.entity';
 import { CommodityCustomerPriceController } from './controllers/commodity-customer-price.controller';
 import { CommodityCustomerPriceService } from './services/commodity-customer-price.server';
 
@@ -22,6 +20,7 @@ import { CustomerModule } from '@modules/customer/customer.module';
 
 // 用户服务
 import { UserService } from '@modules/common/user/user.service';
+import { CommodityCustomerPriceEntity } from '@modules/commodity/entities/commodity-customer-price.entity';
 
 @Module({
   imports: [
@@ -29,7 +28,6 @@ import { UserService } from '@modules/common/user/user.service';
       CommodityInfoEntity,
       CommodityCategoryEntity,
       CommodityBundledSkuInfoEntity,
-      CustomerCommodityConfigEntity,
       CommodityCustomerPriceEntity,
     ]),
     forwardRef(() => CustomerModule),

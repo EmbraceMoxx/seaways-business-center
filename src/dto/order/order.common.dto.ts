@@ -17,6 +17,8 @@ export class OrderItem {
   @ApiProperty({ description: '商品备注' })
   @MaxLength(100, { message: '备注信息过长，请简化描述' })
   remark: string;
+  @ApiProperty({ description: '是否按箱购买' })
+  isUseBoxUnit: true;
   @ApiProperty({ description: '箱数' })
   @IsOptional()
   @Min(1, { message: '箱数必须大于0' })
@@ -406,6 +408,9 @@ export class OrderDetailItem {
 
   @ApiProperty({ description: '箱数' })
   boxQty: number;
+
+  @ApiProperty({ description: '是否按箱购买' })
+  isUseBoxUnit: boolean;
 
   @ApiProperty({ description: '推单数量' })
   qty: number;

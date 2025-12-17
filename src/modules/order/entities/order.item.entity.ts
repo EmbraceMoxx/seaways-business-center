@@ -86,6 +86,13 @@ export class OrderItemEntity {
   })
   boxSpecInfo: string | null;
 
+  @Column('int', {
+    name: 'is_use_box_unit',
+    comment: '是否按箱购买1-是2-否',
+    default: () => 1,
+  })
+  isUseBoxUnit: number;
+
   @Column('decimal', {
     name: 'ex_factory_price',
     nullable: true,
