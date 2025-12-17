@@ -119,8 +119,7 @@ export class OrderConvertHelper {
     orderItem.specInfo = commodityInfo.itemSpecInfo;
     orderItem.boxSpecPiece = commodityInfo.boxSpecPiece;
     orderItem.boxSpecInfo = commodityInfo.boxSpecInfo;
-    orderItem.exFactoryPrice = commodityInfo.itemExFactoryPrice;
-    orderItem.exFactoryBoxPrice = commodityInfo.boxExFactoryPrice;
+
     orderItem.isQuotaInvolved = commodityInfo.isQuotaInvolved;
     let exFactoryPrice = commodityInfo.itemExFactoryPrice;
     if (
@@ -129,6 +128,7 @@ export class OrderConvertHelper {
     ) {
       exFactoryPrice = commodityInfo.giftExFactoryPrice ?? '0';
     }
+    orderItem.exFactoryPrice = exFactoryPrice;
     orderItem.boxQty = Number(item.boxQty || 0);
     orderItem.qty = Number(item.qty || 0);
     const amount = orderItem.qty * parseFloat(exFactoryPrice);
