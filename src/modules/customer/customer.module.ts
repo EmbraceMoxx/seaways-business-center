@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 // 客户管理
@@ -32,6 +32,9 @@ import { BusinessLogEntity } from '@modules/common/business-log/entity/business-
 // 订单管理
 import { UserService } from '@modules/common/user/user.service';
 
+// 商品客户价格信息
+import { CommodityModule } from '@modules/commodity/commodity.module';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -42,6 +45,7 @@ import { UserService } from '@modules/common/user/user.service';
       CustomerCreditLimitDetailEntity,
       BusinessLogEntity,
     ]),
+    forwardRef(() => CommodityModule),
   ],
   providers: [
     CustomerService,

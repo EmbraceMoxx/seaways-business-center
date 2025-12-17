@@ -20,6 +20,7 @@ import { CommodityBundledSkuInfoEntity } from '../entities/commodity-bundled-sku
 import { CommodityCategoryEntity } from '../entities/commodity-category.entity';
 import { CommodityCategoryService } from './commodity-category.service';
 import { CustomerCommodityConfigEntity } from '@modules/commodity/entities/customer-commodity-config.entity';
+import { CommodityCustomerPriceService } from './commodity-customer-price.server';
 
 @Injectable()
 export class CommodityService {
@@ -35,6 +36,9 @@ export class CommodityService {
 
     @Inject(forwardRef(() => CommodityCategoryService))
     private commodityCategoryService: CommodityCategoryService,
+
+    @Inject(forwardRef(() => CommodityCustomerPriceService))
+    private commodityCustomerPriceService: CommodityCustomerPriceService,
   ) {}
 
   /**
@@ -164,6 +168,59 @@ export class CommodityService {
       return { items: commodity, total };
     } catch (error) {
       throw new BusinessException('获取商品列表失败');
+    }
+  }
+
+  /**
+   * 获取选择商品列表-不分页
+   */
+  async getSelectCommodityList(
+    params: QueryCommodityDto,
+  ): Promise<CommodityResponseDto[]> {
+    try {
+      const { commodityName } = params;
+
+      let queryBuilder = this.commodityRepository
+        .createQueryBuilder('commodity')
+        .select([
+          'commodity.commodity_name AS label',
+          'commodity.id AS value',
+          'commodity.item_ex_factory_price AS itemExFactoryPrice',
+          'commodity.is_quota_involved AS isQuotaInvolved',
+          'commodity.is_gift_eligible AS isGiftEligible',
+          'commodity.is_supply_subsidy_involved AS isSupplySubsidyInvolved',
+        ])
+        .where('commodity.deleted = :deleted', {
+          deleted: GlobalStatusEnum.NO,
+        })
+        .andWhere('commodity.enabled = :enabled', {
+          enabled: GlobalStatusEnum.YES,
+        });
+
+      // 商品名称
+      if (commodityName) {
+        queryBuilder = queryBuilder.andWhere(
+          'commodity.commodity_name LIKE :commodityName',
+          {
+            commodityName: `%${commodityName}%`,
+          },
+        );
+      }
+
+      queryBuilder = queryBuilder
+        .orderBy('commodity.created_time', 'DESC')
+        .addOrderBy('commodity.id', 'DESC');
+
+      const commodity = await queryBuilder.getRawMany();
+
+      return commodity.map((item) => ({
+        ...item,
+        itemExFactoryPrice: item.itemExFactoryPrice
+          ? parseFloat(item.itemExFactoryPrice)
+          : 0,
+      }));
+    } catch (error) {
+      throw new BusinessException('获取选择商品列表失败');
     }
   }
 
@@ -402,7 +459,13 @@ export class CommodityService {
         response.compositeCommodity = [];
       }
 
-      return response;
+      // 查询该商品下的客户信息
+      const commodityCustomer =
+        await this.commodityCustomerPriceService.getCommodityCustomerPriceListByCommodityId(
+          id,
+        );
+
+      return { ...response, customerPricelist: commodityCustomer };
     } catch (error) {
       if (error instanceof BusinessException) {
         throw error;

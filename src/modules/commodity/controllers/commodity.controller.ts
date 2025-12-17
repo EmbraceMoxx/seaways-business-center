@@ -38,6 +38,15 @@ export class CommodityController {
     return new SuccessResponseDto(list);
   }
 
+  @ApiOperation({ summary: '获取选择商品列表-不分页' })
+  @Post('select-list-common')
+  async getCommomCommodityList(
+    @Body() body: QueryCommodityDto,
+  ): Promise<SuccessResponseDto<CommodityResponseDto[]>> {
+    const list = await this.commodityService.getSelectCommodityList(body);
+    return new SuccessResponseDto(list);
+  }
+
   @ApiOperation({ summary: '获取商品详情' })
   @Get('detail/:id')
   async getCommodityDetail(

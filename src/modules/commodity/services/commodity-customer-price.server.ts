@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, forwardRef, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
@@ -24,7 +24,9 @@ export class CommodityCustomerPriceService {
   constructor(
     @InjectRepository(CommodityCustomerPriceEntity)
     private CommodityCustomerRepository: Repository<CommodityCustomerPriceEntity>,
+    @Inject(forwardRef(() => CommodityService))
     private commodityService: CommodityService,
+    @Inject(forwardRef(() => CustomerService))
     private customerService: CustomerService,
     private userService: UserService,
   ) {}
@@ -143,16 +145,24 @@ export class CommodityCustomerPriceService {
         .offset((page - 1) * pageSize);
       const items = await queryBuilder.getRawMany();
 
-      return { items, total };
+      // 将价格转换为数字类型
+      const formattedItems = items.map((item) => ({
+        ...item,
+        itemExFactoryPrice: item.itemExFactoryPrice
+          ? parseFloat(item.itemExFactoryPrice)
+          : 0,
+      }));
+
+      return { items: formattedItems, total };
     } catch (error) {
       throw new BusinessException('获取列表失败' + error.message);
     }
   }
 
   /**
-   * 商品客户价格列表-用于客户详情（无权限）
+   * 商品客户价格列表-用于客户详情（分页、无权限）
    */
-  async getCommodityCustomerPriceListOther(
+  async getCommodityCustomerPricePageListOther(
     params: QueryCommodityCustomerOtherDto,
   ): Promise<{ items: CommodityCustomerPriceResponseDto[]; total: number }> {
     try {
@@ -222,6 +232,63 @@ export class CommodityCustomerPriceService {
   }
 
   /**
+   * 商品客户价格列表-用于客户详情（不分页、无权限）
+   */
+  async getCommodityCustomerPriceListOther(
+    customerId: string,
+  ): Promise<CommodityCustomerPriceResponseDto[]> {
+    try {
+      let queryBuilder =
+        await this.CommodityCustomerRepository.createQueryBuilder(
+          'commodityCustomer',
+        )
+          .select([
+            'commodityCustomer.id as id',
+            'commodityCustomer.commodity_id as commodityId',
+            'commodity.commodity_barcode as commodityBarcode',
+            `COALESCE(NULLIF(commodityCustomer.commodity_name, ''), commodity.commodity_name) as commodityName`,
+            'commodityCustomer.commodity_internal_code as commodityInternalCode',
+            'commodityCustomer.customer_id as customerId',
+            'customer.customer_name as customerName',
+            'commodityCustomer.item_ex_factory_price as itemExFactoryPrice',
+            'commodityCustomer.is_supply_subsidy_involved as isSupplySubsidyInvolved',
+            'commodityCustomer.is_quota_involved as isQuotaInvolved',
+            'commodityCustomer.is_gift_eligible as isGiftEligible',
+            'commodityCustomer.enabled as enabled',
+            'commodityCustomer.creator_id as creatorId',
+            'commodityCustomer.created_time as createdTime',
+            'commodityCustomer.creator_name as creatorName',
+          ])
+          .leftJoin(
+            CommodityInfoEntity,
+            'commodity',
+            'commodity.id=commodityCustomer.commodity_id',
+          )
+          .leftJoin(
+            CustomerInfoEntity,
+            'customer',
+            'customer.id=commodityCustomer.customer_id',
+          )
+          .where('commodityCustomer.deleted = :deleted', {
+            deleted: GlobalStatusEnum.NO,
+          })
+          .andWhere('commodityCustomer.customer_id = :customerId', {
+            customerId: customerId,
+          });
+
+      queryBuilder = queryBuilder
+        .orderBy('commodityCustomer.created_time', 'DESC')
+        .addOrderBy('commodityCustomer.id', 'DESC');
+
+      const items = await queryBuilder.getRawMany();
+
+      return items;
+    } catch (error) {
+      throw new BusinessException('获取列表失败' + error.message);
+    }
+  }
+
+  /**
    * 根据商品id和客户id查询
    */
   async getDataByCommodityIdAndCustomerId(
@@ -246,6 +313,63 @@ export class CommodityCustomerPriceService {
     }
 
     return await queryBuilder.getOne();
+  }
+
+  /**
+   * 根据商品id查询列表
+   */
+  async getCommodityCustomerPriceListByCommodityId(
+    commodityId: string,
+  ): Promise<CommodityCustomerPriceResponseDto[]> {
+    try {
+      let queryBuilder =
+        await this.CommodityCustomerRepository.createQueryBuilder(
+          'commodityCustomer',
+        )
+          .select([
+            'commodityCustomer.id as id',
+            'commodityCustomer.commodity_id as commodityId',
+            'commodity.commodity_barcode as commodityBarcode',
+            `COALESCE(NULLIF(commodityCustomer.commodity_name, ''), commodity.commodity_name) as commodityName`,
+            'commodityCustomer.commodity_internal_code as commodityInternalCode',
+            'commodityCustomer.customer_id as customerId',
+            'customer.customer_name as customerName',
+            'commodityCustomer.item_ex_factory_price as itemExFactoryPrice',
+            'commodityCustomer.is_supply_subsidy_involved as isSupplySubsidyInvolved',
+            'commodityCustomer.is_quota_involved as isQuotaInvolved',
+            'commodityCustomer.is_gift_eligible as isGiftEligible',
+            'commodityCustomer.enabled as enabled',
+            'commodityCustomer.creator_id as creatorId',
+            'commodityCustomer.created_time as createdTime',
+            'commodityCustomer.creator_name as creatorName',
+          ])
+          .leftJoin(
+            CommodityInfoEntity,
+            'commodity',
+            'commodity.id=commodityCustomer.commodity_id',
+          )
+          .leftJoin(
+            CustomerInfoEntity,
+            'customer',
+            'customer.id=commodityCustomer.customer_id',
+          )
+          .where('commodityCustomer.deleted = :deleted', {
+            deleted: GlobalStatusEnum.NO,
+          })
+          .andWhere('commodityCustomer.commodity_id = :commodityId', {
+            commodityId: commodityId,
+          });
+
+      queryBuilder = queryBuilder
+        .orderBy('commodityCustomer.created_time', 'DESC')
+        .addOrderBy('commodityCustomer.id', 'DESC');
+
+      const items = await queryBuilder.getRawMany();
+
+      return items;
+    } catch (error) {
+      throw new BusinessException('获取列表失败' + error.message);
+    }
   }
 
   /**

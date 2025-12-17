@@ -43,7 +43,7 @@ export class CommodityCustomerPriceController {
 
   @ApiOperation({ summary: '商品价格客户映射列表' })
   @Post('list-view')
-  async getCommodityCustomerPriceListOther(
+  async getCommodityCustomerPricePageListOther(
     @Body() body: QueryCommodityCustomerOtherDto,
   ): Promise<
     SuccessResponseDto<{
@@ -52,7 +52,7 @@ export class CommodityCustomerPriceController {
     }>
   > {
     const list =
-      await this.commodityCustomerService.getCommodityCustomerPriceListOther(
+      await this.commodityCustomerService.getCommodityCustomerPricePageListOther(
         body,
       );
     return new SuccessResponseDto(list);

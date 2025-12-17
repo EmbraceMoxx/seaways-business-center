@@ -8,6 +8,7 @@ import {
   CustomerInfoResponseDto,
   CustomerRequestDto,
   QueryCustomerDto,
+  CommodityCustomerPriceResponseDto,
 } from '@src/dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { UserEndpoints } from '@src/constants/index';
@@ -21,6 +22,7 @@ import { CustomerInfoEntity } from '../entities/customer.entity';
 import { CustomerCreditLimitService } from '../services/customer-credit-limit.service';
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
 import { UserService } from '@modules/common/user/user.service';
+import { CommodityCustomerPriceService } from '@modules/commodity/services/commodity-customer-price.server';
 
 @Injectable()
 export class CustomerService {
@@ -33,6 +35,8 @@ export class CustomerService {
     private userService: UserService,
     private httpProxyServices: HttpProxyService,
     private dataSource: DataSource,
+    @Inject(forwardRef(() => CommodityCustomerPriceService))
+    private commodityCustomerService: CommodityCustomerPriceService,
   ) {}
 
   /**
@@ -178,7 +182,7 @@ export class CustomerService {
   /**
    * 获取选择客户列表
    */
-  async getSelectCustomerList(
+  async getSelectCustomerPageList(
     params: QueryCustomerDto,
     user: JwtUserPayload,
     token: string,
@@ -315,12 +319,91 @@ export class CustomerService {
       throw new BusinessException('获取客户列表失败' + error.message);
     }
   }
+
+  /**
+   * 获取选择客户列表--不分页
+   */
+  async getSelectCustomerList(
+    params: QueryCustomerDto,
+    user: JwtUserPayload,
+    token: string,
+  ): Promise<CustomerInfoResponseDto[]> {
+    try {
+      const { customerName } = params;
+
+      let queryBuilder = this.customerRepository
+        .createQueryBuilder('customer')
+        .select(['customer.customer_name as label', 'customer.id as value'])
+        .where('customer.deleted = :deleted', {
+          deleted: GlobalStatusEnum.NO,
+        })
+        .andWhere('customer.enabled = :enabled', {
+          enabled: GlobalStatusEnum.YES,
+        })
+        .andWhere('customer.is_contract = :isContract', {
+          isContract: 1,
+        })
+        .andWhere('customer.co_status = :coStatus', {
+          coStatus: '1',
+        })
+        .andWhere('customer.customer_type > :customerType', {
+          customerType: 0,
+        });
+
+      // 客户名称
+      if (customerName) {
+        queryBuilder = queryBuilder.andWhere(
+          'customer.customer_name LIKE :customerName',
+          {
+            customerName: `%${customerName}%`,
+          },
+        );
+      }
+
+      // 获取权限
+      const checkResult = await this.userService.getRangeOfOrderQueryUser(
+        token,
+        user.userId,
+      );
+      if (!checkResult || checkResult.isQueryAll) {
+        // 不限制客户范围，继续查询
+      } else if (!checkResult.principalUserIds?.length) {
+        return [];
+      } else {
+        // 收集所有人负责的客户ID，去查询对应的客户ID
+        const customerIds = await this.getManagedCustomerIds(
+          checkResult.principalUserIds,
+        );
+
+        // 如果没有客户ID，则返回空
+        if (!customerIds.length) {
+          return [];
+        }
+
+        queryBuilder = queryBuilder.andWhere('customer.id IN (:customerIds)', {
+          customerIds,
+        });
+      }
+
+      queryBuilder = queryBuilder
+        .orderBy('customer.created_time', 'DESC')
+        .addOrderBy('customer.id', 'DESC');
+
+      const items = await queryBuilder.getRawMany();
+
+      return items;
+    } catch (error) {
+      throw new BusinessException('获取客户列表失败' + error.message);
+    }
+  }
+
   /**
    * 获取客户详情
    */
   async getCustomerInfoCreditById(id: string): Promise<
     CustomerInfoResponseDto & {
       creditInfo: CustomerInfoCreditResponseDto;
+      commodityList: CommodityCustomerPriceResponseDto[];
     }
   > {
     try {
@@ -334,7 +417,13 @@ export class CustomerService {
       const creditInfo =
         await this.customerCreditLimitService.getCustomerCreditInfo(id);
 
-      return { ...customerInfo, creditInfo };
+      // 3、商品客户价格信息
+      const commodityList =
+        await this.commodityCustomerService.getCommodityCustomerPriceListOther(
+          id,
+        );
+
+      return { ...customerInfo, creditInfo, commodityList };
     } catch (error) {
       throw new BusinessException('获取客户详情失败');
     }

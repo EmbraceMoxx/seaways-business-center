@@ -75,6 +75,12 @@ export class CommodityCustomerPriceResponseDto {
   commodityId: string;
 
   @ApiProperty({
+    description: '商品条码',
+    example: '19110201226',
+  })
+  commodityBarcode: string;
+
+  @ApiProperty({
     description: '商品名称',
     example: '19110201226',
   })
@@ -129,12 +135,6 @@ export class CommodityCustomerPriceResponseDto {
   enabled: string;
 
   @ApiProperty({
-    description: '是否删除，YES-删除，NO-未删除',
-    example: 'NO',
-  })
-  deleted: string;
-
-  @ApiProperty({
     description: '创建人ID',
     example: '1735123456789012348',
   })
@@ -147,28 +147,10 @@ export class CommodityCustomerPriceResponseDto {
   createdTime: Date;
 
   @ApiProperty({
-    description: '修改人ID',
-    example: '1735123456789012349',
-  })
-  reviserId: string;
-
-  @ApiProperty({
-    description: '修改时间',
-    example: '2021-01-01T00:00:00Z',
-  })
-  revisedTime: Date;
-
-  @ApiProperty({
     description: '创建人名字',
     example: '王五',
   })
   creatorName: string;
-
-  @ApiProperty({
-    description: '更新人名字',
-    example: '赵六',
-  })
-  reviserName: string;
 }
 
 /**

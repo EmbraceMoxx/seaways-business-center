@@ -40,13 +40,28 @@ export class CustomerController {
 
   @ApiOperation({ summary: '获取选择客户列表' })
   @Post('selectList')
-  async getSelectCustomerList(
+  async getSelectCustomerPageList(
     @Body() body: QueryCustomerDto,
     @CurrentUser() user: JwtUserPayload,
     @CurrentToken() token: string,
   ): Promise<
     SuccessResponseDto<{ items: CustomerInfoResponseDto[]; total: number }>
   > {
+    const list = await this.customerService.getSelectCustomerPageList(
+      body,
+      user,
+      token,
+    );
+    return new SuccessResponseDto(list);
+  }
+
+  @ApiOperation({ summary: '获取选择客户列表-不分页' })
+  @Post('select-list-common')
+  async getSelectCustomerList(
+    @Body() body: QueryCustomerDto,
+    @CurrentUser() user: JwtUserPayload,
+    @CurrentToken() token: string,
+  ): Promise<SuccessResponseDto<CustomerInfoResponseDto[]>> {
     const list = await this.customerService.getSelectCustomerList(
       body,
       user,

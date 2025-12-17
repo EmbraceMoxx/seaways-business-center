@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 // 商品管理
 import { CommodityInfoEntity } from './entities/commodity-info.entity';
@@ -32,7 +32,7 @@ import { UserService } from '@modules/common/user/user.service';
       CustomerCommodityConfigEntity,
       CommodityCustomerPriceEntity,
     ]),
-    CustomerModule,
+    forwardRef(() => CustomerModule),
   ],
   providers: [
     CommodityService,
