@@ -453,18 +453,32 @@ export class OrderService {
     const replenishGoodsList = req.replenishGoods;
     const auxiliaryGoodsList = req.auxiliaryGoods;
 
-    const { commodityInfos, commodityPriceMap } =
-      await this.getCommodityMapByOrderItems(
-        finishGoodsList,
-        replenishGoodsList,
-        auxiliaryGoodsList,
-        customerInfo.id,
-      );
+    // const { commodityInfos, commodityPriceMap } =
+    //   await this.getCommodityMapByOrderItems(
+    //     finishGoodsList,
+    //     replenishGoodsList,
+    //     auxiliaryGoodsList,
+    //     customerInfo.id,
+    //   );
+    const finishGoodsMap = await this.getCommodityMapByOrderItemType(
+      finishGoodsList,
+      customerInfo.id,
+    );
+    const replenishGoodsMap = await this.getCommodityMapByOrderItemType(
+      replenishGoodsList,
+      customerInfo.id,
+    );
+    const auxiliaryGoodsMap = await this.getCommodityMapByOrderItemType(
+      auxiliaryGoodsList,
+      customerInfo.id,
+      true,
+    );
+    // 同一个产品在不同产品类型使用的价格不一样，因此不能使用同一个map
     const finalOrderItemList: OrderItemEntity[] = [
       ...OrderConvertHelper.buildOrderItems(
         orderId,
         finishGoodsList,
-        commodityPriceMap,
+        finishGoodsMap.commodityPriceMap,
         user,
         OrderItemTypeEnum.FINISHED_PRODUCT,
         this.approvalConfig,
@@ -473,7 +487,7 @@ export class OrderService {
       ...OrderConvertHelper.buildOrderItems(
         orderId,
         replenishGoodsList || [],
-        commodityPriceMap,
+        replenishGoodsMap.commodityPriceMap,
         user,
         OrderItemTypeEnum.REPLENISH_PRODUCT,
         this.approvalConfig,
@@ -482,7 +496,7 @@ export class OrderService {
       ...OrderConvertHelper.buildOrderItems(
         orderId,
         auxiliaryGoodsList || [],
-        commodityPriceMap,
+        auxiliaryGoodsMap.commodityPriceMap,
         user,
         OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT,
         this.approvalConfig,
@@ -490,14 +504,14 @@ export class OrderService {
       ),
     ];
     // 若包含组合产品，则需要将产品转换为组合的产品
-    const bundledIds = commodityInfos
+    const bundledIds = auxiliaryGoodsMap.commodityInfos
       .filter((c) => c.isBundledProducts > 0)
       .map((c) => c.id);
     if (bundledIds.length) {
       await this.calculateBundleCommodity(
         bundledIds,
         finalOrderItemList,
-        commodityPriceMap,
+        auxiliaryGoodsMap.commodityPriceMap,
         orderId,
         user,
         lastOperateProgram,
@@ -618,18 +632,25 @@ export class OrderService {
     const finishGoodsList = req.finishGoods;
     const replenishGoodsList = req.replenishGoods;
     const auxiliaryGoodsList = req.auxiliaryGoods;
-    const { commodityInfos, commodityPriceMap } =
-      await this.getCommodityMapByOrderItems(
-        finishGoodsList,
-        replenishGoodsList,
-        auxiliaryGoodsList,
-        orderMain.customerId,
-      );
+    const finishGoodsMap = await this.getCommodityMapByOrderItemType(
+      finishGoodsList,
+      orderMain.customerId,
+    );
+    const replenishGoodsMap = await this.getCommodityMapByOrderItemType(
+      replenishGoodsList,
+      orderMain.customerId,
+    );
+    const auxiliaryGoodsMap = await this.getCommodityMapByOrderItemType(
+      auxiliaryGoodsList,
+      orderMain.customerId,
+      true,
+    );
+    // 同一个产品在不同产品类型使用的价格不一样，因此不能使用同一个map
     const finalOrderItemList: OrderItemEntity[] = [
       ...OrderConvertHelper.buildOrderItems(
         orderId,
         finishGoodsList,
-        commodityPriceMap,
+        finishGoodsMap.commodityPriceMap,
         user,
         OrderItemTypeEnum.FINISHED_PRODUCT,
         this.approvalConfig,
@@ -638,7 +659,7 @@ export class OrderService {
       ...OrderConvertHelper.buildOrderItems(
         orderId,
         replenishGoodsList || [],
-        commodityPriceMap,
+        replenishGoodsMap.commodityPriceMap,
         user,
         OrderItemTypeEnum.REPLENISH_PRODUCT,
         this.approvalConfig,
@@ -647,7 +668,7 @@ export class OrderService {
       ...OrderConvertHelper.buildOrderItems(
         orderId,
         auxiliaryGoodsList || [],
-        commodityPriceMap,
+        auxiliaryGoodsMap.commodityPriceMap,
         user,
         OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT,
         this.approvalConfig,
@@ -655,14 +676,14 @@ export class OrderService {
       ),
     ];
     // 若包含组合产品，则需要将产品转换为组合的产品
-    const bundledIds = commodityInfos
+    const bundledIds = auxiliaryGoodsMap.commodityInfos
       .filter((c) => c.isBundledProducts > 0)
       .map((c) => c.id);
     if (bundledIds.length) {
       await this.calculateBundleCommodity(
         bundledIds,
         finalOrderItemList,
-        commodityPriceMap,
+        auxiliaryGoodsMap.commodityPriceMap,
         orderId,
         user,
         lastOperateProgram,
@@ -1102,6 +1123,34 @@ export class OrderService {
     });
     return { commodityInfos, commodityPriceMap };
   }
+
+  /**
+   * 根据订单项获取商品信息映射
+   * @returns 包含商品信息列表和商品价格映射的Promise对象
+   * @param goods
+   * @param customerId
+   * @param useGiftPrice
+   */
+  private async getCommodityMapByOrderItemType(
+    goods: OrderItem[],
+    customerId: string,
+    useGiftPrice = false,
+  ) {
+    const commodityIds: string[] = [];
+    commodityIds.push(...goods.map((e) => e.commodityId));
+    this.logger.log(`需要查询的商品ID列表: ${JSON.stringify(commodityIds)}`);
+    const commodityInfos = await this.commodityService.getCommodityCustomerMap(
+      customerId,
+      commodityIds,
+      useGiftPrice,
+    );
+    const commodityPriceMap = new Map<string, CommodityInfoEntity>();
+    commodityInfos.forEach((good) => {
+      commodityPriceMap.set(good.id, good);
+    });
+    return { commodityInfos, commodityPriceMap };
+  }
+
   /**
    * 把“组合商品”展开成子商品列表
    * @param bundledIds        所有组合商品 ID
