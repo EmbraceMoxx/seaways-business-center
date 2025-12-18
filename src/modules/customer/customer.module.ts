@@ -29,11 +29,14 @@ import { CustomerCreditLimitDetailService } from './services/customer-credit-lim
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
 import { BusinessLogEntity } from '@modules/common/business-log/entity/business-log.entity';
 
-// 订单管理
+// 用户服务
 import { UserService } from '@modules/common/user/user.service';
 
 // 商品客户价格信息
 import { CommodityModule } from '@modules/commodity/commodity.module';
+
+// 客户管理
+import { OrderMainEntity } from '@modules/order/entities/order.main.entity';
 
 @Module({
   imports: [
@@ -44,6 +47,7 @@ import { CommodityModule } from '@modules/commodity/commodity.module';
       CustomerAddressEntity,
       CustomerCreditLimitDetailEntity,
       BusinessLogEntity,
+      OrderMainEntity,
     ]),
     forwardRef(() => CommodityModule),
   ],

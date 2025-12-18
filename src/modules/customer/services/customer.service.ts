@@ -23,6 +23,7 @@ import { CustomerCreditLimitService } from '../services/customer-credit-limit.se
 import { BusinessLogService } from '@modules/common/business-log/business-log.service';
 import { UserService } from '@modules/common/user/user.service';
 import { CommodityCustomerPriceService } from '@modules/commodity/services/commodity-customer-price.server';
+import { OrderMainEntity } from '@modules/order/entities/order.main.entity';
 
 @Injectable()
 export class CustomerService {
@@ -38,6 +39,8 @@ export class CustomerService {
     private dataSource: DataSource,
     @Inject(forwardRef(() => CommodityCustomerPriceService))
     private commodityCustomerService: CommodityCustomerPriceService,
+    @InjectRepository(OrderMainEntity)
+    private orderRepository: Repository<OrderMainEntity>,
   ) {}
 
   /**
@@ -433,7 +436,7 @@ export class CustomerService {
 
       return { ...customerInfo, creditInfo, commodityList };
     } catch (error) {
-      throw new BusinessException('获取客户详情失败');
+      throw new BusinessException('获取客户详情失败:' + error.message);
     }
   }
 
@@ -729,6 +732,25 @@ export class CustomerService {
    */
   async deleteCustomer(id: string, user: JwtUserPayload) {
     try {
+      // 查询是否存在订单--订单状态：审批中-20001，待推单-20003，已驳回-20006
+      const orderList = await this.getOrderListByCustomerId(id);
+
+      // 存在的话不可删除
+      if (orderList.length > 0) {
+        const statusText = {
+          '20001': '审批中',
+          '20003': '待推单',
+          '20006': '已驳回',
+        };
+        const orderStatus = [
+          ...new Set(orderList.map((order) => statusText[order.orderStatus])),
+        ];
+
+        throw new BusinessException(
+          `存在订单且状态为--${orderStatus.join('、')}，不可删除`,
+        );
+      }
+
       await this.customerRepository.update(id, {
         deleted: GlobalStatusEnum.YES,
         revisedTime: dayjs().toDate(),
@@ -736,7 +758,24 @@ export class CustomerService {
         reviserName: user.nickName,
       });
     } catch (error) {
-      throw new BusinessException('删除失败');
+      throw new BusinessException(error.message);
     }
+  }
+
+  /**
+   * 根据客户ID查询订单，订单状态：审批中-20001，待推单-20003，已驳回-20006
+   */
+  async getOrderListByCustomerId(
+    customerId: string,
+  ): Promise<OrderMainEntity[]> {
+    const query = this.orderRepository
+      .createQueryBuilder('orderMain')
+      .where('orderMain.customerId = :customerId', { customerId })
+      .andWhere('orderMain.orderStatus IN (:...orderStatus)', {
+        orderStatus: ['20001', '20003', '20006'],
+      })
+      .getMany();
+
+    return query;
   }
 }

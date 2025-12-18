@@ -519,7 +519,7 @@ export class CommodityService {
       if (error instanceof BusinessException) {
         throw error;
       }
-      throw new BusinessException('获取商品详情失败');
+      throw new BusinessException('获取商品详情失败:' + error.message);
     }
   }
 
@@ -544,7 +544,7 @@ export class CommodityService {
       if (error instanceof BusinessException) {
         throw error;
       }
-      throw new BusinessException('获取商品详情失败');
+      throw new BusinessException('获取商品详情失败:' + error.message);
     }
   }
 
@@ -644,7 +644,7 @@ export class CommodityService {
         };
       });
     } catch (error) {
-      throw new BusinessException('获取组合商品信息失败');
+      throw new BusinessException('获取组合商品信息失败:' + error.message);
     }
   }
 
@@ -850,7 +850,7 @@ export class CommodityService {
       // 如果没有找到现有编码或解析失败，默认从000001开始
       return 'CP_000001';
     } catch (error) {
-      throw new BusinessException('生成商品编码失败');
+      throw new BusinessException('生成商品编码失败:' + error.message);
     }
   }
 
