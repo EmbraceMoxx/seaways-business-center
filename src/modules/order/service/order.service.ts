@@ -1235,6 +1235,7 @@ export class OrderService {
           'order.customer_name as customerName',
           'order.order_code as orderCode',
           'order.amount as amount',
+          'order.created_time as createdTime',
 
           // 商品信息
           'item.name as commodityName',
@@ -1399,8 +1400,8 @@ export class OrderService {
       }
 
       queryBuilder = queryBuilder
-        .orderBy('order.created_time', 'DESC')
-        .addOrderBy('order.id', 'DESC');
+        .orderBy('order.order_code', 'DESC')
+        .addOrderBy('item.type', 'DESC');
 
       const items = await queryBuilder.getRawMany();
 

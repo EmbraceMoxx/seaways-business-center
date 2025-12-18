@@ -254,6 +254,12 @@ export class OrderController {
           header: '规格信息',
           key: 'boxSpecPiece',
           width: 12,
+          style: {
+            alignment: {
+              vertical: 'middle',
+              horizontal: 'left',
+            },
+          },
         },
         {
           header: '箱规格',
@@ -279,6 +285,12 @@ export class OrderController {
           header: '推单产品数量',
           key: 'quantity',
           width: 14,
+          style: {
+            alignment: {
+              vertical: 'middle',
+              horizontal: 'left',
+            },
+          },
         },
         {
           header: '订单金额',
@@ -309,6 +321,18 @@ export class OrderController {
           header: '下单商品备注',
           key: 'itemRemark',
           width: 25,
+        },
+        {
+          header: '下单时间',
+          key: 'createdTime',
+          width: 27,
+          style: {
+            numFmt: 'yyyy-mm-dd hh:mm:ss',
+            alignment: {
+              vertical: 'middle',
+              horizontal: 'center',
+            },
+          },
         },
       ];
       // 4、获取数据
