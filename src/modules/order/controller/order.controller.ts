@@ -226,14 +226,36 @@ export class OrderController {
       const workbook = new exceljs.Workbook();
       // 2、创建工作表
       const worksheet = workbook.addWorksheet('订单信息');
-      // 3、设置列标题
+
+      // 3、剧中配置
+      const alignment: Partial<exceljs.Alignment> = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
+
+      // 4、设置列标题
       worksheet.columns = [
         {
           header: '客户名称',
           key: 'customerName',
           width: 36,
         },
-        { header: '订单编码', key: 'orderCode', width: 24 },
+        {
+          header: '订单编码',
+          key: 'orderCode',
+          width: 24,
+          style: {
+            alignment,
+          },
+        },
+        {
+          header: '订单状态',
+          key: 'orderStatus',
+          width: 15,
+          style: {
+            alignment,
+          },
+        },
         { header: '订单总金额', key: 'amount', width: 18 },
         {
           header: '商品名称',
@@ -244,11 +266,17 @@ export class OrderController {
           header: '商品内部编码',
           key: 'internalCode',
           width: 18,
+          style: {
+            alignment,
+          },
         },
         {
           header: '商品条码',
           key: 'commodityBarcode',
           width: 18,
+          style: {
+            alignment,
+          },
         },
         {
           header: '规格信息',
@@ -270,11 +298,17 @@ export class OrderController {
           header: '是否计入额度',
           key: 'isQuotaInvolved',
           width: 15,
+          style: {
+            alignment,
+          },
         },
         {
           header: '产品类型',
           key: 'productType',
           width: 15,
+          style: {
+            alignment,
+          },
         },
         {
           header: '出厂价',
@@ -328,35 +362,32 @@ export class OrderController {
           width: 27,
           style: {
             numFmt: 'yyyy-mm-dd hh:mm:ss',
-            alignment: {
-              vertical: 'middle',
-              horizontal: 'center',
-            },
+            alignment,
           },
         },
       ];
-      // 4、获取数据
+      // 5、获取数据
       const exportList = await this.orderService.exportOrderList(
         query,
         user,
         token,
       );
 
-      // 5、添加数据行
+      // 6、添加数据行
       for (const item of exportList) {
         worksheet.addRow(item, 'n');
       }
-      // 6、设置响应头
+      // 7、设置响应头
       res.setHeader(
         'Content-Type',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       );
-      // 7、设置文件名
+      // 8、设置文件名
       const fileName = generateSafeFileName('order_list', 'xlsx');
       res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
-      // 8、导出数据
+      // 9、导出数据
       await workbook.xlsx.write(res);
-      // 9、结束响应
+      // 10、结束响应
       res.end();
     } catch (error) {
       throw new BusinessException('订单列表导出失败');

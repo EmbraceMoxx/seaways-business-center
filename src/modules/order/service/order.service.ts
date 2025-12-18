@@ -24,7 +24,10 @@ import { CommodityService } from '@modules/commodity/services/commodity.service'
 import { IdUtil } from '@src/utils';
 import { OrderItemTypeEnum } from '@src/enums/order-item-type.enum';
 import * as dayjs from 'dayjs';
-import { OrderStatusEnum } from '@src/enums/order-status.enum';
+import {
+  OrderStatusEnum,
+  OrderStatusEnumText,
+} from '@src/enums/order-status.enum';
 import { OrderConvertHelper } from '@modules/order/helper/order.convert.helper';
 import { OrderOperateTemplateEnum } from '@src/enums/order-operate-template.enum';
 import { OrderLogHelper } from '@modules/order/helper/order.log.helper';
@@ -1236,6 +1239,11 @@ export class OrderService {
           'order.order_code as orderCode',
           'order.amount as amount',
           'order.created_time as createdTime',
+          `CASE order.order_status 
+             ${Object.entries(OrderStatusEnumText)
+               .map(([key, value]) => `WHEN '${key}' THEN '${value}'`)
+               .join(' ')}
+           END as orderStatus`,
 
           // 商品信息
           'item.name as commodityName',
@@ -1281,13 +1289,10 @@ export class OrderService {
           'item.remark as itemRemark',
         ])
         .leftJoin('order_item', 'item', 'order.id = item.order_id')
-        .andWhere('order.orderStatus IN (:...orderStatuses)', {
-          orderStatuses: ['20004', '20005'], // 已推单、已完成状态
-        })
-        .andWhere('item.deleted = :itemDeleted', {
+        .where('item.deleted = :itemDeleted', {
           itemDeleted: GlobalStatusEnum.NO,
         })
-        .where('order.deleted = :deleted', {
+        .andWhere('order.deleted = :deleted', {
           deleted: GlobalStatusEnum.NO,
         });
 
