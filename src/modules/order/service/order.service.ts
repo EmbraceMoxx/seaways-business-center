@@ -39,6 +39,7 @@ import { ApprovalEngineService } from '@modules/approval/services/approval-engin
 import { CancelApprovalDto } from '@src/dto';
 import { CustomerService } from '@modules/customer/services/customer.service';
 import { ApprovalConfig } from '@src/configs/approval.config';
+import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
 
 @Injectable()
 export class OrderService {
@@ -457,6 +458,7 @@ export class OrderService {
         finishGoodsList,
         replenishGoodsList,
         auxiliaryGoodsList,
+        customerInfo.id,
       );
     const finalOrderItemList: OrderItemEntity[] = [
       ...OrderConvertHelper.buildOrderItems(
@@ -621,6 +623,7 @@ export class OrderService {
         finishGoodsList,
         replenishGoodsList,
         auxiliaryGoodsList,
+        orderMain.customerId,
       );
     const finalOrderItemList: OrderItemEntity[] = [
       ...OrderConvertHelper.buildOrderItems(
@@ -1070,7 +1073,9 @@ export class OrderService {
     finishGoods: OrderItem[],
     replenishGoods: OrderItem[],
     auxiliaryGoods: OrderItem[],
+    customerId: string,
   ) {
+    let useGiftPrice = false;
     const commodityIds: string[] = [];
     commodityIds.push(...finishGoods.map((finish) => finish.commodityId));
     if (replenishGoods && replenishGoods.length > 0) {
@@ -1082,11 +1087,15 @@ export class OrderService {
       commodityIds.push(
         ...auxiliaryGoods.map((auxiliary) => auxiliary.commodityId),
       );
+      useGiftPrice = true;
     }
 
     this.logger.log(`需要查询的商品ID列表: ${JSON.stringify(commodityIds)}`);
-    const commodityInfos =
-      await this.commodityService.getCommodityListByCommodityIds(commodityIds);
+    const commodityInfos = await this.commodityService.getCommodityCustomerMap(
+      customerId,
+      commodityIds,
+      useGiftPrice,
+    );
     const commodityPriceMap = new Map<string, CommodityInfoEntity>();
     commodityInfos.forEach((good) => {
       commodityPriceMap.set(good.id, good);

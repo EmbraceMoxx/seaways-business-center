@@ -184,7 +184,17 @@ export class OrderConvertHelper {
     return goods
       .map((item) => {
         const price = commodityPriceMap.get(item.commodityId) || 0;
-        return item.qty * price;
+        console.log(
+          'internalCode:',
+          item.internalCode,
+          ' price:',
+          price,
+          'qty:',
+          item.qty,
+        );
+        const amount = item.qty * price;
+        console.log('final amount:', amount);
+        return amount;
       })
       .reduce((sum, current) => sum + current, 0);
   }
