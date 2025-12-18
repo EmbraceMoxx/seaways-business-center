@@ -365,12 +365,21 @@ export class CommodityService {
 
       // 商品简称
       if (commodityAliaName) {
-        queryBuilder = queryBuilder.andWhere(
-          'commodity.commodity_alia_name LIKE :commodityAliaName',
-          {
-            commodityAliaName: `%${commodityAliaName}%`,
-          },
-        );
+        const clause =
+          '(exists(select 1\n' +
+          '              from commodity_customer_price_mapping m\n' +
+          '              where commodity.id = m.commodity_id\n' +
+          '                and m.deleted = :deleted \n' +
+          '                and m.enabled = :enabled \n' +
+          '                and m.customer_id = :customerId\n' +
+          '                and m.commodity_name LIKE :commodityAliaName )or commodity.commodity_alia_name LIKE :commodityAliaName)';
+        const param = {
+          deleted: GlobalStatusEnum.NO,
+          enabled: GlobalStatusEnum.YES,
+          customerId: customerId,
+          commodityAliaName: `%${commodityAliaName}%`,
+        };
+        queryBuilder = queryBuilder.andWhere(clause, param);
       }
 
       // 分类
@@ -422,6 +431,7 @@ export class CommodityService {
         const mapping = priceMap.get(dto.id);
         if (mapping) {
           // 统一覆盖四个字段
+          dto.commodityAliaName = mapping.commodityName;
           dto.itemExFactoryPrice = mapping.itemExFactoryPrice;
           dto.isQuotaInvolved = mapping.isQuotaInvolved;
           dto.isSupplySubsidyInvolved = mapping.isSupplySubsidyInvolved;

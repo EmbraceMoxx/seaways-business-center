@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, EntityManager } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
@@ -26,6 +26,7 @@ import { CommodityCustomerPriceService } from '@modules/commodity/services/commo
 
 @Injectable()
 export class CustomerService {
+  private readonly logger = new Logger(CustomerService.name);
   constructor(
     @InjectRepository(CustomerInfoEntity)
     private customerRepository: Repository<CustomerInfoEntity>,
@@ -412,16 +413,17 @@ export class CustomerService {
       commodityList: CommodityCustomerPriceResponseDto[];
     }
   > {
+    // 1、查询详情
+    const customerInfo = await this.getCustomerBaseInfoById(id);
+    this.logger.log('customerInfo:', JSON.stringify(customerInfo));
+    if (!customerInfo) {
+      throw new BusinessException('客户不存在');
+    }
     try {
-      // 1、查询详情
-      const customerInfo = await this.getCustomerBaseInfoById(id);
-      if (!customerInfo) {
-        throw new BusinessException('客户不存在');
-      }
-
       // 2、获取客户额度详情-额度信息
       const creditInfo =
         await this.customerCreditLimitService.getCustomerCreditInfo(id);
+      this.logger.log('creditInfo:', JSON.stringify(creditInfo));
 
       // 3、商品客户价格信息
       const commodityList =

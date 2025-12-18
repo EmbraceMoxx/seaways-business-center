@@ -351,8 +351,12 @@ export class CustomerCreditLimitService {
         usedReplenishingGoodsAmount: '',
         remainReplenishingGoodsAmount: '',
       };
+
+      // 3、获取客户累计额度信息
+      const cumulativeCredit = await this.getCumulativeCreditInfo(customerId);
+      this.logger.log(`客户累计额度信息：${JSON.stringify(cumulativeCredit)}`);
       // 1、先获取当月的客户月度信息
-      const currentDate = new Date();
+      const currentDate = dayjs().toDate();
       const currentYear = currentDate.getFullYear();
       const currentMonth = currentDate.getMonth() + 1;
 
@@ -362,6 +366,7 @@ export class CustomerCreditLimitService {
           currentYear,
           currentMonth,
         );
+      this.logger.log(`客户月表额度信息：${JSON.stringify(monthlyCredit)}`);
 
       // 2、计算出本年度的额度信息（例如当月是11月，计算的就是1月到11月的）
       const annualCredit =
@@ -371,8 +376,7 @@ export class CustomerCreditLimitService {
           currentMonth,
         );
 
-      // 3、获取客户累计额度信息
-      const cumulativeCredit = await this.getCumulativeCreditInfo(customerId);
+      this.logger.log(`客户年度额度信息：${JSON.stringify(annualCredit)}`);
 
       return {
         monthlyCredit: monthlyCredit || defaultCreditInfo,
