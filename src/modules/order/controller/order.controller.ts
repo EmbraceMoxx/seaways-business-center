@@ -1,12 +1,10 @@
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Body, Controller, Logger, Param, Post } from '@nestjs/common';
+import { Body, Controller, Logger, Param, Post, Res } from '@nestjs/common';
 import {
   AddOfflineOrderRequest,
-  ApprovalRejectRequest,
   CancelOrderRequest,
   CheckOrderAmountRequest,
   CheckOrderAmountResponse,
-  ErrorResponseDto,
   GetOrderDetailDto,
   OrderDetailResponseDto,
   OrderInfoResponseDto,
@@ -15,6 +13,9 @@ import {
   UpdateOfflineOrderRequest,
   UpdateOrderRemarks,
 } from '@src/dto';
+import * as exceljs from 'exceljs';
+import { BusinessException } from '@src/dto/common/common.dto';
+import { generateSafeFileName } from '@src/utils/exportDataToExcel';
 import { OrderService } from '@modules/order/service/order.service';
 import { CurrentUser } from '@src/decorators/current-user.decorator';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
@@ -167,10 +168,7 @@ export class OrderController {
   }
 
   @Post('test')
-  async testCheckService(
-    @CurrentUser() user: JwtUserPayload,
-    @CurrentToken() token: string,
-  ) {
+  async testCheckService(@CurrentUser() user: JwtUserPayload) {
     // 1. 计算比例
     const auxRatio = Number(0.0102) || 0;
     const repRatio = Number(0.0971) || 0;
@@ -213,5 +211,131 @@ export class OrderController {
     }
     // 默认流程： 省区审批
     console.log(OrderStatusEnum.PROVINCE_REVIEWING);
+  }
+
+  @ApiOperation({ summary: '客户额度列表导出' })
+  @Post('export')
+  async exportToExcel(
+    @Res() res,
+    @Body() query: QueryOrderDto,
+    @CurrentUser() user: JwtUserPayload,
+    @CurrentToken() token: string,
+  ) {
+    try {
+      // 1、创建工作簿
+      const workbook = new exceljs.Workbook();
+      // 2、创建工作表
+      const worksheet = workbook.addWorksheet('订单信息');
+      // 3、设置列标题
+      worksheet.columns = [
+        {
+          header: '客户名称',
+          key: 'customerName',
+          width: 36,
+        },
+        { header: '订单编码', key: 'orderCode', width: 24 },
+        { header: '订单总金额', key: 'amount', width: 18 },
+        {
+          header: '商品名称',
+          key: 'commodityName',
+          width: 54,
+        },
+        {
+          header: '商品内部编码',
+          key: 'internalCode',
+          width: 18,
+        },
+        {
+          header: '商品条码',
+          key: 'commodityBarcode',
+          width: 18,
+        },
+        {
+          header: '规格信息',
+          key: 'boxSpecPiece',
+          width: 12,
+        },
+        {
+          header: '箱规格',
+          key: 'boxSpecInfo',
+          width: 15,
+        },
+        {
+          header: '是否计入额度',
+          key: 'isQuotaInvolved',
+          width: 15,
+        },
+        {
+          header: '产品类型',
+          key: 'productType',
+          width: 15,
+        },
+        {
+          header: '出厂价',
+          key: 'exFactoryPrice',
+          width: 15,
+        },
+        {
+          header: '推单产品数量',
+          key: 'quantity',
+          width: 14,
+        },
+        {
+          header: '订单金额',
+          key: 'itemAmount',
+          width: 15,
+        },
+        {
+          header: '产生货补金额',
+          key: 'generatedReplenishAmount',
+          width: 15,
+        },
+        {
+          header: '使用货补金额',
+          key: 'usedReplenishAmount',
+          width: 15,
+        },
+        {
+          header: '产生辅销金额',
+          key: 'generatedAuxiliarySalesAmount',
+          width: 15,
+        },
+        {
+          header: '使用辅销金额',
+          key: 'usedAuxiliarySalesAmount',
+          width: 15,
+        },
+        {
+          header: '下单商品备注',
+          key: 'itemRemark',
+          width: 25,
+        },
+      ];
+      // 4、获取数据
+      const exportList = await this.orderService.exportOrderList(
+        query,
+        user,
+        token,
+      );
+
+      // 5、添加数据行
+      for (const item of exportList) {
+        worksheet.addRow(item, 'n');
+      }
+      // 6、设置响应头
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      // 7、设置文件名
+      const fileName = generateSafeFileName('order_list', 'xlsx');
+      res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+      // 8、导出数据
+      await workbook.xlsx.write(res);
+      // 9、结束响应
+      res.end();
+    } catch (error) {
+      throw new BusinessException('订单列表导出失败');
+    }
   }
 }

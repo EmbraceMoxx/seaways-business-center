@@ -1204,4 +1204,209 @@ export class OrderService {
       0.0001
     );
   }
+
+  /**
+   * 导出订单列表
+   * @param query 查询参数
+   * @param user
+   * @param token
+   * @returns 客户订单列表
+   */
+  async exportOrderList(
+    params: QueryOrderDto,
+    user: JwtUserPayload,
+    token: string,
+  ): Promise<OrderInfoResponseDto[]> {
+    try {
+      const {
+        onlineOrderCode,
+        oriInnerOrderCode,
+        customerName,
+        orderCode,
+        orderStatus,
+        startTime,
+        endTime,
+      } = params;
+
+      let queryBuilder = this.orderRepository
+        .createQueryBuilder('order')
+        .select([
+          // 订单基本信息
+          'order.customer_name as customerName',
+          'order.order_code as orderCode',
+          'order.amount as amount',
+
+          // 商品信息
+          'item.name as commodityName',
+          'item.internal_code as internalCode',
+          'item.commodity_barcode as commodityBarcode',
+          'item.box_spec_piece as boxSpecPiece',
+          'item.box_spec_info as boxSpecInfo',
+
+          // 商品属性
+          `CASE WHEN item.is_quota_involved = 1 THEN '是' ELSE '否' END as isQuotaInvolved`,
+          `CASE 
+                WHEN item.type = 'FINISHED_PRODUCT' THEN '成品商品'
+                WHEN item.type = 'REPLENISH_PRODUCT' THEN '货补产品'
+                WHEN item.type = 'AUXILIARY_SALES_PRODUCT' THEN '辅销产品'
+              END as productType`,
+
+          // 价格和数量信息
+          'item.ex_factory_price as exFactoryPrice',
+          'item.qty as quantity',
+          'item.amount as itemAmount',
+
+          // 货补金额计算
+          `CASE 
+                WHEN item.type = 'FINISHED_PRODUCT' THEN item.replenish_amount 
+                ELSE '0' 
+              END as generatedReplenishAmount`,
+          `CASE 
+                WHEN item.type = 'REPLENISH_PRODUCT' THEN item.replenish_amount 
+                ELSE '0' 
+              END as usedReplenishAmount`,
+
+          // 辅销金额计算
+          `CASE 
+                WHEN item.type = 'FINISHED_PRODUCT' THEN item.auxiliary_sales_amount 
+                ELSE '0' 
+              END as generatedAuxiliarySalesAmount`,
+          `CASE 
+                WHEN item.type = 'AUXILIARY_SALES_PRODUCT' THEN item.auxiliary_sales_amount 
+                ELSE '0' 
+              END as usedAuxiliarySalesAmount`,
+
+          // 备注信息
+          'item.remark as itemRemark',
+        ])
+        .leftJoin('order_item', 'item', 'order.id = item.order_id')
+        .andWhere('order.orderStatus IN (:...orderStatuses)', {
+          orderStatuses: ['20004', '20005'], // 已推单、已完成状态
+        })
+        .andWhere('item.deleted = :itemDeleted', {
+          itemDeleted: GlobalStatusEnum.NO,
+        })
+        .where('order.deleted = :deleted', {
+          deleted: GlobalStatusEnum.NO,
+        });
+
+      // 线上订单号
+      if (onlineOrderCode) {
+        queryBuilder = queryBuilder.andWhere(
+          'order.online_order_code LIKE :onlineOrderCode',
+          {
+            onlineOrderCode: `%${onlineOrderCode}%`,
+          },
+        );
+      }
+
+      // 内部单号
+      if (oriInnerOrderCode) {
+        queryBuilder = queryBuilder.andWhere(
+          'order.ori_inner_order_code LIKE :oriInnerOrderCode',
+          {
+            oriInnerOrderCode: `%${oriInnerOrderCode}%`,
+          },
+        );
+      }
+
+      // 客户名称
+      if (customerName) {
+        queryBuilder = queryBuilder.andWhere(
+          'order.customer_name LIKE :customerName',
+          {
+            customerName: `%${customerName}%`,
+          },
+        );
+      }
+
+      // 订单编号
+      if (orderCode) {
+        queryBuilder = queryBuilder.andWhere(
+          'order.order_code LIKE :orderCode',
+          {
+            orderCode: `%${orderCode}%`,
+          },
+        );
+      }
+
+      // 订单状态
+      if (orderStatus) {
+        queryBuilder = queryBuilder.andWhere(
+          'order.order_status LIKE :orderStatus',
+          {
+            orderStatus: `${orderStatus}%`,
+          },
+        );
+      }
+
+      // 时间范围查询
+      if (startTime || endTime) {
+        const timeRange = TimeFormatterUtil.getTimeRange(startTime, endTime);
+
+        if (startTime && endTime) {
+          // 时间范围查询：开始时间 <= created_time <= 结束时间
+          queryBuilder = queryBuilder.andWhere(
+            'order.created_time BETWEEN :startTime AND :endTime',
+            {
+              startTime: timeRange.start,
+              endTime: timeRange.end,
+            },
+          );
+        } else if (startTime) {
+          // 只查询开始时间之后的数据：created_time >= 开始时间
+          queryBuilder = queryBuilder.andWhere(
+            'order.created_time >= :startTime',
+            {
+              startTime: timeRange.start,
+            },
+          );
+        } else if (endTime) {
+          // 只查询结束时间之前的数据：created_time <= 结束时间
+          queryBuilder = queryBuilder.andWhere(
+            'order.created_time <= :endTime',
+            {
+              endTime: timeRange.end,
+            },
+          );
+        }
+      }
+
+      // 获取权限
+      const checkResult = await this.userService.getRangeOfOrderQueryUser(
+        token,
+        user.userId,
+      );
+      if (!checkResult || checkResult.isQueryAll) {
+        // 不限制客户范围，继续查询
+      } else if (!checkResult.principalUserIds?.length) {
+        return [];
+      } else {
+        // 收集所有人负责的客户ID，去查询订单对应的客户ID
+        const customerIds = await this.customerService.getManagedCustomerIds(
+          checkResult.principalUserIds,
+        );
+
+        // 如果没有客户ID，则返回空
+        if (!customerIds.length) {
+          return [];
+        }
+
+        queryBuilder = queryBuilder.andWhere(
+          'order.customer_id IN (:customerIds)',
+          { customerIds },
+        );
+      }
+
+      queryBuilder = queryBuilder
+        .orderBy('order.created_time', 'DESC')
+        .addOrderBy('order.id', 'DESC');
+
+      const items = await queryBuilder.getRawMany();
+
+      return items;
+    } catch (error) {
+      throw new BusinessException('获取订单列表失败' + error.message);
+    }
+  }
 }
