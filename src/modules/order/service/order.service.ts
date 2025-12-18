@@ -464,15 +464,20 @@ export class OrderService {
       finishGoodsList,
       customerInfo.id,
     );
+    this.logger.log(`finishGoodsMap:${JSON.stringify(finishGoodsMap)}`);
     const replenishGoodsMap = await this.getCommodityMapByOrderItemType(
       replenishGoodsList,
       customerInfo.id,
     );
+    this.logger.log(`replenishGoodsMap:${JSON.stringify(replenishGoodsMap)}`);
+
     const auxiliaryGoodsMap = await this.getCommodityMapByOrderItemType(
       auxiliaryGoodsList,
       customerInfo.id,
       true,
     );
+    this.logger.log(`auxiliaryGoodsMap:${JSON.stringify(auxiliaryGoodsMap)}`);
+
     // 同一个产品在不同产品类型使用的价格不一样，因此不能使用同一个map
     const finalOrderItemList: OrderItemEntity[] = [
       ...OrderConvertHelper.buildOrderItems(
@@ -636,15 +641,20 @@ export class OrderService {
       finishGoodsList,
       orderMain.customerId,
     );
+    this.logger.log(`finishGoodsMap:${JSON.stringify(finishGoodsMap)}`);
+
     const replenishGoodsMap = await this.getCommodityMapByOrderItemType(
       replenishGoodsList,
       orderMain.customerId,
     );
+    this.logger.log(`replenishGoodsMap:${JSON.stringify(replenishGoodsMap)}`);
+
     const auxiliaryGoodsMap = await this.getCommodityMapByOrderItemType(
       auxiliaryGoodsList,
       orderMain.customerId,
       true,
     );
+    this.logger.log(`auxiliaryGoodsMap:${JSON.stringify(auxiliaryGoodsMap)}`);
     // 同一个产品在不同产品类型使用的价格不一样，因此不能使用同一个map
     const finalOrderItemList: OrderItemEntity[] = [
       ...OrderConvertHelper.buildOrderItems(
@@ -1137,7 +1147,14 @@ export class OrderService {
     useGiftPrice = false,
   ) {
     const commodityIds: string[] = [];
+    if (!goods || goods.length === 0) {
+      return {
+        commodityInfos: [],
+        commodityPriceMap: new Map<string, CommodityInfoEntity>(),
+      };
+    }
     commodityIds.push(...goods.map((e) => e.commodityId));
+
     this.logger.log(`需要查询的商品ID列表: ${JSON.stringify(commodityIds)}`);
     const commodityInfos = await this.commodityService.getCommodityCustomerMap(
       customerId,
