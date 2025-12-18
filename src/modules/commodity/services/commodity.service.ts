@@ -437,15 +437,6 @@ export class CommodityService {
           dto.isSupplySubsidyInvolved = mapping.isSupplySubsidyInvolved;
           dto.isGiftEligible = mapping.isGiftEligible;
         }
-        /* 2. 只有辅销品才允许用赠品价，其余一律用当前 itemExFactoryPrice（映射表或原始） */
-        if (
-          commodityClassify ===
-            CommodityClassifyTypeEnum.AUXILIARY_SALES_PRODUCT &&
-          dto.isGiftEligible === 1 &&
-          dto.giftExFactoryPrice != null
-        ) {
-          dto.itemExFactoryPrice = dto.giftExFactoryPrice;
-        }
       });
       return { items: commodityResponseDtos, total };
     } catch (error) {
