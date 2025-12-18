@@ -279,9 +279,9 @@ export class OrderController {
           },
         },
         {
-          header: '规格信息',
-          key: 'boxSpecPiece',
-          width: 12,
+          header: '单品规格信息',
+          key: 'specInfo',
+          width: 40,
           style: {
             alignment: {
               vertical: 'middle',

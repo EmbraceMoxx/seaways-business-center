@@ -1307,7 +1307,7 @@ export class OrderService {
           'item.name as commodityName',
           'item.internal_code as internalCode',
           'item.commodity_barcode as commodityBarcode',
-          'item.box_spec_piece as boxSpecPiece',
+          'item.spec_info as specInfo',
           'item.box_spec_info as boxSpecInfo',
 
           // 商品属性
