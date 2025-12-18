@@ -737,18 +737,7 @@ export class CustomerService {
 
       // 存在的话不可删除
       if (orderList.length > 0) {
-        const statusText = {
-          '20001': '审批中',
-          '20003': '待推单',
-          '20006': '已驳回',
-        };
-        const orderStatus = [
-          ...new Set(orderList.map((order) => statusText[order.orderStatus])),
-        ];
-
-        throw new BusinessException(
-          `存在订单且状态为--${orderStatus.join('、')}，不可删除`,
-        );
+        throw new BusinessException(`该客户存在未完成订单，不可删除`);
       }
 
       await this.customerRepository.update(id, {
