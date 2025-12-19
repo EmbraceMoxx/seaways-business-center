@@ -893,6 +893,9 @@ export class CommodityService {
       commodity.boxSpecPiece = commodityData.boxSpecPiece;
       commodity.boxSpecInfo = commodityData.boxSpecInfo;
       commodity.material = commodityData.material;
+      commodity.giftExFactoryPrice = commodityData?.giftExFactoryPrice
+        ? String(commodityData?.giftExFactoryPrice)
+        : null;
       commodity.itemExFactoryPrice = commodityData?.itemExFactoryPrice
         ? String(commodityData?.itemExFactoryPrice)
         : null;
@@ -974,6 +977,9 @@ export class CommodityService {
       commodity.isQuotaInvolved = commodityData.isQuotaInvolved;
       commodity.isGiftEligible = commodityData.isGiftEligible;
       commodity.isSupplySubsidyInvolved = commodityData.isSupplySubsidyInvolved;
+      commodity.giftExFactoryPrice = commodityData?.giftExFactoryPrice
+        ? String(commodityData?.giftExFactoryPrice)
+        : null;
       commodity.itemExFactoryPrice = commodityData?.itemExFactoryPrice
         ? String(commodityData?.itemExFactoryPrice)
         : null;
