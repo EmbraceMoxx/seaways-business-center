@@ -227,7 +227,7 @@ export class OrderController {
       // 2、创建工作表
       const worksheet = workbook.addWorksheet('订单信息');
 
-      // 3、剧中配置
+      // 3、局中配置
       const alignment: Partial<exceljs.Alignment> = {
         vertical: 'middle',
         horizontal: 'center',

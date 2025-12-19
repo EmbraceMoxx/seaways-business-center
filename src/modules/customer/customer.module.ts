@@ -6,7 +6,7 @@ import { CustomerInfoEntity } from './entities/customer.entity';
 import { CustomerController } from './controllers/customer.controller';
 import { CustomerService } from './services/customer.service';
 
-// 客户月度额度信息
+// 客户【月度】额度信息
 import { CustomerMonthlyCreditLimitEntity } from './entities/customer-monthly-credit-limit.entity';
 import { CustomerMonthlyCreditLimitService } from './services/customer-monthly-credit-limit.server';
 
@@ -35,8 +35,12 @@ import { UserService } from '@modules/common/user/user.service';
 // 商品客户价格信息
 import { CommodityModule } from '@modules/commodity/commodity.module';
 
-// 客户管理
+// 订单管理
 import { OrderMainEntity } from '@modules/order/entities/order.main.entity';
+
+// 客户【日度】额度信息
+import { CustomerDailyCreditAmountInfoEntity } from './entities/customer-daily-credit-amount-info.entity';
+import { CustomerDailyCreditAmountInfoService } from './services/customer-daily-credit-amount-info.server';
 
 @Module({
   imports: [
@@ -48,6 +52,7 @@ import { OrderMainEntity } from '@modules/order/entities/order.main.entity';
       CustomerCreditLimitDetailEntity,
       BusinessLogEntity,
       OrderMainEntity,
+      CustomerDailyCreditAmountInfoEntity,
     ]),
     forwardRef(() => CommodityModule),
   ],
@@ -59,6 +64,7 @@ import { OrderMainEntity } from '@modules/order/entities/order.main.entity';
     BusinessLogService,
     UserService,
     CustomerMonthlyCreditLimitService,
+    CustomerDailyCreditAmountInfoService,
   ],
   controllers: [
     CustomerController,
