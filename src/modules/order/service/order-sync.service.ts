@@ -157,7 +157,7 @@ export class OrderSyncService {
       {
         orderStatus: strategy.toStatus,
         reviserId: '-1',
-        receiverName: '系统自动同步',
+        reviserName: '系统自动同步',
         revisedTime: dayjs().toDate(),
         ...strategy.extraPayload?.(''),
       },
