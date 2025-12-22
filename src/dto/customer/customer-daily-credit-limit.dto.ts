@@ -2,9 +2,9 @@ import { ApiProperty } from '@nestjs/swagger';
 import { CreditToMonthORDailyResponseDto } from './customer-credit-limit-detail.dto';
 
 /**
- * 客户【月度】额度流水信息响应DTO
+ * 客户【日度】额度流水信息响应DTO
  */
-export class MonthCreditInfoResponseDto {
+export class DailyCreditInfoResponseDto {
   @ApiProperty({
     description: '主键id',
     example: '1735123456789012345',
@@ -42,10 +42,16 @@ export class MonthCreditInfoResponseDto {
   bizMonth: number;
 
   @ApiProperty({
-    description: '统计年月',
+    description: '统计所属日',
+    example: 5,
+  })
+  bizDay: number;
+
+  @ApiProperty({
+    description: '统计年月日',
     example: 202505,
   })
-  bizYearMonth: number;
+  bizYearMonthDay: number;
 
   @ApiProperty({
     description: '合同任务金额，元',
@@ -145,9 +151,9 @@ export class MonthCreditInfoResponseDto {
 }
 
 /**
- * 新增客户【月度】额度信息参数DTO
+ * 新增客户【日度】额度信息参数DTO
  */
-export class QueryMonthlyCreditDto extends CreditToMonthORDailyResponseDto {
+export class QueryDailyCreditDto extends CreditToMonthORDailyResponseDto {
   @ApiProperty({
     description: '统计所属年份',
     example: 2025,
@@ -161,8 +167,14 @@ export class QueryMonthlyCreditDto extends CreditToMonthORDailyResponseDto {
   bizMonth: number;
 
   @ApiProperty({
-    description: '统计年月',
-    example: 202505,
+    description: '统计所属日',
+    example: 5,
   })
-  bizYearMonth: number;
+  bizDay: number;
+
+  @ApiProperty({
+    description: '统计年月日',
+    example: 20250511,
+  })
+  bizYearMonthDay: number;
 }

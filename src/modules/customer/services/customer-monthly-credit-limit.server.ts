@@ -11,7 +11,7 @@ import * as exceljs from 'exceljs';
 import {
   CreditLimitStatisticsResponseDto,
   QueryMonthlyCreditDto,
-  CreditToMonthResponseDto,
+  CreditToMonthORDailyResponseDto,
 } from '@src/dto';
 import { forwardRef, Inject } from '@nestjs/common';
 import { CustomerService } from '@modules/customer/services/customer.service';
@@ -89,7 +89,7 @@ export class CustomerMonthlyCreditLimitService {
    * 更新月度额度流水-累加金额
    */
   async updateWithIncrement(
-    creditDetail: CreditToMonthResponseDto,
+    creditDetail: CreditToMonthORDailyResponseDto,
     existingRecordId: string,
     user: JwtUserPayload,
   ) {

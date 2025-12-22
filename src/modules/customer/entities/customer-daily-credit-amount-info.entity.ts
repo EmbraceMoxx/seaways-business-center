@@ -1,4 +1,5 @@
-import { Column, Entity, Index } from 'typeorm';
+import { Column, Entity, Index, BeforeInsert } from 'typeorm';
+import { generateId } from '@src/utils';
 
 @Index('idx_biz_year_month_day', ['bizYearMonthDay'], {})
 @Index('idx_customer_id', ['customerId'], {})
@@ -165,4 +166,10 @@ export class CustomerDailyCreditAmountInfoEntity {
     length: 255,
   })
   reviserName: string | null;
+  @BeforeInsert()
+  generateId() {
+    if (!this.id) {
+      this.id = generateId();
+    }
+  }
 }

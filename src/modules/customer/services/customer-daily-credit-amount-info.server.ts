@@ -9,7 +9,12 @@ import { forwardRef, Inject } from '@nestjs/common';
 import { CustomerService } from '@modules/customer/services/customer.service';
 import { UserService } from '@modules/common/user/user.service';
 import { MoneyUtil } from '@utils/MoneyUtil';
-import { ExportQueryCreditLimitDto } from '@src/dto';
+import {
+  ExportQueryCreditLimitDto,
+  QueryDailyCreditDto,
+  CreditToMonthORDailyResponseDto,
+} from '@src/dto';
+import * as dayjs from 'dayjs';
 
 @Injectable()
 export class CustomerDailyCreditAmountInfoService {
@@ -242,5 +247,113 @@ export class CustomerDailyCreditAmountInfoService {
 
     // 4、获取数据
     return await queryBuilder.getMany();
+  }
+
+  /**
+   * 根据客户id和年月日查询【日度】额度流水
+   */
+  async findByCustomerIdAndDaily(
+    customerId: string,
+    bizYearMonthDay: number,
+  ): Promise<CustomerDailyCreditAmountInfoEntity> {
+    return await this.customerDailyCreditRepository.findOne({
+      where: {
+        customerId,
+        bizYearMonthDay,
+      },
+    });
+  }
+
+  /**
+   * 更新【日度】额度流水-覆盖式更新
+   */
+  async updateDailyCreditWithIncrement(
+    creditDetail: CreditToMonthORDailyResponseDto,
+    existingRecordId: string,
+    user: JwtUserPayload,
+  ) {
+    const {
+      shippedAmount,
+      auxiliarySaleGoodsAmount,
+      replenishingGoodsAmount,
+      usedAuxiliarySaleGoodsAmount,
+      usedReplenishingGoodsAmount,
+    } = creditDetail;
+
+    // 1、更新字段（覆盖式）
+    const updatedFields: Partial<CustomerDailyCreditAmountInfoEntity> = {
+      contractMissionAmount: shippedAmount,
+      shippedAmount: shippedAmount,
+      auxiliarySaleGoodsAmount: auxiliarySaleGoodsAmount,
+      replenishingGoodsAmount: replenishingGoodsAmount,
+      usedAuxiliarySaleGoodsAmount: usedAuxiliarySaleGoodsAmount,
+      usedReplenishingGoodsAmount: usedReplenishingGoodsAmount,
+      reviserId: user.userId,
+      reviserName: user.nickName,
+      revisedTime: new Date(),
+    };
+
+    // 2、重新计算剩余额度
+    updatedFields.remainAuxiliarySaleGoodsAmount = MoneyUtil.fromYuan3(
+      updatedFields.auxiliarySaleGoodsAmount || '0',
+    )
+      .sub(
+        MoneyUtil.fromYuan3(updatedFields.usedAuxiliarySaleGoodsAmount || '0'),
+      )
+      .toYuan3();
+
+    updatedFields.remainReplenishingGoodsAmount = MoneyUtil.fromYuan3(
+      updatedFields.replenishingGoodsAmount || '0',
+    )
+      .sub(
+        MoneyUtil.fromYuan3(updatedFields.usedReplenishingGoodsAmount || '0'),
+      )
+      .toYuan3();
+
+    // 3、更新
+    return await this.customerDailyCreditRepository.update(
+      existingRecordId,
+      updatedFields,
+    );
+  }
+
+  /**
+   * 新增【日度】额度流水
+   */
+  async create(creditDetail: QueryDailyCreditDto, user: JwtUserPayload) {
+    // 1、初始化数据
+    const customerMonthlyCredit = new CustomerDailyCreditAmountInfoEntity();
+
+    // 2、初始化字段
+    customerMonthlyCredit.customerId = creditDetail.customerId;
+    customerMonthlyCredit.customerName = creditDetail.customerName;
+    customerMonthlyCredit.region = creditDetail.region;
+    customerMonthlyCredit.bizYear = creditDetail.bizYear;
+    customerMonthlyCredit.bizMonth = creditDetail.bizMonth;
+    customerMonthlyCredit.bizDay = creditDetail.bizDay;
+    customerMonthlyCredit.bizYearMonthDay = creditDetail.bizYearMonthDay;
+
+    // 3、初始化金额
+    customerMonthlyCredit.contractMissionAmount = '0';
+    customerMonthlyCredit.shippedAmount = '0';
+    customerMonthlyCredit.repaymentAmount = '0';
+    customerMonthlyCredit.auxiliarySaleGoodsAmount = '0';
+    customerMonthlyCredit.replenishingGoodsAmount = '0';
+    customerMonthlyCredit.usedAuxiliarySaleGoodsAmount = '0';
+    customerMonthlyCredit.remainAuxiliarySaleGoodsAmount = '0';
+    customerMonthlyCredit.usedReplenishingGoodsAmount = '0';
+    customerMonthlyCredit.remainReplenishingGoodsAmount = '0';
+
+    // 4、默认状态
+    customerMonthlyCredit.deleted = GlobalStatusEnum.NO;
+    customerMonthlyCredit.creatorId = user.userId;
+    customerMonthlyCredit.creatorName = user.nickName;
+    customerMonthlyCredit.createdTime = dayjs().toDate();
+    customerMonthlyCredit.reviserId = user.userId;
+    customerMonthlyCredit.reviserName = user.nickName;
+    customerMonthlyCredit.revisedTime = dayjs().toDate();
+
+    // 5、保存
+    return await this.customerDailyCreditRepository.save(customerMonthlyCredit);
   }
 }

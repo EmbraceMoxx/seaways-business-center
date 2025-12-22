@@ -46,13 +46,26 @@ export class CustomerCreditLimitDetailController {
     return new SuccessResponseDto(null, '新增成功');
   }
 
-  @ApiOperation({ summary: '客户额度流水明细存入月度额度' })
+  @ApiOperation({ summary: '客户额度流水明细存入【月度】额度' })
   @Get('sync-month')
   async saveCreditDetailToMonth(
     @Query() params: any,
     @CurrentUser() user: JwtUserPayload,
   ) {
     const result = await this.creditLimitDetailService.saveCreditDetailToMonth(
+      params,
+      user,
+    );
+    return new SuccessResponseDto(result, '存入成功');
+  }
+
+  @ApiOperation({ summary: '客户额度流水明细存入【日度】额度' })
+  @Get('sync-daily')
+  async saveCreditDetailToDaily(
+    @Query() params: any,
+    @CurrentUser() user: JwtUserPayload,
+  ) {
+    const result = await this.creditLimitDetailService.saveCreditDetailToDaily(
       params,
       user,
     );
