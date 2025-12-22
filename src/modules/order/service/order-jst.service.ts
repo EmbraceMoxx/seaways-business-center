@@ -106,10 +106,7 @@ export class OrderJstService {
           syncRequests.push(
             this.createSyncRequest(soId, this.OPERATE_TYPE.SENT),
           );
-        } else if (
-          mainOrder.status === this.ORDER_STATUS.CANCELLED ||
-          mainOrder.status === this.ORDER_STATUS.QUESTION
-        ) {
+        } else if (mainOrder.status === this.ORDER_STATUS.CANCELLED) {
           // 已取消
           syncRequests.push(
             this.createSyncRequest(soId, this.OPERATE_TYPE.CANCELLED),
