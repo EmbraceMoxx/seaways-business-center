@@ -96,50 +96,44 @@ export class OrderJstService {
     const syncRequests: SyncOrderStatusDto[] = [];
 
     for (const [soId, orders] of Object.entries(groupedOrders)) {
-      // 找出第一条非拆单的数据
-      const mainOrder = orders.find((order) => !order.isSplit);
-
-      // 如果存在非拆单的主订单，根据主订单状态判断
-      if (mainOrder) {
-        if (mainOrder.status === this.ORDER_STATUS.SENT) {
-          // 已发货
-          syncRequests.push(
-            this.createSyncRequest(soId, this.OPERATE_TYPE.SENT),
-          );
-        } else if (mainOrder.status === this.ORDER_STATUS.CANCELLED) {
-          // 已取消
-          syncRequests.push(
-            this.createSyncRequest(soId, this.OPERATE_TYPE.CANCELLED),
-          );
-        }
-        continue;
-      }
-
-      // 处理拆单的情况
-      // 检查是否有Sent状态的子订单
-      const hasSent = orders.some(
-        (order) => order.status === this.ORDER_STATUS.SENT,
-      );
-      if (hasSent) {
-        // 只要有任何一个子订单是Sent，就算整个订单是已发货
-        syncRequests.push(this.createSyncRequest(soId, this.OPERATE_TYPE.SENT));
-        continue;
-      }
-
-      // 检查是否所有子订单都是Canceled状态
-      const allCanceled = orders.every(
-        (order) => order.status === this.ORDER_STATUS.CANCELLED,
-      );
-      if (allCanceled) {
-        // 所有子订单都是Canceled，整个订单是已取消
-        syncRequests.push(
-          this.createSyncRequest(soId, this.OPERATE_TYPE.CANCELLED),
-        );
-        continue;
+      const operateType = this.determineOperateType(orders);
+      if (operateType) {
+        syncRequests.push(this.createSyncRequest(soId, operateType));
       }
     }
 
     return syncRequests;
+  }
+
+  private determineOperateType(orders: JstOrderStatus[]): number | null {
+    // 主订单: 第一条非拆单的数据
+    const mainOrder = orders.find((order) => !order.isSplit);
+
+    // 主订单已发货
+    if (mainOrder?.status === this.ORDER_STATUS.SENT) {
+      return this.OPERATE_TYPE.SENT;
+    }
+    // 主订单已取消
+    if (mainOrder?.status === this.ORDER_STATUS.CANCELLED) {
+      return this.OPERATE_TYPE.CANCELLED;
+    }
+
+    // 处理拆单的情况
+    const subOrders = orders.filter((order) => order.isSplit);
+    if (!subOrders?.length) return null;
+
+    if (subOrders.some((order) => order.status === this.ORDER_STATUS.SENT)) {
+      // 只要一个子订单是已发货，则算订单是已发货
+      return this.OPERATE_TYPE.SENT;
+    }
+    // 所有子订单都是Canceled，整个订单是已取消
+    if (
+      subOrders.every((order) => order.status === this.ORDER_STATUS.CANCELLED)
+    ) {
+      return this.OPERATE_TYPE.CANCELLED;
+    }
+
+    return null;
   }
 
   /**
