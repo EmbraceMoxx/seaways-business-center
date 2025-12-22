@@ -449,7 +449,7 @@ export class CustomerCreditLimitDetailService {
   async getCreditDetailListByCustomerIdAndTime(
     startTime: Date,
     endTime: Date,
-    customerId: string,
+    customerId?: string,
   ): Promise<CreditToMonthORDailyResponseDto[]> {
     let queryBuilder = this.creditDetailRepository
       .createQueryBuilder('creditDetail')
