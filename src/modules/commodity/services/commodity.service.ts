@@ -990,6 +990,13 @@ export class CommodityService {
       commodity.isQuotaInvolved = commodityData.isQuotaInvolved;
       commodity.isGiftEligible = commodityData.isGiftEligible;
       commodity.isSupplySubsidyInvolved = commodityData.isSupplySubsidyInvolved;
+      commodity.itemSpecPiece = commodityData.itemSpecPiece;
+      commodity.itemMinSpecUnit = commodityData.itemMinSpecUnit;
+      commodity.itemSpecUnit = commodityData.itemSpecUnit;
+      commodity.itemSpecInfo = commodityData.itemSpecInfo;
+      commodity.boxSpecPiece = commodityData.boxSpecPiece;
+      commodity.material = commodityData.material;
+      commodity.boxSpecInfo = commodityData.boxSpecInfo;
 
       // 选择商品为赠品
       if (commodityData.isGiftEligible === 1) {
