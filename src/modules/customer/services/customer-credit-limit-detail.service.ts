@@ -600,16 +600,17 @@ export class CustomerCreditLimitDetailService {
       if (startTime) {
         startDateTime = TimeFormatterUtil.formatToStandard(startTime, 'start');
       } else {
-        // 默认查询当天
-        startDateTime = dayjs().startOf('day').toDate();
+        // 默认查询前一天
+        startDateTime = dayjs().subtract(1, 'day').startOf('day').toDate();
       }
 
       if (endTime) {
         endDateTime = TimeFormatterUtil.formatToStandard(endTime, 'end');
       } else {
-        // 默认查询当天
-        endDateTime = dayjs().endOf('day').toDate();
+        // 默认查询前一天
+        endDateTime = dayjs().subtract(1, 'day').endOf('day').toDate();
       }
+
       // 2、获取该时间段内的流水明细列表
       const creditDetailList =
         await this.getCreditDetailListByCustomerIdAndTime(
