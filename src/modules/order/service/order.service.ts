@@ -468,13 +468,6 @@ export class OrderService {
     // 新增补充商品类型
     const appendedGoodsList = req.appendedGoods;
 
-    // const { commodityInfos, commodityPriceMap } =
-    //   await this.getCommodityMapByOrderItems(
-    //     finishGoodsList,
-    //     replenishGoodsList,
-    //     auxiliaryGoodsList,
-    //     customerInfo.id,
-    //   );
     const finishGoodsMap = await this.getCommodityMapByOrderItemType(
       finishGoodsList,
       customerInfo.id,

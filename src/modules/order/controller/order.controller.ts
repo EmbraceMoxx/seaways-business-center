@@ -170,9 +170,11 @@ export class OrderController {
   @Post('test')
   async testCheckService(@CurrentUser() user: JwtUserPayload) {
     // 1. 计算比例
-    const auxRatio = Number(0.0102) || 0;
-    const repRatio = Number(0.0971) || 0;
-    const subsidyAmount = Number(3818.6) || 0;
+    const auxRatio = Number(0.01) || 0;
+    const repRatio = Number(0.2) || 0;
+    const subsidyAmount = Number(100) || 0;
+    const replenishAmount = Number(12) || 0;
+    const auxiliaryAmount = Number(13) || 0;
 
     // 2. 是否免审批
     const customerInfo = new CustomerInfoEntity();
@@ -184,6 +186,8 @@ export class OrderController {
         auxRatio,
         repRatio,
         subsidyAmount,
+        replenishAmount,
+        auxiliaryAmount,
       )
     ) {
       console.log(`免审批：auxRatio=${auxRatio}, repRatio=${repRatio}`);

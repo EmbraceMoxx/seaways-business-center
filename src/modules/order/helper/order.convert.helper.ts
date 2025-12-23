@@ -198,17 +198,7 @@ export class OrderConvertHelper {
     return goods
       .map((item) => {
         const price = commodityPriceMap.get(item.commodityId) || 0;
-        console.log(
-          'internalCode:',
-          item.internalCode,
-          ' price:',
-          price,
-          'qty:',
-          item.qty,
-        );
-        const amount = item.qty * price;
-        console.log('final amount:', amount);
-        return amount;
+        return item.qty * price;
       })
       .reduce((sum, current) => sum + current, 0);
   }
@@ -218,8 +208,7 @@ export class OrderConvertHelper {
     orderMain: OrderMainEntity,
     calculateAmount: CheckOrderAmountResponse,
   ) {
-    console.log('calculateAmount', JSON.stringify(calculateAmount));
-    orderMain.approvalReason = calculateAmount.isNeedApproval
+    orderMain.approvalReason = !calculateAmount.isFreeApproval
       ? calculateAmount.message
       : null;
     // 统计完商品后计算金额信息

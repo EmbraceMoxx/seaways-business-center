@@ -117,9 +117,20 @@ export class OrderCheckService {
     const auxRatio = Number(response.auxiliarySalesRatio) || 0;
     const repRatio = Number(response.replenishRatio) || 0;
     const subsidyAmount = Number(response.orderSubsidyAmount) || 0;
+    const auxiliarySalesAmount = Number(response.auxiliarySalesAmount) || 0;
+    const replenishAmount = Number(response.replenishAmount) || 0;
     this.logger.log(`response: ${JSON.stringify(response)}`);
     // 2. 是否免审批
-    if (this.isFreeApproval(customerInfo, auxRatio, repRatio, subsidyAmount)) {
+    if (
+      this.isFreeApproval(
+        customerInfo,
+        auxRatio,
+        repRatio,
+        subsidyAmount,
+        replenishAmount,
+        auxiliarySalesAmount,
+      )
+    ) {
       this.logger.log(`免审批：auxRatio=${auxRatio}, repRatio=${repRatio}`);
       return OrderStatusEnum.PENDING_PUSH;
     }
@@ -215,15 +226,15 @@ export class OrderCheckService {
       auxiliaryAmount,
       subsidyAmount,
     );
-    const needApproval = this.needApproval(
+    const isFreeApproval = this.isFreeApproval(
       customer,
       auxiliarySalesRatio,
       replenishRatio,
       subsidyAmount,
-      replenishAmount,
-      auxiliaryAmount,
+      Number(replenishAmount) || 0,
+      Number(auxiliaryAmount) || 0,
     );
-    this.logger.log(`is needApproval${needApproval}`);
+    this.logger.log(`is isFreeApproval${isFreeApproval}`);
     /* ---------- 3. 校验策略插件 ---------- */
     const strategies: ValidationStrategy[] = [
       this.replenishStrategy,
@@ -233,7 +244,6 @@ export class OrderCheckService {
     ];
     this.logger.log(`repRatio:${replenishRatio}`);
     this.logger.log(`auxiliarySalesRatio:${auxiliarySalesRatio}`);
-    this.logger.log(`needApproval:${needApproval}`);
     const messages = (
       await Promise.all(
         strategies.map((s) =>
@@ -241,7 +251,7 @@ export class OrderCheckService {
             {
               replenishRatio: replenishRatio,
               auxiliarySalesRatio: auxiliarySalesRatio,
-              isNeedApproval: needApproval,
+              isNeedApproval: isFreeApproval,
               orderSubsidyAmount: subsidyAmount,
               replenishAmount: replenishAmount,
               auxiliarySalesAmount: auxiliaryAmount,
@@ -264,7 +274,7 @@ export class OrderCheckService {
       replenishRatio: replenishRatio.toFixed(4),
       auxiliarySalesAmount: MoneyUtil.fromYuan3(auxiliaryAmount).toYuan3(),
       auxiliarySalesRatio: auxiliarySalesRatio.toFixed(4),
-      isNeedApproval: needApproval || messages.length > 0,
+      isFreeApproval: isFreeApproval || messages.length > 0,
       message,
     });
   }
@@ -440,33 +450,23 @@ export class OrderCheckService {
     aux: number,
     rep: number,
     subsidyAmount: number,
-  ): boolean {
-    const t = this.getApprovalThresholds(c);
-
-    const compareResult = aux <= t.aux && rep <= t.rep;
-    if (compareResult) {
-      // 若阈值比例免审批，则额度金额是否为0
-      return subsidyAmount > 0;
-    }
-    return compareResult;
-  }
-
-  /** 需审批 = 任一比例超过阈值 */
-  private needApproval(
-    c: CustomerInfoEntity,
-    aux: number,
-    rep: number,
-    subsidyAmount: number,
     replenishAmount: number,
     auxiliaryAmount: number,
   ): boolean {
     const t = this.getApprovalThresholds(c);
-    const compareResult = aux > t.aux || rep > t.rep;
-    // 当符合比例，再进入最后的金额校验
-    if (!compareResult) {
-      if (subsidyAmount <= 0 && (replenishAmount > 0 || auxiliaryAmount > 0)) {
-        return true;
-      }
+
+    const compareResult = aux <= t.aux && rep <= t.rep;
+    this.logger.log(`compareResult:${compareResult}`);
+    const flag1 = replenishAmount > 0 || auxiliaryAmount > 0;
+    this.logger.log(`flag1:${flag1}`);
+    const flag2 = subsidyAmount === 0;
+    this.logger.log(`flag2:${flag2}`);
+
+    if (compareResult) {
+      return !(
+        subsidyAmount === 0 &&
+        (replenishAmount > 0 || auxiliaryAmount > 0)
+      );
     }
     return compareResult;
   }
