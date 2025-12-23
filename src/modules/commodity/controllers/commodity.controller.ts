@@ -78,6 +78,6 @@ export class CommodityController {
       commodity,
       user,
     );
-    return new SuccessResponseDto(result, '新增成功');
+    return new SuccessResponseDto(result, '更新成功');
   }
 }
