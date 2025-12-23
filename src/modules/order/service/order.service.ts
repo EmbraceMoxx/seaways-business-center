@@ -1337,6 +1337,7 @@ export class OrderService {
                 WHEN item.type = 'FINISHED_PRODUCT' THEN '成品商品'
                 WHEN item.type = 'REPLENISH_PRODUCT' THEN '货补产品'
                 WHEN item.type = 'AUXILIARY_SALES_PRODUCT' THEN '辅销产品'
+                WHEN item.type = 'APPENDED_PRODUCT' THEN '补充产品'
               END as productType`,
 
           // 价格和数量信息
