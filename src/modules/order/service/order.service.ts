@@ -14,7 +14,7 @@ import {
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { TimeFormatterUtil } from '@utils/time-formatter.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, In, Or, Repository } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import { OrderMainEntity } from '../entities/order.main.entity';
@@ -95,6 +95,10 @@ export class OrderService {
           'order.amount as amount',
           'order.replenish_amount as replenishAmount',
           'order.auxiliary_sales_amount as auxiliarySalesAmount',
+          'order.used_replenish_ratio as usedReplenishRatio',
+          'order.used_auxiliary_sales_ratio as usedAuxiliarySalesRatio',
+          'used_replenish_amount as usedReplenishAmount',
+          'order.used_auxiliary_sales_amount as usedAuxiliarySalesAmount',
           'order.contact as contact',
           'order.contact_phone as contactPhone',
           'order.created_time as createdTime',
@@ -398,6 +402,7 @@ export class OrderService {
       req.finishGoods,
       req.replenishGoods,
       req.auxiliaryGoods,
+      req.appendedGoods,
     );
   }
 
@@ -427,9 +432,16 @@ export class OrderService {
     );
 
     // 成品商品信息
+    // if (!req.finishGoods || req.finishGoods.length === 0) {
+    // throw new BusinessException('下单必须选择成品商品！');
+    // }
+    // 修改为下单必须选择成品或补充商品
     if (!req.finishGoods || req.finishGoods.length === 0) {
-      throw new BusinessException('下单必须选择成品商品！');
+      if (!req.appendedGoods || req.appendedGoods.length === 0) {
+        throw new BusinessException('下单必须选择成品商品或补充商品！');
+      }
     }
+
     const orderMain = new OrderMainEntity();
     orderMain.id = orderId;
     orderMain.orderCode = orderCode;
@@ -452,6 +464,9 @@ export class OrderService {
     const finishGoodsList = req.finishGoods;
     const replenishGoodsList = req.replenishGoods;
     const auxiliaryGoodsList = req.auxiliaryGoods;
+
+    // 新增补充商品类型
+    const appendedGoodsList = req.appendedGoods;
 
     // const { commodityInfos, commodityPriceMap } =
     //   await this.getCommodityMapByOrderItems(
@@ -478,11 +493,19 @@ export class OrderService {
     );
     this.logger.log(`auxiliaryGoodsMap:${JSON.stringify(auxiliaryGoodsMap)}`);
 
+    // 新增补充商品类型的价格获取
+    const appendedGoodsMap = await this.getCommodityMapByOrderItemType(
+      appendedGoodsList,
+      customerInfo.id,
+      true,
+    );
+    this.logger.log(`appendedGoodsMap:${JSON.stringify(appendedGoodsMap)}`);
+
     // 同一个产品在不同产品类型使用的价格不一样，因此不能使用同一个map
     const finalOrderItemList: OrderItemEntity[] = [
       ...OrderConvertHelper.buildOrderItems(
         orderId,
-        finishGoodsList,
+        finishGoodsList || [],
         finishGoodsMap.commodityPriceMap,
         user,
         OrderItemTypeEnum.FINISHED_PRODUCT,
@@ -507,7 +530,17 @@ export class OrderService {
         this.approvalConfig,
         lastOperateProgram,
       ),
+      ...OrderConvertHelper.buildOrderItems(
+        orderId,
+        appendedGoodsList || [],
+        appendedGoodsMap.commodityPriceMap,
+        user,
+        OrderItemTypeEnum.APPENDED_PRODUCT,
+        this.approvalConfig,
+        lastOperateProgram,
+      ),
     ];
+
     // 若包含组合产品，则需要将产品转换为组合的产品
     const bundledIds = auxiliaryGoodsMap.commodityInfos
       .filter((c) => c.isBundledProducts > 0)
@@ -523,12 +556,29 @@ export class OrderService {
       );
     }
 
+    // 处理补充商品的组合产品，组合产品本身没有商品编码，需要拆分为对应的子商品
+    const appenedBundledIds = appendedGoodsMap.commodityInfos
+      .filter((c) => c.isBundledProducts > 0)
+      .map((c) => c.id);
+
+    if (appenedBundledIds.length) {
+      await this.calculateBundleCommodity(
+        appenedBundledIds,
+        finalOrderItemList,
+        appendedGoodsMap.commodityPriceMap,
+        orderId,
+        user,
+        lastOperateProgram,
+      );
+    }
+
     const orderAmountResponse =
       await this.orderCheckService.calculateCheckAmountResult(
         customerInfo,
         finishGoodsList,
         replenishGoodsList,
         auxiliaryGoodsList,
+        appendedGoodsList,
       );
 
     OrderConvertHelper.convertOrderItemAmount(
@@ -637,6 +687,8 @@ export class OrderService {
     const finishGoodsList = req.finishGoods;
     const replenishGoodsList = req.replenishGoods;
     const auxiliaryGoodsList = req.auxiliaryGoods;
+    const appendedGoodsList = req.appendedGoods;
+
     const finishGoodsMap = await this.getCommodityMapByOrderItemType(
       finishGoodsList,
       orderMain.customerId,
@@ -655,6 +707,14 @@ export class OrderService {
       true,
     );
     this.logger.log(`auxiliaryGoodsMap:${JSON.stringify(auxiliaryGoodsMap)}`);
+
+    // 新增补充商品类型的价格获取, 补充商品和辅销一样价格
+    const appendedGoodsMap = await this.getCommodityMapByOrderItemType(
+      appendedGoodsList,
+      orderMain.customerId,
+      true,
+    );
+
     // 同一个产品在不同产品类型使用的价格不一样，因此不能使用同一个map
     const finalOrderItemList: OrderItemEntity[] = [
       ...OrderConvertHelper.buildOrderItems(
@@ -684,6 +744,15 @@ export class OrderService {
         this.approvalConfig,
         lastOperateProgram,
       ),
+      ...OrderConvertHelper.buildOrderItems(
+        orderId,
+        appendedGoodsList || [],
+        appendedGoodsMap.commodityPriceMap,
+        user,
+        OrderItemTypeEnum.APPENDED_PRODUCT,
+        this.approvalConfig,
+        lastOperateProgram,
+      ),
     ];
     // 若包含组合产品，则需要将产品转换为组合的产品
     const bundledIds = auxiliaryGoodsMap.commodityInfos
@@ -700,6 +769,22 @@ export class OrderService {
       );
     }
 
+    // 处理补充商品的组合产品，组合产品本身没有商品编码，需要拆分为对应的子商品
+    const appenedBundledIds = appendedGoodsMap.commodityInfos
+      .filter((c) => c.isBundledProducts > 0)
+      .map((c) => c.id);
+
+    if (appenedBundledIds.length) {
+      await this.calculateBundleCommodity(
+        appenedBundledIds,
+        finalOrderItemList,
+        appendedGoodsMap.commodityPriceMap,
+        orderId,
+        user,
+        lastOperateProgram,
+      );
+    }
+
     // 开始计算订单金额
     const customerInfo = await this.orderCheckService.checkCustomerInfo(
       orderMain.customerId,
@@ -710,6 +795,7 @@ export class OrderService {
         finishGoodsList,
         replenishGoodsList,
         auxiliaryGoodsList,
+        appendedGoodsList,
       );
     OrderConvertHelper.convertOrderItemAmount(
       finalOrderItemList,
@@ -848,7 +934,16 @@ export class OrderService {
           lastOperateProgram,
           req.orderId,
         );
-        logInput.params = req;
+        // 请求参数过滤, 避免日志信息过大
+
+        const filteredParams = {
+          orderId: req.orderId,
+          remark: req.remark ? '***' : undefined,
+          orderTimeliness: req.orderTimeliness ? '***' : undefined,
+          processCodeRemark: req.processCodeRemark ? '***' : undefined,
+          deliveryRequirement: req.deliveryRequirement ? '***' : undefined,
+        };
+        logInput.params = filteredParams;
         await this.businessLogService.writeLog(logInput, manager);
       });
     } catch (err) {
@@ -986,7 +1081,6 @@ export class OrderService {
   }
 
   async getOrderDetail(orderId: string): Promise<OrderDetailResponseDto> {
-    this.logger.log(`Fetching order detail for orderId: ${orderId}`);
     // 查询订单主表信息、订单明细项信息, 操作日志在另一个接口中查询
     // 先查询订单主表信息，如果没有数据则返回异常
     const orderMain = await this.orderRepository.findOne({
@@ -1046,6 +1140,7 @@ export class OrderService {
       finishGoods: [],
       replenishGoods: [],
       auxiliaryGoods: [],
+      appendedGoods: [],
       operateButtons: [],
     };
 
@@ -1082,6 +1177,10 @@ export class OrderService {
           break;
         case OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT:
           orderDetail.auxiliaryGoods.push(goodsItem);
+          break;
+
+        case OrderItemTypeEnum.APPENDED_PRODUCT:
+          orderDetail.appendedGoods.push(goodsItem);
           break;
         default:
           this.logger.warn(

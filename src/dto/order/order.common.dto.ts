@@ -42,6 +42,9 @@ export class CheckOrderAmountRequest {
   replenishGoods: OrderItem[];
   @ApiProperty({ description: '辅销商品集合' })
   auxiliaryGoods: OrderItem[];
+
+  @ApiProperty({ description: '补充商品集合' })
+  appendedGoods: OrderItem[];
 }
 
 export class ReceiverAddress {
@@ -72,13 +75,18 @@ export class AddOfflineOrderRequest {
   @ApiProperty({ description: '收货地址信息' })
   @IsNotEmpty({ message: '收货地址信息不能为空' })
   receiverAddress: ReceiverAddress;
+
   @ApiProperty({ description: '成品商品集合' })
-  @IsNotEmpty({ message: '成品商品集合不能为空' })
   finishGoods: OrderItem[];
+
   @ApiProperty({ description: '货补商品集合' })
   replenishGoods: OrderItem[];
   @ApiProperty({ description: '辅销商品集合' })
   auxiliaryGoods: OrderItem[];
+
+  @ApiProperty({ description: '补充商品集合' })
+  appendedGoods: OrderItem[];
+
   @ApiProperty({ description: '备注信息' })
   @IsOptional()
   @MaxLength(1000, { message: '备注信息过长，请简化描述' })
@@ -117,6 +125,10 @@ export class UpdateOfflineOrderRequest {
   replenishGoods: OrderItem[];
   @ApiProperty({ description: '辅销商品集合' })
   auxiliaryGoods: OrderItem[];
+
+  @ApiProperty({ description: '补充商品集合' })
+  appendedGoods: OrderItem[];
+
   @ApiProperty({ description: '备注信息' })
   @MaxLength(1000, { message: '备注信息过长，请简化描述' })
   remark: string;
@@ -529,6 +541,9 @@ export class OrderDetailResponseDto {
 
   @ApiProperty({ description: '辅销商品明细项列表' })
   auxiliaryGoods: OrderDetailItem[];
+
+  @ApiProperty({ description: '补充商品明细项列表' })
+  appendedGoods: OrderDetailItem[];
 
   @ApiProperty({ description: '允许操作按钮集合' })
   operateButtons: OrderOperateButton[];

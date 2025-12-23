@@ -158,6 +158,7 @@ export class OrderCheckService {
    * @param finishGoods 成品商品列表，参与订单金额的主要计算
    * @param replenishGoods 补货商品列表，用于计算补货金额及比例
    * @param auxiliaryGoods 辅销商品列表，用于计算辅销金额及比例
+   * @param appendedGoods 补充商品列表，参与订单金额的计算但不涉及额度
    * @returns 返回封装了各项金额、比例以及校验消息的 CheckOrderAmountResponse 对象
    */
   async calculateCheckAmountResult(
@@ -165,15 +166,18 @@ export class OrderCheckService {
     finishGoods: OrderItem[],
     replenishGoods: OrderItem[],
     auxiliaryGoods: OrderItem[],
+    appendedGoods?: OrderItem[],
   ) {
     // 计算订单金额 = 商品数量 * 出厂价相加
     // 统一做空值保护
     finishGoods = finishGoods ?? [];
     replenishGoods = replenishGoods ?? [];
     auxiliaryGoods = auxiliaryGoods ?? [];
+    appendedGoods = appendedGoods ?? [];
+
     const customerId = customer.id;
     /* ---------- 1. 金额计算 ---------- */
-    const [orderAmount, subsidyAmount] = await Promise.all([
+    const [finishAmount, subsidyAmount] = await Promise.all([
       this.calculateAmountWithQuery(finishGoods, customerId, false),
       this.calculateAmountWithQuery(finishGoods, customerId, true),
     ]);
@@ -187,6 +191,22 @@ export class OrderCheckService {
       customerId,
       false,
       true,
+    );
+
+    // 补充商品的金额， 使用辅销价计算, 没有补贴金额
+    const appendedAmount = await this.calculateAmountWithQuery(
+      appendedGoods,
+      customerId,
+      false,
+      true,
+    );
+
+    // 订单总金额 = 成品金额 + 补充商品金额
+    const orderAmount = finishAmount + appendedAmount;
+    this.logger.log(
+      `orderAmount:${orderAmount}, finishAmount:${finishAmount}, appendedAmount:${appendedAmount}, ` +
+        `subsidyAmount:${subsidyAmount}, replenishAmount:${replenishAmount}, auxiliaryAmount:${auxiliaryAmount}`,
+      `OrderCheckService:calculateCheckAmountResult`,
     );
 
     /* ---------- 2. 比例 & 审批标志 ---------- */
