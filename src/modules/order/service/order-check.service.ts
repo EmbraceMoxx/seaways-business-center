@@ -234,7 +234,7 @@ export class OrderCheckService {
       Number(replenishAmount) || 0,
       Number(auxiliaryAmount) || 0,
     );
-    this.logger.log(`is isFreeApproval${isFreeApproval}`);
+    this.logger.log(`is isFreeApproval: ${isFreeApproval}`);
     /* ---------- 3. 校验策略插件 ---------- */
     const strategies: ValidationStrategy[] = [
       this.replenishStrategy,
@@ -251,7 +251,7 @@ export class OrderCheckService {
             {
               replenishRatio: replenishRatio,
               auxiliarySalesRatio: auxiliarySalesRatio,
-              isNeedApproval: isFreeApproval,
+              isFreeApproval: isFreeApproval,
               orderSubsidyAmount: subsidyAmount,
               replenishAmount: replenishAmount,
               auxiliarySalesAmount: auxiliaryAmount,
@@ -274,7 +274,7 @@ export class OrderCheckService {
       replenishRatio: replenishRatio.toFixed(4),
       auxiliarySalesAmount: MoneyUtil.fromYuan3(auxiliaryAmount).toYuan3(),
       auxiliarySalesRatio: auxiliarySalesRatio.toFixed(4),
-      isFreeApproval: isFreeApproval || messages.length > 0,
+      isFreeApproval: isFreeApproval || messages.length === 0,
       message,
     });
   }
@@ -454,14 +454,8 @@ export class OrderCheckService {
     auxiliaryAmount: number,
   ): boolean {
     const t = this.getApprovalThresholds(c);
-
     const compareResult = aux <= t.aux && rep <= t.rep;
     this.logger.log(`compareResult:${compareResult}`);
-    const flag1 = replenishAmount > 0 || auxiliaryAmount > 0;
-    this.logger.log(`flag1:${flag1}`);
-    const flag2 = subsidyAmount === 0;
-    this.logger.log(`flag2:${flag2}`);
-
     if (compareResult) {
       return !(
         subsidyAmount === 0 &&

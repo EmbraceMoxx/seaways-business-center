@@ -41,10 +41,7 @@ export class ReplenishRatioValidationStrategy implements ValidationStrategy {
 
     const actual = parseFloat(response.replenishRatio || '0');
     // 省区负责人不存在则return
-    console.log(response.isFreeApproval);
     if (response.isFreeApproval) {
-      console.log('无需审核', response.isFreeApproval);
-      console.log('ReplenishRatioValidationStrategy message', messages);
       return messages;
     }
     if (actual > this.replenishThreshold && customerInfo.provincialHeadId) {

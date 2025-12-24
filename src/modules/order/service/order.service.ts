@@ -431,10 +431,6 @@ export class OrderService {
       `开始创建订单，orderId: ${orderId}, customerId: ${req.customerId}`,
     );
 
-    // 成品商品信息
-    // if (!req.finishGoods || req.finishGoods.length === 0) {
-    // throw new BusinessException('下单必须选择成品商品！');
-    // }
     // 修改为下单必须选择成品或补充商品
     if (!req.finishGoods || req.finishGoods.length === 0) {
       if (!req.appendedGoods || req.appendedGoods.length === 0) {
