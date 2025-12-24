@@ -361,4 +361,9 @@ export class CreditToMonthORDailyResponseDto {
     example: 500.0,
   })
   usedReplenishingGoodsAmount: string;
+
+  @ApiProperty({
+    description: '时间',
+  })
+  date: string;
 }
