@@ -494,6 +494,7 @@ export class CommodityService {
         itemMinRetailPrice: Number(commodity.itemMinRetailPrice),
         itemMinRetailDiscount: Number(commodity.itemMinRetailDiscount),
         itemMinControlledDiscount: Number(commodity.itemMinControlledDiscount),
+        giftExFactoryPrice: Number(commodity.giftExFactoryPrice),
         commodityFirstCategoryName: firstCategoryName,
         commoditySecondCategoryName: secondCategoryName,
         compositeCommodity: [],
