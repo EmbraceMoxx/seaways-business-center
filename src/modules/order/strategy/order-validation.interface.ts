@@ -41,11 +41,7 @@ export class ReplenishRatioValidationStrategy implements ValidationStrategy {
 
     const actual = parseFloat(response.replenishRatio || '0');
     // 省区负责人不存在则return
-    console.log(response.isNeedApproval);
-    if (!response.isNeedApproval) {
-      console.log('无需审核', response.isNeedApproval);
-      console.log('ReplenishRatioValidationStrategy message', messages);
-
+    if (response.isFreeApproval) {
       return messages;
     }
     if (actual > this.replenishThreshold && customerInfo.provincialHeadId) {
@@ -82,8 +78,8 @@ export class AuxiliarySalesRatioValidationStrategy
     const actual = parseFloat(response.auxiliarySalesRatio || '0');
     console.log('AuxiliarySalesRatioValidationStrategy actual ', actual);
     console.log('this.auxiliaryThreshold ', this.auxiliaryThreshold);
-    if (!response.isNeedApproval) {
-      console.log('无需审核', response.isNeedApproval);
+    if (response.isFreeApproval) {
+      console.log('无需审核', response.isFreeApproval);
       console.log('AuxiliarySalesRatioValidationStrategy message', messages);
       return messages;
     }
@@ -100,13 +96,10 @@ export class AuxiliarySalesRatioValidationStrategy
 }
 // 未产生额度，却使用额度无法确认比例校验
 export class UsePreRioValidationStrategy implements ValidationStrategy {
-  async validate(
-    response: CheckOrderAmountResponse,
-    customerInfo: CustomerInfoEntity,
-  ): Promise<string[]> {
+  async validate(response: CheckOrderAmountResponse): Promise<string[]> {
     const messages: string[] = [];
-    if (!response.isNeedApproval) {
-      console.log('无需审核', response.isNeedApproval);
+    if (response.isFreeApproval) {
+      console.log('无需审核', response.isFreeApproval);
       console.log('UsePreRioValidationStrategy message', messages);
       return messages;
     }

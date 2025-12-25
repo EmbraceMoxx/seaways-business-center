@@ -95,6 +95,10 @@ export class OrderConvertHelper {
         case OrderItemTypeEnum.AUXILIARY_SALES_PRODUCT:
           orderItem.auxiliarySalesAmount = orderItem.amount ?? '0';
           break;
+
+        case OrderItemTypeEnum.APPENDED_PRODUCT:
+          // 补充商品不涉及额度相关金额
+          break;
       }
       orderItem.reviserId = user.userId;
       orderItem.reviserName = user.nickName;
@@ -129,6 +133,16 @@ export class OrderConvertHelper {
       exFactoryPrice = commodityInfo.giftExFactoryPrice ?? '0';
       orderItem.isUseBoxUnit = 0;
     }
+
+    if (
+      OrderItemTypeEnum.APPENDED_PRODUCT === itemType &&
+      commodityInfo.isGiftEligible === BooleanStatusEnum.TRUE
+    ) {
+      // 补充商品使用礼品价, 且不按箱计算
+      exFactoryPrice = commodityInfo.giftExFactoryPrice ?? '0';
+      orderItem.isUseBoxUnit = 0;
+    }
+
     orderItem.exFactoryPrice = exFactoryPrice;
     orderItem.boxQty = Number(item.boxQty || 0);
     orderItem.qty = Number(item.qty || 0);
@@ -184,17 +198,7 @@ export class OrderConvertHelper {
     return goods
       .map((item) => {
         const price = commodityPriceMap.get(item.commodityId) || 0;
-        console.log(
-          'internalCode:',
-          item.internalCode,
-          ' price:',
-          price,
-          'qty:',
-          item.qty,
-        );
-        const amount = item.qty * price;
-        console.log('final amount:', amount);
-        return amount;
+        return item.qty * price;
       })
       .reduce((sum, current) => sum + current, 0);
   }
@@ -204,8 +208,7 @@ export class OrderConvertHelper {
     orderMain: OrderMainEntity,
     calculateAmount: CheckOrderAmountResponse,
   ) {
-    console.log('calculateAmount', JSON.stringify(calculateAmount));
-    orderMain.approvalReason = calculateAmount.isNeedApproval
+    orderMain.approvalReason = !calculateAmount.isFreeApproval
       ? calculateAmount.message
       : null;
     // 统计完商品后计算金额信息
@@ -239,6 +242,7 @@ export class OrderConvertHelper {
     orderMain.auxiliarySalesAmount = String(auxiliarySalesAmount ?? '0');
 
     // 汇总商品下单数量信息
+    // 该字段并未实际使用，仅作记录
     orderMain.finishedProductBoxCount = orderItemList
       .filter((e) => OrderItemTypeEnum.FINISHED_PRODUCT === e.type)
       .map((good) => good.boxQty)

@@ -117,9 +117,20 @@ export class OrderCheckService {
     const auxRatio = Number(response.auxiliarySalesRatio) || 0;
     const repRatio = Number(response.replenishRatio) || 0;
     const subsidyAmount = Number(response.orderSubsidyAmount) || 0;
+    const auxiliarySalesAmount = Number(response.auxiliarySalesAmount) || 0;
+    const replenishAmount = Number(response.replenishAmount) || 0;
     this.logger.log(`response: ${JSON.stringify(response)}`);
     // 2. 是否免审批
-    if (this.isFreeApproval(customerInfo, auxRatio, repRatio, subsidyAmount)) {
+    if (
+      this.isFreeApproval(
+        customerInfo,
+        auxRatio,
+        repRatio,
+        subsidyAmount,
+        replenishAmount,
+        auxiliarySalesAmount,
+      )
+    ) {
       this.logger.log(`免审批：auxRatio=${auxRatio}, repRatio=${repRatio}`);
       return OrderStatusEnum.PENDING_PUSH;
     }
@@ -158,6 +169,7 @@ export class OrderCheckService {
    * @param finishGoods 成品商品列表，参与订单金额的主要计算
    * @param replenishGoods 补货商品列表，用于计算补货金额及比例
    * @param auxiliaryGoods 辅销商品列表，用于计算辅销金额及比例
+   * @param appendedGoods 补充商品列表，参与订单金额的计算但不涉及额度
    * @returns 返回封装了各项金额、比例以及校验消息的 CheckOrderAmountResponse 对象
    */
   async calculateCheckAmountResult(
@@ -165,15 +177,18 @@ export class OrderCheckService {
     finishGoods: OrderItem[],
     replenishGoods: OrderItem[],
     auxiliaryGoods: OrderItem[],
+    appendedGoods?: OrderItem[],
   ) {
     // 计算订单金额 = 商品数量 * 出厂价相加
     // 统一做空值保护
     finishGoods = finishGoods ?? [];
     replenishGoods = replenishGoods ?? [];
     auxiliaryGoods = auxiliaryGoods ?? [];
+    appendedGoods = appendedGoods ?? [];
+
     const customerId = customer.id;
     /* ---------- 1. 金额计算 ---------- */
-    const [orderAmount, subsidyAmount] = await Promise.all([
+    const [finishAmount, subsidyAmount] = await Promise.all([
       this.calculateAmountWithQuery(finishGoods, customerId, false),
       this.calculateAmountWithQuery(finishGoods, customerId, true),
     ]);
@@ -189,21 +204,37 @@ export class OrderCheckService {
       true,
     );
 
+    // 补充商品的金额， 使用辅销价计算, 没有补贴金额
+    const appendedAmount = await this.calculateAmountWithQuery(
+      appendedGoods,
+      customerId,
+      false,
+      true,
+    );
+
+    // 订单总金额 = 成品金额 + 补充商品金额
+    const orderAmount = finishAmount + appendedAmount;
+    this.logger.log(
+      `orderAmount:${orderAmount}, finishAmount:${finishAmount}, appendedAmount:${appendedAmount}, ` +
+        `subsidyAmount:${subsidyAmount}, replenishAmount:${replenishAmount}, auxiliaryAmount:${auxiliaryAmount}`,
+      `OrderCheckService:calculateCheckAmountResult`,
+    );
+
     /* ---------- 2. 比例 & 审批标志 ---------- */
     const replenishRatio = MoneyUtil.safeDivide(replenishAmount, subsidyAmount);
     const auxiliarySalesRatio = MoneyUtil.safeDivide(
       auxiliaryAmount,
       subsidyAmount,
     );
-    const needApproval = this.needApproval(
+    const isFreeApproval = this.isFreeApproval(
       customer,
       auxiliarySalesRatio,
       replenishRatio,
       subsidyAmount,
-      replenishAmount,
-      auxiliaryAmount,
+      Number(replenishAmount) || 0,
+      Number(auxiliaryAmount) || 0,
     );
-    this.logger.log(`is needApproval${needApproval}`);
+    this.logger.log(`is isFreeApproval: ${isFreeApproval}`);
     /* ---------- 3. 校验策略插件 ---------- */
     const strategies: ValidationStrategy[] = [
       this.replenishStrategy,
@@ -213,7 +244,6 @@ export class OrderCheckService {
     ];
     this.logger.log(`repRatio:${replenishRatio}`);
     this.logger.log(`auxiliarySalesRatio:${auxiliarySalesRatio}`);
-    this.logger.log(`needApproval:${needApproval}`);
     const messages = (
       await Promise.all(
         strategies.map((s) =>
@@ -221,7 +251,7 @@ export class OrderCheckService {
             {
               replenishRatio: replenishRatio,
               auxiliarySalesRatio: auxiliarySalesRatio,
-              isNeedApproval: needApproval,
+              isFreeApproval: isFreeApproval,
               orderSubsidyAmount: subsidyAmount,
               replenishAmount: replenishAmount,
               auxiliarySalesAmount: auxiliaryAmount,
@@ -244,7 +274,7 @@ export class OrderCheckService {
       replenishRatio: replenishRatio.toFixed(4),
       auxiliarySalesAmount: MoneyUtil.fromYuan3(auxiliaryAmount).toYuan3(),
       auxiliarySalesRatio: auxiliarySalesRatio.toFixed(4),
-      isNeedApproval: needApproval || messages.length > 0,
+      isFreeApproval: isFreeApproval || messages.length === 0,
       message,
     });
   }
@@ -420,33 +450,17 @@ export class OrderCheckService {
     aux: number,
     rep: number,
     subsidyAmount: number,
-  ): boolean {
-    const t = this.getApprovalThresholds(c);
-
-    const compareResult = aux <= t.aux && rep <= t.rep;
-    if (compareResult) {
-      // 若阈值比例免审批，则额度金额是否为0
-      return subsidyAmount > 0;
-    }
-    return compareResult;
-  }
-
-  /** 需审批 = 任一比例超过阈值 */
-  private needApproval(
-    c: CustomerInfoEntity,
-    aux: number,
-    rep: number,
-    subsidyAmount: number,
     replenishAmount: number,
     auxiliaryAmount: number,
   ): boolean {
     const t = this.getApprovalThresholds(c);
-    const compareResult = aux > t.aux || rep > t.rep;
-    // 当符合比例，再进入最后的金额校验
-    if (!compareResult) {
-      if (subsidyAmount <= 0 && (replenishAmount > 0 || auxiliaryAmount > 0)) {
-        return true;
-      }
+    const compareResult = aux <= t.aux && rep <= t.rep;
+    this.logger.log(`compareResult:${compareResult}`);
+    if (compareResult) {
+      return !(
+        subsidyAmount === 0 &&
+        (replenishAmount > 0 || auxiliaryAmount > 0)
+      );
     }
     return compareResult;
   }
