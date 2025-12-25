@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { PageRequestDto } from '@src/dto/common/common.dto';
 
 /**
@@ -264,7 +264,7 @@ export class CreditLimitDetailRequestDto {
 }
 
 /**
- * 客户额度流水明细存入月度额度参数DTO
+ * 客户额度流水明细存入【月度】额度参数DTO
  */
 export class QueryCreditToMonthDto {
   @ApiProperty({
@@ -274,20 +274,46 @@ export class QueryCreditToMonthDto {
   @IsOptional()
   @IsString({ message: '时间必须是字符串' })
   saveTime?: string;
-
   @ApiProperty({
     description: '客户ID',
+  })
+  @IsNotEmpty()
+  @IsString({ message: '客户ID必须是字符串' })
+  customerId: string;
+}
+
+/**
+ * 客户额度流水明细存入【日度】额度参数DTO
+ */
+export class QueryCreditToDailyDto {
+  @ApiProperty({
+    description: '开始时间',
     required: false,
   })
   @IsOptional()
-  @IsString({ message: '时间必须是字符串' })
-  customerId?: string;
+  @IsString({ message: '开始时间必须是字符串' })
+  startTime?: string;
+
+  @ApiProperty({
+    description: '结束时间',
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: '结束时间必须是字符串' })
+  endTime?: string;
+
+  @ApiProperty({
+    description: '客户ID',
+  })
+  @IsNotEmpty()
+  @IsString({ message: '客户ID必须是字符串' })
+  customerId: string;
 }
 
 /**
  * 客户额度流水明细信息响应DTO
  */
-export class CreditToMonthResponseDto {
+export class CreditToMonthORDailyResponseDto {
   @ApiProperty({
     description: '客户ID',
     example: '1735123456789012346',
@@ -335,4 +361,9 @@ export class CreditToMonthResponseDto {
     example: 500.0,
   })
   usedReplenishingGoodsAmount: string;
+
+  @ApiProperty({
+    description: '时间',
+  })
+  date: string;
 }

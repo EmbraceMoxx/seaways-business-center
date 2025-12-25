@@ -30,3 +30,6 @@ export * from './approval/approval.dto';
 
 // 月度额度相关DTO
 export * from './customer/customer-monthly-credit-limit.dto';
+
+// 日度额度相关DTO
+export * from './customer/customer-daily-credit-limit.dto';

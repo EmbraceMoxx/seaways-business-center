@@ -893,6 +893,22 @@ export class CommodityService {
       commodity.boxSpecPiece = commodityData.boxSpecPiece;
       commodity.boxSpecInfo = commodityData.boxSpecInfo;
       commodity.material = commodityData.material;
+
+      // 选择商品为赠品
+      if (commodityData.isGiftEligible === 1) {
+        if (!commodityData?.giftExFactoryPrice) {
+          // 没有传赠品出厂价的情况，默认赠品出厂价=商品出厂价
+          commodity.giftExFactoryPrice = commodityData?.itemExFactoryPrice
+            ? String(commodityData?.itemExFactoryPrice)
+            : null;
+        } else {
+          // 传了赠品出厂价,
+          commodity.giftExFactoryPrice = commodityData?.giftExFactoryPrice
+            ? String(commodityData?.giftExFactoryPrice)
+            : null;
+        }
+      }
+
       commodity.itemExFactoryPrice = commodityData?.itemExFactoryPrice
         ? String(commodityData?.itemExFactoryPrice)
         : null;
@@ -974,6 +990,29 @@ export class CommodityService {
       commodity.isQuotaInvolved = commodityData.isQuotaInvolved;
       commodity.isGiftEligible = commodityData.isGiftEligible;
       commodity.isSupplySubsidyInvolved = commodityData.isSupplySubsidyInvolved;
+      commodity.itemSpecPiece = commodityData.itemSpecPiece;
+      commodity.itemMinSpecUnit = commodityData.itemMinSpecUnit;
+      commodity.itemSpecUnit = commodityData.itemSpecUnit;
+      commodity.itemSpecInfo = commodityData.itemSpecInfo;
+      commodity.boxSpecPiece = commodityData.boxSpecPiece;
+      commodity.material = commodityData.material;
+      commodity.boxSpecInfo = commodityData.boxSpecInfo;
+
+      // 选择商品为赠品
+      if (commodityData.isGiftEligible === 1) {
+        if (!commodityData?.giftExFactoryPrice) {
+          // 没有传赠品出厂价的情况，默认赠品出厂价=商品出厂价
+          commodity.giftExFactoryPrice = commodityData?.itemExFactoryPrice
+            ? String(commodityData?.itemExFactoryPrice)
+            : null;
+        } else {
+          // 传了赠品出厂价,
+          commodity.giftExFactoryPrice = commodityData?.giftExFactoryPrice
+            ? String(commodityData?.giftExFactoryPrice)
+            : null;
+        }
+      }
+
       commodity.itemExFactoryPrice = commodityData?.itemExFactoryPrice
         ? String(commodityData?.itemExFactoryPrice)
         : null;

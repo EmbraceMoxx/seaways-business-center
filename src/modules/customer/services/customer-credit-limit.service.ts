@@ -15,6 +15,7 @@ import {
 } from '@src/dto';
 import { CustomerCreditAmountInfoEntity } from '../entities/customer-credit-limit.entity';
 import { IdUtil } from '@src/utils';
+import * as exceljs from 'exceljs';
 import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
@@ -230,15 +231,143 @@ export class CustomerCreditLimitService {
       throw new BusinessException('获取客户额度列表失败');
     }
   }
-
   /**
-   * 导出客户额度列表
+   * 导出表格的配置
+   */
+  async exportToTotalExcelConfig(params: {
+    query: any;
+    user: JwtUserPayload;
+    token: string;
+  }) {
+    const { query, user, token } = params;
+    // 1、创建工作簿
+    const workbook = new exceljs.Workbook();
+    // 2、创建工作表
+    const worksheet = workbook.addWorksheet('客户额度信息');
+    // 3、设置列标题
+    worksheet.columns = [
+      { header: '客户名称', key: 'customerName', width: 36 },
+      { header: '所在区域', key: 'region', width: 15 },
+      { header: '累计发货金额', key: 'shippedAmount', width: 20 },
+      {
+        header: '冻结发货金额',
+        key: 'frozenShippedAmount',
+        width: 25,
+      },
+      {
+        header: '辅销金额',
+        key: 'auxiliarySaleGoodsAmount',
+        width: 20,
+      },
+      {
+        header: '已提辅销金额',
+        key: 'usedAuxiliarySaleGoodsAmount',
+        width: 20,
+      },
+      {
+        header: '冻结产生辅销金额',
+        key: 'frozenSaleGoodsAmount',
+        width: 25,
+      },
+      {
+        header: '冻结使用辅销金额',
+        key: 'frozenUsedSaleGoodsAmount',
+        width: 25,
+      },
+      {
+        header: '剩余辅销金额',
+        key: 'remainAuxiliarySaleGoodsAmount',
+        width: 20,
+      },
+      {
+        header: '货补金额',
+        key: 'replenishingGoodsAmount',
+        width: 15,
+      },
+
+      {
+        header: '已提货补金额',
+        key: 'usedReplenishingGoodsAmount',
+        width: 20,
+      },
+      {
+        header: '冻结产生货补金额',
+        key: 'frozenReplenishingGoodsAmount',
+        width: 25,
+      },
+      {
+        header: '冻结使用货补金额',
+        key: 'frozenUsedReplenishingGoodsAmount',
+        width: 25,
+      },
+      {
+        header: '剩余货补金额',
+        key: 'remainReplenishingGoodsAmount',
+        width: 20,
+      },
+    ];
+    // 4、获取数据
+    const creditExportList = await this.getExportCreditInfoList(
+      query,
+      user,
+      token,
+    );
+
+    // 5、添加数据行
+    for (const item of creditExportList) {
+      worksheet.addRow(
+        {
+          ...item,
+          shippedAmount: MoneyUtil.fromYuan3(item.shippedAmount).toYuan3(),
+          frozenShippedAmount: MoneyUtil.fromYuan3(
+            item.frozenShippedAmount,
+          ).toYuan3(),
+          auxiliarySaleGoodsAmount: MoneyUtil.fromYuan3(
+            item.auxiliarySaleGoodsAmount,
+          ).toYuan3(),
+          usedAuxiliarySaleGoodsAmount: MoneyUtil.fromYuan3(
+            item.usedAuxiliarySaleGoodsAmount,
+          ).toYuan3(),
+          frozenSaleGoodsAmount: MoneyUtil.fromYuan3(
+            item.frozenSaleGoodsAmount,
+          ).toYuan3(),
+          frozenUsedSaleGoodsAmount: MoneyUtil.fromYuan3(
+            item.frozenUsedSaleGoodsAmount,
+          ).toYuan3(),
+          remainAuxiliarySaleGoodsAmount: MoneyUtil.fromYuan3(
+            item.remainAuxiliarySaleGoodsAmount,
+          ).toYuan3(),
+          replenishingGoodsAmount: MoneyUtil.fromYuan3(
+            item.replenishingGoodsAmount,
+          ).toYuan3(),
+          usedReplenishingGoodsAmount: MoneyUtil.fromYuan3(
+            item.usedReplenishingGoodsAmount,
+          ).toYuan3(),
+          frozenReplenishingGoodsAmount: MoneyUtil.fromYuan3(
+            item.frozenReplenishingGoodsAmount,
+          ).toYuan3(),
+          frozenUsedReplenishingGoodsAmount: MoneyUtil.fromYuan3(
+            item.frozenUsedReplenishingGoodsAmount,
+          ).toYuan3(),
+          remainReplenishingGoodsAmount: MoneyUtil.fromYuan3(
+            item.remainReplenishingGoodsAmount,
+          ).toYuan3(),
+        },
+        'n',
+      );
+    }
+
+    // 6、返回工作簿
+    return workbook;
+  }
+  /**
+   * 获取导出的客户额度列表
    * @param query 查询参数
    * @param user
    * @param token
    * @returns 客户额度列表
    */
-  async exportCreditInfoList(
+  async getExportCreditInfoList(
     query: QueryCreditLimitDto,
     user: JwtUserPayload,
     token: string,

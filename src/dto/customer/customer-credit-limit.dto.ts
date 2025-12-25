@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { PageRequestDto } from '@src/dto/common/common.dto';
 
 /**
@@ -21,6 +21,18 @@ export class QueryCreditLimitDto extends PageRequestDto {
   @IsOptional()
   @IsString({ message: '区域必须是字符串' })
   region?: string;
+}
+
+/**
+ * 客户额度列表查询参数DTO
+ */
+export class ExportQueryCreditLimitDto extends QueryCreditLimitDto {
+  @ApiProperty({
+    description: '导出类型',
+  })
+  @IsNotEmpty({ message: '导出类型不能为空' })
+  @IsIn(['1', '2', '3'], { message: '导出类型只能是1或2或3' })
+  exportType: string;
 }
 
 /**

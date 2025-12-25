@@ -6,9 +6,10 @@ import { BusinessException } from '@src/dto/common/common.dto';
 import {
   CreditLimitDetailRequestDto,
   CreditLimitDetailResponseDto,
-  CreditToMonthResponseDto,
+  CreditToMonthORDailyResponseDto,
   QueryCreditLimiDetailtDto,
   QueryCreditToMonthDto,
+  QueryCreditToDailyDto,
 } from '@src/dto';
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import * as dayjs from 'dayjs';
@@ -20,6 +21,7 @@ import { IdUtil } from '@src/utils';
 import { CreditStatusEnum } from '@src/enums/credit-status.enum';
 import { CustomerInfoEntity } from '../entities/customer.entity';
 import { CustomerMonthlyCreditLimitService } from '../services/customer-monthly-credit-limit.server';
+import { CustomerDailyCreditAmountInfoService } from '../services/customer-daily-credit-amount-info.server';
 import { UpdateAmountVector } from '@modules/customer/strategy/credit-update.strategy';
 import { UserService } from '@modules/common/user/user.service';
 
@@ -33,6 +35,7 @@ export class CustomerCreditLimitDetailService {
     private customerCreditLimitService: CustomerCreditLimitService,
     private dataSource: DataSource,
     private customerMonthlyCreditLimitService: CustomerMonthlyCreditLimitService,
+    private customerDailyCreditAmountInfoService: CustomerDailyCreditAmountInfoService,
     private userService: UserService,
   ) {}
 
@@ -442,12 +445,18 @@ export class CustomerCreditLimitDetailService {
 
   /**
    * 获取获取大于等于该时间的流水明细列表，根据客户id分组
+   * @param startTime 开始时间
+   * @param endTime 结束时间
+   * @param customerId 客户ID
+   * @param groupByDate 是否按日期分组
+   * @returns 获取客户额度流水列表
    */
   async getCreditDetailListByCustomerIdAndTime(
     startTime: Date,
     endTime: Date,
-    customerId: string,
-  ): Promise<CreditToMonthResponseDto[]> {
+    customerId?: string,
+    groupByDate = false,
+  ): Promise<CreditToMonthORDailyResponseDto[]> {
     let queryBuilder = this.creditDetailRepository
       .createQueryBuilder('creditDetail')
       .select([
@@ -468,8 +477,20 @@ export class CustomerCreditLimitDetailService {
       .where('creditDetail.status = :status', { status: 1 })
       .andWhere('creditDetail.deleted = :deleted', {
         deleted: GlobalStatusEnum.NO,
-      })
-      .groupBy('creditDetail.customerId');
+      });
+
+    // 根据是否按日期分组添加不同的分组条件
+    if (groupByDate) {
+      // 按客户ID和日期分组（适用日表）
+      queryBuilder = queryBuilder
+        .addSelect("DATE_FORMAT(creditDetail.created_time, '%Y%m%d') as date")
+        .groupBy('creditDetail.customerId')
+        .addGroupBy("DATE_FORMAT(creditDetail.created_time, '%Y%m%d')");
+    } else {
+      // 仅按客户ID分组（适用月表）
+      queryBuilder = queryBuilder.groupBy('creditDetail.customerId');
+    }
+
     // 根据 startTime 进行条件查询
     if (startTime) {
       queryBuilder = queryBuilder.andWhere(
@@ -497,12 +518,12 @@ export class CustomerCreditLimitDetailService {
   }
 
   /**
-   * 把客户额度流水明细存入月度额度
+   * 把客户额度流水明细存入【月度】额度
    */
   async saveCreditDetailToMonth(
     query: QueryCreditToMonthDto,
     user: JwtUserPayload,
-  ): Promise<CreditToMonthResponseDto[]> {
+  ): Promise<CreditToMonthORDailyResponseDto[]> {
     try {
       const saveTime = query.saveTime;
       // 1、获取操作存入的时间(不传入就默认当天)
@@ -533,6 +554,11 @@ export class CustomerCreditLimitDetailService {
           endTime,
           query.customerId,
         );
+
+      if (!creditDetailList || creditDetailList.length === 0) {
+        return [];
+      }
+
       this.logger.log('creditDetailList:', JSON.stringify(creditDetailList));
       // 6、根据流水明细列表【客户ID+年月】以此查询月度表是否存在，不存在则新增后再修改金额
       for (const item of creditDetailList) {
@@ -560,7 +586,7 @@ export class CustomerCreditLimitDetailService {
 
         // 6.2 检测是否已存在
         if (monthlyCredit?.id) {
-          new BusinessException('客户月度流水不存在');
+          throw new BusinessException('客户月度流水不存在');
         }
         // 6.3 修改累加金额 (此时 monthlyCredit 一定不为 null)
         await this.customerMonthlyCreditLimitService.updateWithIncrement(
@@ -569,6 +595,140 @@ export class CustomerCreditLimitDetailService {
           user,
         );
       }
+      return creditDetailList;
+    } catch (error) {
+      throw new BusinessException(error.message);
+    }
+  }
+
+  /**
+   * 把客户额度流水明细存入【日度】额度
+   */
+  async saveCreditDetailToDaily(
+    query: QueryCreditToDailyDto,
+    user: JwtUserPayload,
+  ): Promise<CreditToMonthORDailyResponseDto[]> {
+    try {
+      const { startTime, endTime, customerId } = query;
+
+      // 1、处理时间范围
+      let startDateTime: Date;
+      let endDateTime: Date;
+
+      if (startTime) {
+        startDateTime = TimeFormatterUtil.formatToStandard(startTime, 'start');
+      } else {
+        // 默认查询前一天
+        startDateTime = dayjs().subtract(1, 'day').startOf('day').toDate();
+      }
+
+      if (endTime) {
+        endDateTime = TimeFormatterUtil.formatToStandard(endTime, 'end');
+      } else {
+        // 默认查询前一天
+        endDateTime = dayjs().subtract(1, 'day').endOf('day').toDate();
+      }
+
+      // 2、获取该时间段内的流水明细列表
+      const creditDetailList =
+        await this.getCreditDetailListByCustomerIdAndTime(
+          startDateTime,
+          endDateTime,
+          customerId,
+          true,
+        );
+
+      if (!creditDetailList || creditDetailList.length === 0) {
+        return [];
+      }
+
+      this.logger.log('creditDetailList:', JSON.stringify(creditDetailList));
+
+      const listFormat = creditDetailList.reduce((acc, item) => {
+        if (item.date) {
+          const dateKey = item.date.toString();
+          if (!acc[dateKey]) {
+            acc[dateKey] = [];
+          }
+          acc[dateKey].push(item);
+        }
+        return acc;
+      }, {} as Record<string, CreditToMonthORDailyResponseDto[]>);
+
+      // 3、根据流水明细列表【客户ID+日期】以此查询日度表是否存在，不存在则新增后再修改金额
+      Object.entries(listFormat).forEach(([dateKey, itemsForDate]) => {
+        // 将日期字符串转换为 dayjs 对象来提取年月日
+        const dateObj = dayjs(dateKey, 'YYYYMMDD');
+        const bizYear = dateObj.year();
+        const bizMonth = dateObj.month() + 1;
+        const bizDay = dateObj.date();
+        const bizYearMonthDay = parseInt(dateKey);
+
+        // 对该日期下的每个客户项目进行处理
+        itemsForDate.forEach(async (item) => {
+          // 5、根据客户id和年月日查询日度额度流水
+          const dailyCredit =
+            await this.customerDailyCreditAmountInfoService.findByCustomerIdAndDaily(
+              item.customerId,
+              bizYearMonthDay,
+            );
+          // 6、不存在则先创建
+          if (!dailyCredit) {
+            this.customerDailyCreditAmountInfoService
+              .create(
+                { ...item, bizYear, bizMonth, bizDay, bizYearMonthDay },
+                user,
+              )
+              .then(() => {
+                // 6.5 重新查询获取刚创建的记录
+                return this.customerDailyCreditAmountInfoService.findByCustomerIdAndDaily(
+                  item.customerId,
+                  bizYearMonthDay,
+                );
+              })
+              .then((updatedDailyCredit) => {
+                // 7、更新累加金额
+                if (updatedDailyCredit?.id) {
+                  // 构造更新参数
+                  const updateItem = {
+                    ...item,
+                    bizYear,
+                    bizMonth,
+                    bizDay,
+                    bizYearMonthDay,
+                  };
+
+                  // 调用更新方法更新日度额度金额
+                  return this.customerDailyCreditAmountInfoService.updateDailyCreditWithIncrement(
+                    updateItem,
+                    updatedDailyCredit.id,
+                    user,
+                  );
+                }
+              });
+          } else {
+            // 7、更新累加金额
+            if (dailyCredit?.id) {
+              // 构造更新参数
+              const updateItem = {
+                ...item,
+                bizYear,
+                bizMonth,
+                bizDay,
+                bizYearMonthDay,
+              };
+
+              // 调用更新方法更新日度额度金额
+              return this.customerDailyCreditAmountInfoService.updateDailyCreditWithIncrement(
+                updateItem,
+                dailyCredit.id,
+                user,
+              );
+            }
+          }
+        });
+      });
+
       return creditDetailList;
     } catch (error) {
       throw new BusinessException(error.message);
