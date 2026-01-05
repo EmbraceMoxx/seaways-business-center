@@ -365,7 +365,7 @@ export class OrderController {
           key: 'createdTime',
           width: 27,
           style: {
-            numFmt: 'yyyy-mm-dd hh:mm:ss',
+            numFmt: 'YYYY-MM-DD HH:mm:ss',
             alignment,
           },
         },
@@ -376,7 +376,6 @@ export class OrderController {
         user,
         token,
       );
-
       // 6、添加数据行
       for (const item of exportList) {
         worksheet.addRow(item, 'n');

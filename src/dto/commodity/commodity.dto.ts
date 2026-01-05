@@ -450,7 +450,7 @@ export class CommodityRequestDto {
   })
   @IsOptional()
   @IsNumber({}, { message: '作为赠品的出厂价必须是数字' })
-  @Min(1, { message: '作为赠品的出厂价要大于0' })
+  @Min(0, { message: '作为赠品的出厂价不能小于0' })
   giftExFactoryPrice?: number;
 
   @ApiProperty({
@@ -459,7 +459,7 @@ export class CommodityRequestDto {
   })
   @IsNotEmpty({ message: '单品出厂价不能为空' })
   @IsNumber({}, { message: '出厂价必须是数字' })
-  @Min(1, { message: '出厂价要大于0' })
+  @Min(0, { message: '出厂价不能小于0' })
   itemExFactoryPrice: number;
 
   @ApiProperty({

@@ -1573,7 +1573,9 @@ export class OrderService {
         .addOrderBy('item.type', 'DESC');
 
       const items = await queryBuilder.getRawMany();
-
+      items.forEach((e) => {
+        e.createdTime = dayjs(e.createdTime).format('YYYY-MM-DD HH:mm:ss');
+      });
       return items;
     } catch (error) {
       throw new BusinessException('获取订单列表失败' + error.message);
