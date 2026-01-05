@@ -126,8 +126,9 @@ export class OrderJstService {
       // 只要一个子订单是已发货，则算订单是已发货
       return this.OPERATE_TYPE.SENT;
     }
-    // 所有子订单都是Canceled，整个订单是已取消
+    // 所有子订单都是Canceled，并且主订单是异常状态，则整个订单是已取消 (异常单有没有可以取消异常状态的？)
     if (
+      mainOrder?.status === this.ORDER_STATUS.QUESTION &&
       subOrders.every((order) => order.status === this.ORDER_STATUS.CANCELLED)
     ) {
       return this.OPERATE_TYPE.CANCELLED;
