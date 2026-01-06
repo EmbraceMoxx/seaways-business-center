@@ -16,7 +16,7 @@ interface JstOrderStatus {
 @Injectable()
 export class OrderJstService {
   private readonly logger = new Logger(OrderJstService.name);
-  private readonly BATCH_SIZE = 100;
+  private readonly BATCH_SIZE = 20; // 线上单号不能超过最大数量20
 
   private readonly ORDER_STATUS = {
     SENT: 'Sent', // 已发货
@@ -125,13 +125,6 @@ export class OrderJstService {
     if (subOrders.some((order) => order.status === this.ORDER_STATUS.SENT)) {
       // 只要一个子订单是已发货，则算订单是已发货
       return this.OPERATE_TYPE.SENT;
-    }
-    // 所有子订单都是Canceled，并且主订单是异常状态，则整个订单是已取消 (异常单有没有可以取消异常状态的？)
-    if (
-      mainOrder?.status === this.ORDER_STATUS.QUESTION &&
-      subOrders.every((order) => order.status === this.ORDER_STATUS.CANCELLED)
-    ) {
-      return this.OPERATE_TYPE.CANCELLED;
     }
 
     return null;
