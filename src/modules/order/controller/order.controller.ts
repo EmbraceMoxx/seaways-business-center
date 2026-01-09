@@ -1,5 +1,5 @@
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { Body, Controller, Logger, Param, Post, Res } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, Post, Query, Res } from '@nestjs/common';
 import {
   AddOfflineOrderRequest,
   CancelOrderRequest,
@@ -87,6 +87,15 @@ export class OrderController {
     @CurrentUser() user: JwtUserPayload,
   ) {
     await this.orderService.cancel(req, user);
+    return new SuccessResponseDto('id', '订单已取消！');
+  }
+  @Get('manual-cancel')
+  @ApiOperation({ summary: '取消订单' })
+  async manualCancel(
+    @Query('orderCode') orderCode: string,
+    @CurrentUser() user: JwtUserPayload,
+  ) {
+    await this.orderService.manualCancel(orderCode, user);
     return new SuccessResponseDto('id', '订单已取消！');
   }
   /**

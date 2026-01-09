@@ -39,8 +39,6 @@ export class OrderCheckService {
     private userService: UserService,
     @InjectRepository(OrderMainEntity)
     private orderRepository: Repository<OrderMainEntity>,
-    @InjectRepository(CustomerCreditAmountInfoEntity)
-    private creditAmountInfoRepository: Repository<CustomerCreditAmountInfoEntity>,
     private customerService: CustomerService,
     private commodityService: CommodityService,
     private approvalConfig: ApprovalConfig,
@@ -74,7 +72,7 @@ export class OrderCheckService {
     const orderMain = await this.orderRepository.findOne({
       where: { orderCode: orderCode, deleted: GlobalStatusEnum.NO },
     });
-    this.logger.log(`orderMain:${JSON.stringify(orderMain)}`);
+    this.logger.log(`查询返回：:${JSON.stringify(orderMain)}`);
     if (!orderMain) {
       throw new BusinessException('订单不存在或已被删除');
     }

@@ -14,7 +14,7 @@ import {
 import { JwtUserPayload } from '@modules/auth/jwt.strategy';
 import { TimeFormatterUtil } from '@utils/time-formatter.util';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Or, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { GlobalStatusEnum } from '@src/enums/global-status.enum';
 import { BusinessException } from '@src/dto/common/common.dto';
 import { OrderMainEntity } from '../entities/order.main.entity';
@@ -39,7 +39,6 @@ import { ApprovalEngineService } from '@modules/approval/services/approval-engin
 import { CancelApprovalDto } from '@src/dto';
 import { CustomerService } from '@modules/customer/services/customer.service';
 import { ApprovalConfig } from '@src/configs/approval.config';
-import { CustomerInfoEntity } from '@modules/customer/entities/customer.entity';
 
 @Injectable()
 export class OrderService {
@@ -984,6 +983,48 @@ export class OrderService {
       ...OrderConvertHelper.mergeOrderItems(finalOrderItemList),
     );
   }
+  /**
+   * 手动取消订单
+   * @param orderCode
+   * @param user JWT用户信息，包含用户ID和昵称
+   * @returns 返回已取消的订单ID
+   */
+  async manualCancel(orderCode: string, user: JwtUserPayload): Promise<string> {
+    const lastOperateProgram = 'OrderService.manualCancel';
+    const orderMain = await this.orderCheckService.checkOrderExistByOrderCode(
+      orderCode,
+    );
+    const updateOrder = new OrderMainEntity();
+    updateOrder.id = orderMain.id;
+    updateOrder.orderStatus = String(OrderStatusEnum.CLOSED);
+    updateOrder.reviserId = user.userId ?? '1';
+    updateOrder.reviserName = user.nickName ?? '超级管理员';
+    updateOrder.revisedTime = dayjs().toDate();
+    await this.dataSource.transaction(async (manager) => {
+      // 关闭订单
+      await this.creditLimitDetailService.closeCustomerOrderCredit(
+        orderMain.id,
+        user,
+        false,
+        manager,
+      );
+      // 修改订单
+      await manager.update(OrderMainEntity, { id: orderMain.id }, updateOrder);
+
+      const result = OrderLogHelper.getOrderOperate(
+        user,
+        OrderOperateTemplateEnum.CANCEL_ORDER,
+        lastOperateProgram,
+        orderMain.id,
+      );
+
+      result.action =
+        result.action + ';取消原因为: 审批流程结束，订单数据不满足推单要求！';
+
+      await this.businessLogService.writeLog(result);
+    });
+    return orderMain.id;
+  }
 
   /**
    * 取消订单
@@ -1000,7 +1041,7 @@ export class OrderService {
     }
 
     const updateOrder = new OrderMainEntity();
-    updateOrder.id = req.orderId;
+    updateOrder.id = orderMain.id;
     updateOrder.cancelledMessage = req.cancelReason;
     updateOrder.orderStatus = String(OrderStatusEnum.CLOSED);
     updateOrder.reviserId = user.userId;
@@ -1072,9 +1113,11 @@ export class OrderService {
   async getOrderDetail(orderId: string): Promise<OrderDetailResponseDto> {
     // 查询订单主表信息、订单明细项信息, 操作日志在另一个接口中查询
     // 先查询订单主表信息，如果没有数据则返回异常
+    this.logger.log(`orderId: ${orderId}`);
     const orderMain = await this.orderRepository.findOne({
       where: { id: orderId, deleted: GlobalStatusEnum.NO },
     });
+    this.logger.log(`orderMain: ${JSON.stringify(orderMain)}`);
 
     if (!orderMain) {
       this.logger.warn(`Order not found for orderId: ${orderId}`);
@@ -1364,6 +1407,7 @@ export class OrderService {
     const newIds = new Set(newItems.map((i) => i.id));
     return oldItems.filter((i) => i.id && !newIds.has(i.id)).map((i) => i.id);
   }
+
   private isAmountChanged(oldValue: string, newValue: string): boolean {
     return (
       Math.abs(parseFloat(oldValue || '0') - parseFloat(newValue || '0')) >
