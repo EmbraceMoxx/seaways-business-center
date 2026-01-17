@@ -195,7 +195,7 @@ export class CommodityCustomerPriceRequestDto {
   })
   @IsNotEmpty()
   @IsNumber({}, { message: '出厂价必须是数字' })
-  @Min(1, { message: '出厂价要大于0' })
+  @Min(0, { message: '出厂价要大于0' })
   itemExFactoryPrice: number;
 
   @ApiProperty({
